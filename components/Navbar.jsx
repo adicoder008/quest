@@ -3,10 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { RxHamburgerMenu } from "react-icons/rx";
 import { IoClose } from "react-icons/io5";
-import { Link,useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation'; // Fixed import
 import { auth } from '../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
-// import Feed from '../pages/Feed';
 import { AvatarSelector } from './AvatarSelector';
 import { 
   signUpWithEmail, 
@@ -17,8 +16,16 @@ import {
   signOut,
   getCurrentUserData
 } from '../lib/authService.js';
-import { SearchBar } from './Feed/SearchBar';
-import useRouter from 'next/navigation';
+import { SearchBar } from './Feed_old/SearchBar.jsx';
+
+// Define avatar options (since it was missing)
+const GOOGLE_AVATAR_OPTIONS = [
+  'https://www.gstatic.com/webp/gallery/1.jpg',
+  'https://www.gstatic.com/webp/gallery/2.jpg',
+  'https://www.gstatic.com/webp/gallery/3.jpg',
+  'https://www.gstatic.com/webp/gallery/4.jpg',
+  'https://www.gstatic.com/webp/gallery/5.jpg'
+];
 
 const Navbar = () => {
   const router = useRouter();
@@ -26,9 +33,8 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState("home");
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authStep, setAuthStep] = useState('initial'); // 'initial', 'phone-verify', 'email-signin', 'email-signup'
+  const [authStep, setAuthStep] = useState('initial');
 
-  
   // Auth states
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -43,8 +49,6 @@ const Navbar = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(null);
-
-
 
   // Monitor auth state
   useEffect(() => {
@@ -68,18 +72,20 @@ const Navbar = () => {
     return () => unsubscribe();
   }, []);
 
-
   useEffect(() => {
-    // Set active menu based on URL
-    const path = location.pathname;
-    if (path === "/") setSelectedSection("home");
-    else if (path.includes("TripPlanner")) setSelectedSection("Trip Planner");
-    else if (path.includes("Events")) setSelectedSection("Events");
-    else if (path.includes("About")) setSelectedSection("About Us");
-    else if (path.includes("Contact")) setSelectedSection("Contact Us");
-  }, [location.pathname]);
+    // Set active menu based on URL (for Next.js)
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path === "/") setSelectedSection("home");
+      else if (path.includes("TripPlanner")) setSelectedSection("Trip Planner");
+      else if (path.includes("Events")) setSelectedSection("Events");
+      else if (path.includes("About")) setSelectedSection("About Us");
+      else if (path.includes("Contact")) setSelectedSection("Contact Us");
+    }
+  }, []);
 
   const toggleAuthModal = () => {
+    console.log("toggleAuthModal called, current state:", showAuthModal); // Debug log
     setShowAuthModal(!showAuthModal);
     resetForm();
   };
@@ -92,77 +98,80 @@ const Navbar = () => {
     setPassword('');
     setDisplayName('');
     setError('');
+    setIsLoading(false);
   };
 
- const handlePhoneLogin = async () => {
-  try {
-    // Validate phone number
-    if (!phoneNumber || phoneNumber.length !== 10) {
-      setError('Please enter a valid 10-digit phone number.');
-      return;
+  const handlePhoneLogin = async () => {
+    try {
+      if (!phoneNumber || phoneNumber.length !== 10) {
+        setError('Please enter a valid 10-digit phone number.');
+        return;
+      }
+
+      setError('');
+      setAuthStep('phone-verify');
+      setIsLoading(true);
+
+      await sendPhoneVerificationCode(`+91${phoneNumber}`, 'recaptcha-container');
+    } catch (error) {
+      console.error('Phone login error:', error);
+      setError(error.message || 'Failed to send verification code');
+    } finally {
+      setIsLoading(false);
     }
-
-
-    // Update UI state
-    setError('');
-    setAuthStep('phone-verify');
-    setIsLoading(true);
-
-    // Send verification code
-    await sendPhoneVerificationCode(`+91${phoneNumber}`, 'recaptcha-container');
-  } catch (error) {
-    setError(error.message);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleVerifyCode = async () => {
     try {
       setError('');
+      setIsLoading(true);
       await verifyPhoneCode(verificationCode, displayName || null);
       toggleAuthModal();
-      navigate('/Feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error) {
-      setError(error.message);
+      console.error('Verify code error:', error);
+      setError(error.message || 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEmailSignIn = async () => {
     try {
       setError('');
+      setIsLoading(true);
       await signInWithEmail(email, password);
       toggleAuthModal();
-      navigate('/Feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error) {
-      setError(error.message);
+      console.error('Email signin error:', error);
+      setError(error.message || 'Sign in failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEmailSignUp = async (avatar) => {
+  const handleEmailSignUp = async () => {
     try {
       setError('');
       setIsLoading(true);
       
-      // Basic validation
       if (!email || !password || !displayName) {
         throw new Error('Please fill all fields');
       }
-  
-      const finalAvatar = avatar || 
+
+      const finalAvatar = selectedAvatar || 
         GOOGLE_AVATAR_OPTIONS[Math.floor(Math.random() * GOOGLE_AVATAR_OPTIONS.length)];
       
       await signUpWithEmail(email, password, displayName, finalAvatar);
       
-      // Show success message
       setError('');
-      setAuthStep('initial');
-      setShowAuthModal(false);
-      
-      // Optional: Show toast notification
+      toggleAuthModal();
       alert('Sign up successful! Welcome to our community!');
+      router.push('/feed'); // Navigate to feed after signup
       
     } catch (error) {
+      console.error('Email signup error:', error);
       setError(error.message || 'Sign up failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -172,20 +181,30 @@ const Navbar = () => {
   const handleGoogleSignIn = async () => {
     try {
       setError('');
+      setIsLoading(true);
       await signInWithGoogle();
       toggleAuthModal();
-      navigate('/Feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error) {
-      setError(error.message);
+      console.error('Google signin error:', error);
+      setError(error.message || 'Google sign in failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSignOut = async () => {
     try {
       await signOut();
+      router.push('/'); // Navigate to home after signout
     } catch (error) {
       console.error("Error signing out:", error);
     }
+  };
+
+  const handleNavigation = (path) => {
+    router.push(path);
+    setIsOpen(false); // Close mobile menu
   };
 
   const renderAuthContent = () => {
@@ -205,16 +224,17 @@ const Navbar = () => {
                 placeholder="Enter Mobile Number"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                maxLength={10}
               />
             </div>
 
             {/* Continue Button */}
             <button 
-              className={`w-full ${phoneNumber ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
-              disabled={!phoneNumber}
+              className={`w-full ${phoneNumber && !isLoading ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
+              disabled={!phoneNumber || isLoading}
               onClick={handlePhoneLogin}
             >
-              Continue
+              {isLoading ? 'Sending...' : 'Continue'}
             </button>
 
             {/* Divider */}
@@ -226,16 +246,17 @@ const Navbar = () => {
 
             {/* Google Login */}
             <button 
-              className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md"
+              className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md hover:bg-gray-50 disabled:opacity-50"
               onClick={handleGoogleSignIn}
+              disabled={isLoading}
             >
               <img src="google.png" alt="Google" className="w-6 h-6" />
-              <span className="font-medium">Log in with Google</span>
+              <span className="font-medium">{isLoading ? 'Signing in...' : 'Log in with Google'}</span>
             </button>
 
             {/* Email Login */}
             <button 
-              className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md"
+              className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md hover:bg-gray-50"
               onClick={() => setAuthStep('email-signin')}
             >
               <img src="mail.png" alt="Email" className="w-6 h-6" />
@@ -251,7 +272,6 @@ const Navbar = () => {
           <>
             <p className="text-gray-600">We've sent a verification code to +91 {phoneNumber}</p>
             
-            {/* Verification Code Input */}
             <div className="flex items-center border border-gray-400 rounded-lg h-14 px-2">
               <input
                 type="text"
@@ -259,10 +279,10 @@ const Navbar = () => {
                 placeholder="Enter verification code"
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
+                maxLength={6}
               />
             </div>
             
-            {/* For new users, ask for display name */}
             {!user && (
               <div className="flex items-center border border-gray-400 rounded-lg h-14 px-2">
                 <input
@@ -275,17 +295,16 @@ const Navbar = () => {
               </div>
             )}
 
-            {/* Verify Button */}
             <button 
-              className={`w-full ${verificationCode ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
-              disabled={!verificationCode}
+              className={`w-full ${verificationCode && !isLoading ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
+              disabled={!verificationCode || isLoading}
               onClick={handleVerifyCode}
             >
-              Verify & Continue
+              {isLoading ? 'Verifying...' : 'Verify & Continue'}
             </button>
             
             <button 
-              className="text-blue-500"
+              className="text-blue-500 hover:underline"
               onClick={() => setAuthStep('initial')}
             >
               Back
@@ -317,17 +336,17 @@ const Navbar = () => {
             </div>
 
             <button 
-              className={`w-full ${email && password ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
-              disabled={!email || !password}
+              className={`w-full ${email && password && !isLoading ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
+              disabled={!email || !password || isLoading}
               onClick={handleEmailSignIn}
             >
-              Sign In
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
             
             <p className="text-center">
               Don't have an account?{" "}
               <button 
-                className="text-blue-500"
+                className="text-blue-500 hover:underline"
                 onClick={() => setAuthStep('email-signup')}
               >
                 Sign Up
@@ -335,7 +354,7 @@ const Navbar = () => {
             </p>
             
             <button 
-              className="text-blue-500"
+              className="text-blue-500 hover:underline"
               onClick={() => setAuthStep('initial')}
             >
               Back
@@ -355,9 +374,10 @@ const Navbar = () => {
                 onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
+            
             <AvatarSelector 
-        onSelect={(avatar) => setSelectedAvatar(avatar)} 
-      />
+              onSelect={(avatar) => setSelectedAvatar(avatar)} 
+            />
 
             <div className="flex items-center border border-gray-400 rounded-lg h-14 px-2">
               <input
@@ -373,24 +393,25 @@ const Navbar = () => {
               <input
                 type="password"
                 className="w-full outline-none text-gray-700"
-                placeholder="Password"
+                placeholder="Password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
               />
             </div>
 
             <button 
-              className={`w-full ${email && password && displayName ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
-              disabled={!email || !password || !displayName}
+              className={`w-full ${email && password && displayName && !isLoading ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
+              disabled={!email || !password || !displayName || isLoading}
               onClick={handleEmailSignUp}
             >
-              Sign Up
+              {isLoading ? 'Creating account...' : 'Sign Up'}
             </button>
             
             <p className="text-center">
               Already have an account?{" "}
               <button 
-                className="text-blue-500"
+                className="text-blue-500 hover:underline"
                 onClick={() => setAuthStep('email-signin')}
               >
                 Sign In
@@ -398,7 +419,7 @@ const Navbar = () => {
             </p>
             
             <button 
-              className="text-blue-500"
+              className="text-blue-500 hover:underline"
               onClick={() => setAuthStep('initial')}
             >
               Back
@@ -414,7 +435,6 @@ const Navbar = () => {
   return (
     <div className="NAVBAR sticky flex justify-between shadow-md items-center px-2 mt-1.5 md:px-10">
       <div className="flex">
-        {/* Hamburger Menu */}
         <button
           className="md:hidden px-2 mt-3"
           onClick={() => setIsOpen(true)}
@@ -423,28 +443,46 @@ const Navbar = () => {
         </button>
 
         <img src='/OQLogoNew.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="" />
-        <div className="hidden  py-[0.7rem] md:flex items-center ml-2">
-        <SearchBar />
+        <div className="hidden py-[0.7rem] md:flex items-center ml-2">
+          <SearchBar />
         </div>
-       
-
       </div>  
 
       {/* Desktop Menu */}
-      <div className="hidden md:flex gap-[3vw]  items-center cursor-pointer">
-        <Link to='/' className={`hover:text-black ${selectedSection === "home" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`} 
-          onClick={() => setSelectedSection("home")}>Home</Link>
-        <Link to='/TripPlanner' className={`hover:text-black ${selectedSection === "Trip Planner" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`} 
-          onClick={() => setSelectedSection("Trip Planner")}>Trip Planner</Link>
-        <Link to='/Events' className={`hover:text-black ${selectedSection === "Events" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`} 
-          onClick={() => setSelectedSection("Events")}>Events</Link>
-        <Link to='/About' className={`hover:text-black ${selectedSection === "About Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`} 
-          onClick={() => setSelectedSection("About Us")}>About Us</Link>
-        <Link to='/contact' className={`hover:text-black ${selectedSection === "Contact Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`} 
-          onClick={() => setSelectedSection("Contact Us")}>Contact Us</Link>
+      <div className="hidden md:flex gap-[3vw] items-center cursor-pointer">
+        <button 
+          onClick={() => handleNavigation('/')} 
+          className={`hover:text-black ${selectedSection === "home" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
+        >
+          Home
+        </button>
+        <button 
+          onClick={() => handleNavigation('/TripPlanner')} 
+          className={`hover:text-black ${selectedSection === "Trip Planner" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
+        >
+          Trip Planner
+        </button>
+        <button 
+          onClick={() => handleNavigation('/Events')} 
+          className={`hover:text-black ${selectedSection === "Events" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
+        >
+          Events
+        </button>
+        <button 
+          onClick={() => handleNavigation('/About')} 
+          className={`hover:text-black ${selectedSection === "About Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
+        >
+          About Us
+        </button>
+        <button 
+          onClick={() => handleNavigation('/contact')} 
+          className={`hover:text-black ${selectedSection === "Contact Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
+        >
+          Contact Us
+        </button>
       </div>
 
-      {/* User Section */}
+      {/* User Section - Fixed click handler */}
       {loading ? (
         <div className="h-[34px] w-[100px] bg-gray-200 animate-pulse rounded"></div>
       ) : user ? (
@@ -463,7 +501,7 @@ const Navbar = () => {
           <div className="flex flex-col ml-2">
             <span className="text-sm font-medium">{userData?.displayName || 'User'}</span>
             <button 
-              className="text-xs text-blue-500 text-left"
+              className="text-xs text-blue-500 text-left hover:underline"
               onClick={handleSignOut}
             >
               Sign Out
@@ -471,15 +509,24 @@ const Navbar = () => {
           </div>
         </div>
       ) : (
-        <div className="flex cursor-pointer" onClick={toggleAuthModal}>
-          <img src="/UserIcon.png" className="w-[34px]" alt="" />
-          <div className="flex justify-center items-center ml-2">
+        <button 
+          className="flex cursor-pointer hover:opacity-80 bg-transparent border-none p-0 items-center" 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("Sign-In/Up button clicked!"); // Debug log
+            setShowAuthModal(true);
+          }}
+          style={{ background: 'none', border: 'none' }}
+        >
+          <img src="/UserIcon.png" className="w-[34px]" alt="User Icon" />
+          <div className="flex justify-center items-center ml-2 text-black">
             Sign-In/Up
           </div>
-        </div>
+        </button>
       )}
 
-      {/* Mobile Sidebar (Sliding Menu) */}
+      {/* Mobile Sidebar */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300 z-30 ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -492,7 +539,6 @@ const Navbar = () => {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Close Button */}
         <button
           className="absolute top-4 right-4 text-gray-600"
           onClick={() => setIsOpen(false)}
@@ -500,7 +546,6 @@ const Navbar = () => {
           <IoClose size={24} />
         </button>
 
-        {/* User Info (if logged in) */}
         {user && (
           <div className="flex items-center p-4 border-b">
             {user.photoURL ? (
@@ -517,7 +562,7 @@ const Navbar = () => {
             <div className="ml-2">
               <div className="font-medium">{userData?.displayName || 'User'}</div>
               <button 
-                className="text-sm text-blue-500"
+                className="text-sm text-blue-500 hover:underline"
                 onClick={handleSignOut}
               >
                 Sign Out
@@ -526,73 +571,64 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* Menu Items */}
         <ul className="flex flex-col gap-6 p-6 text-lg mt-10">
-          <li className="hover:text-blue-500 cursor-pointer">Home</li>
-          <li className="hover:text-blue-500 cursor-pointer">Trip Planner</li>
-          <li className="hover:text-blue-500 cursor-pointer">Events</li>
-          <li className="hover:text-blue-500 cursor-pointer">About Us</li>
-          <li className="hover:text-blue-500 cursor-pointer">Contact Us</li>
+          <li className="hover:text-blue-500 cursor-pointer" onClick={() => handleNavigation('/')}>Home</li>
+          <li className="hover:text-blue-500 cursor-pointer" onClick={() => handleNavigation('/TripPlanner')}>Trip Planner</li>
+          <li className="hover:text-blue-500 cursor-pointer" onClick={() => handleNavigation('/Events')}>Events</li>
+          <li className="hover:text-blue-500 cursor-pointer" onClick={() => handleNavigation('/About')}>About Us</li>
+          <li className="hover:text-blue-500 cursor-pointer" onClick={() => handleNavigation('/contact')}>Contact Us</li>
         </ul>
       </div>
 
-      {/* Sign In/Sign Up Modal */}
+      {/* Auth Modal */}
       {showAuthModal && (
-        <>
-          {/* Modal Overlay */}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4"
+          onClick={toggleAuthModal}
+        >
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center"
-            onClick={toggleAuthModal}
+            className="flex w-full max-w-2xl h-auto bg-white rounded-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Content */}
-            <div 
-              className="flex w-full max-w-2xl h-auto bg-white rounded-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Left Image Section */}
-              <div className="hidden md:block relative w-2/5">
-                <img 
-                  className="w-full h-full object-cover rounded-l-xl" 
-                  src="login.png" 
-                  alt="Travel" 
-                />
-                <div className="absolute bottom-8 left-4 text-white text-3xl">
-                  <i className="font-bold">Travel</i>
-                  <i> with us</i>
-                </div>
-              </div>
-
-              {/* Right Form Section */}
-              <div className="w-full md:w-3/5 p-6 flex flex-col gap-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-black">
-                    {authStep === 'email-signup' ? 'Create Account' : 'Log in to OnQuest'}
-                  </h2>
-                  <button onClick={toggleAuthModal}>
-                    <IoClose size={24} />
-                  </button>
-                </div>
-                
-                {/* Error message */}
-                {error && (
-                  <div className="bg-red-100 text-red-600 p-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                
-                {renderAuthContent()}
-                
-                {/* Terms - show only on initial screen */}
-                {authStep === 'initial' && (
-                  <p className="text-center text-sm text-gray-500">
-                    By proceeding, you agree to our <span className="text-blue-500">T&C</span> and
-                    <span className="text-blue-500"> Privacy policy</span>
-                  </p>
-                )}
+            <div className="hidden md:block relative w-2/5">
+              <img 
+                className="w-full h-full object-cover rounded-l-xl" 
+                src="login.png" 
+                alt="Travel" 
+              />
+              <div className="absolute bottom-8 left-4 text-white text-3xl">
+                <i className="font-bold">Travel</i>
+                <i> with us</i>
               </div>
             </div>
+
+            <div className="w-full md:w-3/5 p-6 flex flex-col gap-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-black">
+                  {authStep === 'email-signup' ? 'Create Account' : 'Log in to OnQuest'}
+                </h2>
+                <button onClick={toggleAuthModal} className="hover:bg-gray-100 p-1 rounded">
+                  <IoClose size={24} />
+                </button>
+              </div>
+              
+              {error && (
+                <div className="bg-red-100 text-red-600 p-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+              
+              {renderAuthContent()}
+              
+              {authStep === 'initial' && (
+                <p className="text-center text-sm text-gray-500">
+                  By proceeding, you agree to our <span className="text-blue-500">T&C</span> and
+                  <span className="text-blue-500"> Privacy policy</span>
+                </p>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
