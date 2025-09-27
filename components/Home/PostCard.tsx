@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, MapPin } from 'lucide-react';
 import CommentModal from './CommentModal';
 import { Post, User } from '../../app/types/index';
+import { FaUser } from "react-icons/fa";
+import { FaHeartbeat } from "react-icons/fa";
+import { FaRegCommentDots } from "react-icons/fa";
+import { FaShareSquare } from "react-icons/fa";
+
+
 
 interface PostCardProps {
   post: Post;
@@ -113,14 +119,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <img 
-              src={post.userProfilePic || '/default-avatar.png'} 
+            
+            {/* {post.userProfilePic &&  <img 
+              src={post.userProfilePic } 
               alt={post.userName}
               className="w-6 h-6 rounded-full object-cover"
-            />
+            /> */}
+            {/* } */}
+            {/* {!post.userProfilePic && */}
+              <FaUser className="size-5 rounded-full object-cover text-white bg-gray-600" />
+            {/* } */}
+            
             <span className="text-peach-200 text-sm">{post.userName}</span>
           </div>
-          <span className="text-white text-lg">{formatTime(post.createdAt)}</span>
+          <span className="text-white text-[1rem]">{formatTime(post.createdAt)}</span>
         </div>
         
         <div className="flex items-center gap-3">
@@ -142,16 +154,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
               onClick={handleLike}
               className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-white'}`}
             >
-              <Heart className={`w-6 h-6 ${liked ? 'fill-current' : ''}`} />
+              {/* <Heart className={`w-6 h-6 ${liked ? 'fill-current' : ''}`} /> */}
+              <FaHeartbeat className='text-red-500' size={24} />
             </button>
             <button 
               onClick={() => setShowComments(true)}
               className="text-white"
             >
-              <MessageCircle className="w-6 h-6" />
+              {/* <MessageCircle className="w-6 h-6" /> */}
+              <FaRegCommentDots size={24} className='' />
             </button>
             <button className="text-white">
-              <Share className="w-6 h-6" />
+              {/* <Share className="w-6 h-6" /> */}
+              <FaShareSquare size={24} className=''/>
             </button>
           </div>
           <button 

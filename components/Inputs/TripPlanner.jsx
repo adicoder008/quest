@@ -21,7 +21,7 @@ const ProgressBar = ({ page, totalPages }) => {
       <div className="flex flex-col items-center justify-center p-6 space-y-4 w-full">
         <div className="w-[80vw] bg-gray-200 rounded-full h-[0.35rem]">
           <div
-            className="bg-[#F86F0A] h-[0.35rem] rounded-full transition-all duration-300"
+            className="bg-[#F7CEB0] h-[0.35rem] rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
@@ -204,10 +204,10 @@ const TripPlanner = () => {
   return (
     <>
       <Nav />
-      <div className="bg-[#FFFFFF] w-full h-[80vh] flex flex-col items-center justify-between mt-[20px] gap-3">
+      <div className="bg-[black] w-full h-[80vh] flex flex-col items-center justify-between mt-[20px] gap-3">
         <div className="flex flex-col items-center justify-center w-full gap-1 mt-2">
-          <div className="text-[2.5rem] text-center font-arsenal italic">
-            AI <span className="text-[#EA6100] font-arsenal font-[700]">trip</span> planner
+          <div className="text-[2.5rem] text-[#F7CEB0] text-center font-arsenal italic">
+            AI <span className=" font-arsenal font-[600]">QUEST</span> planner
           </div>
           <div>My Trip</div>
           <div className="text-[#8B8A8F]">Step {page} of {totalPages}</div>
