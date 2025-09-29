@@ -1,5 +1,5 @@
 import React from "react";
-import { SearchBar } from "../Feed/SearchBar";
+import { SearchBar } from "../Feed_old/SearchBar";
 
 export const Navbar = () => {
   return (
