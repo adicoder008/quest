@@ -28,7 +28,7 @@ const center = {
 export const MapView: React.FC<MapViewProps> = ({ places }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: "YOUR_API_KEY" // This should be replaced with your actual API key
+    googleMapsApiKey: "AIzaSyCIjXgfx-LgVlRysQAEBFEzwZ4C16QW-M0" // This should be replaced with your actual API key
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
