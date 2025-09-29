@@ -1,28 +1,477 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, MessageCircle } from 'lucide-react';
-import { subscribeToPosts, likePost, addComment } from '../../../lib/postService';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin } from 'lucide-react';
+import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
 import { getCurrentUserData } from '../../../lib/authService';
-import { auth } from '../../../lib/firebase';
+import { auth, db } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import CreatePostModal from '../../../components/Home/CreatePostModal';
 import PostCard from '../../../components/Home/PostCard';
-import { Post, User } from '../../types/index';
-// import { header } from '@/components/PhoneComponents/header';
+import { User, Post } from '../../types/index';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
+import useResponsive from '../../../hooks/useResponsive';
+import CreatePost from '@/components/Feed_old/CreatePost';
+import Navbar from '@/components/Nav';
+import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { getDoc, doc } from 'firebase/firestore';
+import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
+const ResponsiveFeedPage = () => {
+  const isDesktop = useResponsive(768);
 
+  if (isDesktop) {
+    return <Feed />;
+  }
+  
+  return <MobileFeedPage />;
+};
 
-const FeedPage = () => {
+const Feed = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [popularUsers, setPopularUsers] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        try {
+          const userDetails = await getCurrentUserData();
+          setUserData(userDetails);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        setUserData(null);
+      }
+      
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribePosts = onSnapshot(
+      query(collection(db, 'posts'), orderBy('createdAt', 'desc')),
+      async (snapshot) => {
+        const postsData = [];
+        
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          let authorName = 'Anonymous';
+          let authorAvatar = '/default-avatar.png';
+          let authorTitle = '';
+          
+          try {
+            const userDoc = await getDoc(doc(db, 'users', data.userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              authorName = userData.displayName || authorName;
+              authorAvatar = userData.photoURL || authorAvatar;
+              authorTitle = userData.title || '';
+            }
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+          }
+    
+          postsData.push({
+            id: doc.id,
+            author: {
+              id: data.userId,
+              name: authorName,
+              avatar: authorAvatar,
+              title: data.postType === 'sponsored' ? 'Sponsored' : authorTitle
+            },
+            content: {
+              text: data.text,
+              images: data.photoUrl ? [data.photoUrl] : []
+            },
+            metadata: {
+              time: '',
+              location: data.location || '',
+              createdAt: data.createdAt
+            },
+            stats: {
+              likes: data.likeCount || 0,
+              comments: data.commentCount || 0,
+              likedBy: data.likedBy || []
+            },
+            postType: data.postType,
+            ...(data.eventDetails && { eventDetails: data.eventDetails }),
+            ...(data.questContext && { questContext: data.questContext })
+          });
+        }
+        
+        setPosts(postsData);
+      }
+    );
+  
+    const unsubscribeEvents = onSnapshot(
+      query(collection(db, 'events'), orderBy('startTime', 'asc')),
+      (snapshot) => {
+        const eventsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          formattedDate: {
+            day: new Date(doc.data().startTime).getDate(),
+            month: new Date(doc.data().startTime).toLocaleString('default', { month: 'short' })
+          }
+        }));
+        setEvents(eventsData.slice(0, 5));
+      }
+    );
+  
+    const unsubscribeUsers = onSnapshot(
+      query(collection(db, 'users'), orderBy('followers', 'desc')),
+      (snapshot) => {
+        const usersData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          photoURL: doc.data().photoURL || '/default-avatar.png',
+          followers: doc.data().followers || []
+        }));
+        setPopularUsers(usersData.slice(0, 4));
+      }
+    );
+  
+    return () => {
+      unsubscribePosts();
+      unsubscribeEvents();
+      unsubscribeUsers();
+    };
+  }, []);
+
+  const handleLike = async (postId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      const post = posts.find(p => p.id === postId);
+      const isLiked = post?.stats?.likedBy?.includes(user.uid);
+      
+      const postRef = firestoreDoc(db, 'posts', postId);
+      
+      if (isLiked) {
+        await updateDoc(postRef, {
+          likedBy: arrayRemove(user.uid),
+          likeCount: increment(-1)
+        });
+      } else {
+        await updateDoc(postRef, {
+          likedBy: arrayUnion(user.uid),
+          likeCount: increment(1)
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
+  const handleFollow = async (userId: string) => {
+    if (!user?.uid || userId === user.uid) return;
+    
+    try {
+      const userToFollow = popularUsers.find(u => u.id === userId);
+      const isFollowing = userToFollow?.followers?.includes(user.uid);
+      
+      if (isFollowing) {
+        await unfollowUser(user.uid, userId);
+      } else {
+        await followUser(user.uid, userId);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Event Card Component
+  const EventCard = ({ date, title, location, type = "other" }) => {
+    const getTypeColor = () => {
+      switch (type) {
+        case "music": return "bg-blue-500";
+        case "workshop": return "bg-green-500";
+        case "meetup": return "bg-purple-500";
+        case "festival": return "bg-yellow-500";
+        default: return "bg-[#EA6100]";
+      }
+    };
+
+    return (
+      <div className="flex items-center gap-3">
+        <div className={`flex flex-col items-center justify-center min-w-[48px] h-12 ${getTypeColor()} rounded-lg text-white`}>
+          <span className="text-sm font-medium">{date.month}</span>
+          <span className="text-base font-bold">{date.day}</span>
+        </div>
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-white">{title}</h3>
+          <p className="text-xs text-gray-400">{location}</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Traveler Card Component
+  const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }) => {
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img src={avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
+          <div>
+            <h3 className="text-sm font-medium text-white">{name}</h3>
+            <p className="text-xs text-gray-400">{title}</p>
+          </div>
+        </div>
+        <button
+          onClick={onFollow}
+          className={`text-xs px-3 py-1 rounded-full transition-colors ${
+            isFollowing 
+              ? 'bg-gray-700 text-white hover:bg-gray-600' 
+              : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+          }`}
+        >
+          {isFollowing ? 'Following' : 'Follow'}
+        </button>
+      </div>
+    );
+  };
+
+  // Desktop Post Component
+  const DesktopPost = ({ post }) => {
+    const isLiked = post.stats?.likedBy?.includes(user?.uid);
+
+    return (
+      <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
+        {/* Post Header */}
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <img 
+              src={post.author.avatar} 
+              alt={post.author.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <h3 className="text-base font-medium text-white">{post.author.name}</h3>
+              <p className="text-sm text-gray-400">
+                {formatTime(post.metadata.createdAt)} · {post.metadata.location}
+              </p>
+            </div>
+          </div>
+          <MoreHorizontal className="w-6 h-6 text-gray-400 cursor-pointer" />
+        </div>
+
+        {/* Post Content */}
+        {post.content.text && (
+          <p className="px-4 pb-3 text-white">{post.content.text}</p>
+        )}
+
+        {/* Images */}
+        {post.content.images && post.content.images.length > 0 && (
+          <div className="px-4 pb-3">
+            {post.content.images.map((image, index) => (
+              <img
+                key={index}
+                src={image}
+                alt={`Post content ${index}`}
+                className="w-full rounded-lg object-cover"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="border-t border-gray-700 px-4 py-3">
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => handleLike(post.id)}
+              className={`flex items-center gap-2 transition-colors ${
+                isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+              }`}
+            >
+              <FaHeartbeat className="w-6 h-6" />
+              <span className="text-sm">{post.stats.likes}</span>
+            </button>
+            
+            <button className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors">
+              <FaRegCommentDots className="w-6 h-6" />
+              <span className="text-sm">{post.stats.comments}</span>
+            </button>
+            
+            <button className="text-gray-400 hover:text-[#F7CEB0] transition-colors">
+              <FaShareSquare className="w-6 h-6" />
+            </button>
+
+            <button className="ml-auto text-gray-400 hover:text-[#F7CEB0] transition-colors">
+              <Bookmark className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  if (loading) {
+    return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <Navbar />
+
+      <main className="box-border flex gap-4 max-w-[1800px] mx-auto px-[67px] py-5 max-md:flex-col max-md:p-5 max-sm:p-2.5">
+        {/* Left Sidebar */}
+        <aside className="w-[332px] max-md:w-full">
+          <div className="border bg-gray-900 mb-3 rounded-lg border-gray-700">
+            <div className="h-[76px] overflow-hidden bg-gradient-to-r from-gray-800 to-gray-900 rounded-t-lg">
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets/TEMP/9e602cf47f7f87365e5624f662b21dd3f5655dcf"
+                alt="Cover"
+                className="w-full h-full object-cover opacity-50"
+              />
+            </div>
+            <div className="p-5">
+              {user ? (
+                <>
+                  <img
+                    src={user.photoURL || '/default-avatar.png'}
+                    alt="Profile"
+                    className="-mt-10 mb-2.5 w-16 h-16 rounded-full object-cover border-2 border-[#F7CEB0]"
+                  />
+                  <h2 className="text-xl mb-1 text-white">{user.displayName || 'User'}</h2>
+                  <p className="text-sm text-gray-400">
+                    {userData?.title || 'Travel Enthusiast'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="-mt-10 mb-2.5 w-16 h-16 bg-gray-700 rounded-full"></div>
+                  <h2 className="text-xl mb-1 text-white">Guest</h2>
+                  <p className="text-sm text-gray-400">Sign in to post</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <nav className="border bg-gray-900 p-3 rounded-lg border-gray-700">
+            <div className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
+              <Search className="w-5 h-5" />
+              <span>Events</span>
+            </div>
+            <div className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
+              <Bookmark className="w-5 h-5" />
+              <span>Saved</span>
+            </div>
+          </nav>
+        </aside>
+
+        {/* Main Feed */}
+        <section className="w-[680px] max-md:w-full">
+          {user && <CreatePost onPostCreated={() => {}} />}
+            
+          {posts.map((post) => (
+            <DesktopPost key={post.id} post={post} />
+          ))}
+
+          {posts.length === 0 && (
+            <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
+              <h3 className="text-lg font-medium mb-2 text-white">No posts yet</h3>
+              <p className="text-gray-400">
+                {user ? "Be the first to share your travel experience!" : "Sign in to see posts"}
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Right Sidebar */}
+        <aside className="w-[332px] max-md:w-full">
+          <div className="border bg-gray-900 p-4 rounded-lg border-gray-700">
+            <h2 className="text-base font-medium mb-4 text-white">Upcoming Events</h2>
+            <div className="flex flex-col gap-3">
+              {events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  date={{
+                    day: new Date(event.startTime).getDate().toString(),
+                    month: new Date(event.startTime).toLocaleString('default', { month: 'short' })
+                  }}
+                  title={event.title}
+                  location={event.location}
+                  type={event.type || 'other'}
+                />
+              ))}
+              {events.length === 0 && (
+                <p className="text-sm text-gray-400">No upcoming events</p>
+              )}
+              <button className="text-[#F7CEB0] text-sm font-medium mt-2 hover:underline">
+                Explore more
+              </button>
+            </div>
+          </div>
+
+          <div className="border bg-gray-900 mt-4 p-4 rounded-lg border-gray-700">
+            <h2 className="text-base font-medium mb-4 text-white">Popular Travelers</h2>
+            <div className="flex flex-col gap-3">
+              {popularUsers.map((traveler) => (
+                <TravelerCard
+                  key={traveler.id}
+                  name={traveler.displayName}
+                  title={traveler.title || 'Travel Enthusiast'}
+                  avatar={traveler.photoURL || '/default-avatar.png'}
+                  onFollow={() => handleFollow(traveler.id)}
+                  isFollowing={traveler.followers?.includes(user?.uid)}
+                />
+              ))}
+              {popularUsers.length === 0 && (
+                <p className="text-sm text-gray-400">No popular travelers yet</p>
+              )}
+              <button className="text-[#F7CEB0] text-sm font-medium mt-2 hover:underline">
+                Explore more
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {user && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <button
+              onClick={() => navigate('/create-quest')}
+              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F7CEB0] focus:ring-opacity-50"
+              aria-label="Create new quest"
+            >
+              <FaPlus className="text-xl" />
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Subscribe to auth changes
     const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
         try {
@@ -42,7 +491,6 @@ const FeedPage = () => {
       }
     });
 
-    // Subscribe to posts updates
     const unsubscribePosts = subscribeToPosts((newPosts: Post[]) => {
       setPosts(newPosts);
       setLoading(false);
@@ -59,7 +507,6 @@ const FeedPage = () => {
     
     try {
       await likePost(postId, user.uid);
-      // Update local state optimistically
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, likeCount: post.likeCount + 1 }
@@ -81,7 +528,6 @@ const FeedPage = () => {
         text: commentText.trim()
       });
       
-      // Update local state
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, commentCount: post.commentCount + 1 }
@@ -92,15 +538,14 @@ const FeedPage = () => {
     }
   };
 
-  // Show login message if user is not authenticated
   if (!user && !loading) {
     return (
-      <div className="w-full min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="w-full min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Please sign in to view the feed</h2>
           <button 
             onClick={() => window.location.href = '/auth'}
-            className="bg-peach-200 text-gray-900 px-6 py-2 rounded-lg font-medium hover:bg-peach-300 transition-colors"
+            className="bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
           >
             Sign In
           </button>
@@ -111,7 +556,7 @@ const FeedPage = () => {
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-gray-900 text-white">
+      <div className="w-full min-h-screen bg-black text-white">
         <div className="flex items-center justify-center h-screen">
           <div className="text-lg">Loading...</div>
         </div>
@@ -121,12 +566,9 @@ const FeedPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-black backdrop-blur-md border-b border-gray-700">
-        {/* from phoneComponents */}
         <Header /> 
         
-        {/* Welcome Message */}
         <div className="px-4 pb-4">
           <h1 className="text-2xl font-medium text-white">
             New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
@@ -134,18 +576,16 @@ const FeedPage = () => {
         </div>
       </div>
 
-      {/* Create Post Button */}
       <div className="px-4 py-4">
         <button
           onClick={() => setShowCreateModal(true)}
           className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
         >
-          <Plus className=" text-[#F7CEB0] w-5 h-5 text-peach-200" />
+          <Plus className="text-[#F7CEB0] w-5 h-5" />
           <span className="text-gray-300">What's on your mind?</span>
         </button>
       </div>
 
-      {/* Posts Feed */}
       <div className="pb-20">
         {posts.length === 0 ? (
           <div className="text-center py-12">
@@ -165,7 +605,6 @@ const FeedPage = () => {
         )}
       </div>
 
-      {/* Create Post Modal */}
       {showCreateModal && user && (
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}
@@ -178,4 +617,4 @@ const FeedPage = () => {
   );
 };
 
-export default FeedPage;
+export default ResponsiveFeedPage;
