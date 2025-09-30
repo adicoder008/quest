@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin } from 'lucide-react';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send } from 'lucide-react';
 import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
 import { getCurrentUserData } from '../../../lib/authService';
 import { auth, db } from '../../../lib/firebase';
@@ -14,7 +14,7 @@ import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '../../../hooks/useResponsive';
 import CreatePost from '@/components/Feed_old/CreatePost';
 import Navbar from '@/components/Nav';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +29,251 @@ const ResponsiveFeedPage = () => {
   return <MobileFeedPage />;
 };
 
+// =================================================================
+// COMMENT MODAL FOR DESKTOP (TWITTER-STYLE)
+// =================================================================
+interface CommentModalProps {
+  post: any;
+  user: User;
+  onClose: () => void;
+  onCommentSubmit: (postId: string, commentText: string) => void;
+}
+
+const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProps) => {
+  const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (!post?.id) return;
+      
+      try {
+        const commentsRef = collection(db, 'posts', post.id, 'comments');
+        const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
+        const commentsSnapshot = await getDocs(commentsQuery);
+        
+        const commentsData = [];
+        for (const commentDoc of commentsSnapshot.docs) {
+          const commentData = commentDoc.data();
+          let commentAuthor = {
+            name: 'Anonymous',
+            avatar: '/default-avatar.png'
+          };
+          
+          // Fetch comment author details
+          if (commentData.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', commentData.uid));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                commentAuthor = {
+                  name: userData.displayName || 'Anonymous',
+                  avatar: userData.photoURL || '/default-avatar.png'
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching comment author:', error);
+            }
+          }
+          
+          commentsData.push({
+            id: commentDoc.id,
+            ...commentData,
+            author: commentAuthor
+          });
+        }
+        
+        setComments(commentsData);
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchComments();
+  }, [post?.id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !user) return;
+    
+    try {
+      await onCommentSubmit(post.id, commentText);
+      setCommentText('');
+      
+      // Refresh comments after submitting
+      const commentsRef = collection(db, 'posts', post.id, 'comments');
+      const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
+      const commentsSnapshot = await getDocs(commentsQuery);
+      
+      const commentsData = [];
+      for (const commentDoc of commentsSnapshot.docs) {
+        const commentData = commentDoc.data();
+        let commentAuthor = {
+          name: 'Anonymous',
+          avatar: '/default-avatar.png'
+        };
+        
+        if (commentData.uid) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', commentData.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              commentAuthor = {
+                name: userData.displayName || 'Anonymous',
+                avatar: userData.photoURL || '/default-avatar.png'
+              };
+            }
+          } catch (error) {
+            console.error('Error fetching comment author:', error);
+          }
+        }
+        
+        commentsData.push({
+          id: commentDoc.id,
+          ...commentData,
+          author: commentAuthor
+        });
+      }
+      
+      setComments(commentsData);
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+    }
+  };
+
+  const formatCommentTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col border border-gray-700 shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <button 
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+          >
+            <X size={20} className="text-white" />
+          </button>
+          <h2 className="text-xl font-bold text-white">Comments</h2>
+          <div className="w-8"></div> {/* Spacer for balance */}
+        </div>
+
+        {/* Original Post */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-start gap-3">
+            <img 
+              src={post.author.avatar} 
+              alt={post.author.name}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-medium text-white">{post.author.name}</h3>
+                <span className="text-gray-400 text-sm">·</span>
+                <span className="text-gray-400 text-sm">
+                  {new Date(post.metadata.createdAt?.seconds * 1000).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-white text-sm">{post.content.text}</p>
+              {post.content.images && post.content.images.length > 0 && (
+                <div className="mt-3">
+                  <img
+                    src={post.content.images[0]}
+                    alt="Post content"
+                    className="rounded-lg max-w-xs object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Comments List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="text-gray-400">Loading comments...</div>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <MessageCircle size={48} className="text-gray-600 mb-4" />
+              <h3 className="text-lg font-medium text-white mb-2">No comments yet</h3>
+              <p className="text-gray-400">Be the first to comment on this post!</p>
+            </div>
+          ) : (
+            <div className="p-4">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-3 mb-6 last:mb-0">
+                  <img 
+                    src={comment.author.avatar} 
+                    alt={comment.author.name}
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-sm font-medium text-white">{comment.author.name}</h4>
+                      <span className="text-gray-400 text-xs">·</span>
+                      <span className="text-gray-400 text-xs">
+                        {formatCommentTime(comment.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-white text-sm">{comment.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Comment Input - Fixed at bottom */}
+        <div className="p-4 border-t border-gray-700 bg-gray-900">
+          <form onSubmit={handleSubmit} className="flex items-start gap-3">
+            <img 
+              src={user?.photoURL || '/default-avatar.png'} 
+              alt="Your profile"
+              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+            />
+            <div className="flex-1 relative">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Post your comment..."
+                className="w-full bg-gray-800 text-white p-3 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none resize-none"
+                rows={2}
+                required
+              />
+              <button
+                type="submit"
+                disabled={!commentText.trim()}
+                className={`absolute right-2 bottom-2 p-2 rounded-full transition-colors ${
+                  commentText.trim() 
+                    ? 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]' 
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Feed = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState(null);
@@ -36,6 +281,8 @@ const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [events, setEvents] = useState([]);
   const [popularUsers, setPopularUsers] = useState([]);
+  const [selectedPostForComment, setSelectedPostForComment] = useState(null);
+ 
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -171,6 +418,39 @@ const Feed = () => {
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+    }
+  };
+
+  const handleComment = (post: any) => {
+    setSelectedPostForComment(post);
+  };
+
+  const handleCommentSubmit = async (postId: string, commentText: string) => {
+    if (!user?.uid || !commentText.trim()) return;
+    
+    try {
+      await addComment(postId, {
+        uid: user.uid,
+        userName: user.displayName || 'Anonymous',
+        userProfilePic: user.photoURL || '',
+        text: commentText.trim(),
+        createdAt: new Date()
+      });
+      
+      // Update local state to reflect the new comment count
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { 
+              ...post, 
+              stats: { 
+                ...post.stats, 
+                comments: post.stats.comments + 1 
+              } 
+            }
+          : post
+      ));
+    } catch (error) {
+      console.error('Error adding comment:', error);
     }
   };
 
@@ -310,7 +590,10 @@ const Feed = () => {
               <span className="text-sm">{post.stats.likes}</span>
             </button>
             
-            <button className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors">
+            <button 
+              onClick={() => handleComment(post)}
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            >
               <FaRegCommentDots className="w-6 h-6" />
               <span className="text-sm">{post.stats.comments}</span>
             </button>
@@ -461,6 +744,16 @@ const Feed = () => {
           </div>
         )}
       </main>
+
+      {/* Comment Modal */}
+      {selectedPostForComment && (
+        <CommentModal
+          post={selectedPostForComment}
+          user={user}
+          onClose={() => setSelectedPostForComment(null)}
+          onCommentSubmit={handleCommentSubmit}
+        />
+      )}
     </div>
   );
 };
