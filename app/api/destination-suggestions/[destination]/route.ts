@@ -1,32 +1,43 @@
-// File: app/api/destination-suggestions/[destination]/route.ts
-
-import { NextResponse } from 'next/server';
+// app/api/destination-suggestions/[destination]/route.ts
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from 'next/server';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function GET(
   request: Request,
-  { params }: { params: { destination: string } }
+  { params }: { params: Promise<{ destination: string }> }  // Mark as Promise
 ) {
   try {
-    const destination = params.destination;
+    const { destination } = await params;  // Await it here
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     const prompt = `
-      Generate 12 specific tourist interests for "${destination}".
-      Keep each interest 1-3 words maximum.
-      Return a single, valid JSON array of strings without markdown.
+      Generate 10 relevant travel interests/preferences for someone visiting ${destination}.
+      Return ONLY a JSON array of strings, no additional text or markdown.
+      Example: ["Beaches", "Nightlife", "Local Cuisine", "Adventure Sports", "Historical Sites"]
     `;
-
+    
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    const suggestions = JSON.parse(responseText.replace(/```json|```/g, '').trim());
-
+    
+    // Parse the response
+    let suggestions = [];
+    try {
+      suggestions = JSON.parse(responseText);
+    } catch {
+      const match = responseText.match(/\[.*\]/s);
+      if (match) {
+        suggestions = JSON.parse(match[0]);
+      }
+    }
+    
     return NextResponse.json({ success: true, suggestions });
-
   } catch (error: any) {
-    console.error('Error getting destination suggestions:', error);
-    return NextResponse.json({ success: false, message: 'Failed to get suggestions', details: error.message }, { status: 500 });
+    console.error('Error generating suggestions:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }

@@ -9,104 +9,201 @@ import {
   where,
   orderBy,
   getDocs,
-  addDoc,
+  writeBatch,
   serverTimestamp,
   arrayUnion,
   arrayRemove,
-  increment
+  increment,
+  runTransaction
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebase'; // Your firebase config file
+import { db } from './firebase';
 
-/**
- * Uploads an image file to Firebase Storage and returns the download URL.
- * @param {File} imageFile The image file to upload.
- * @param {string} path The path in Storage to upload the file to.
- * @returns {Promise<string>} The permanent download URL of the uploaded image.
- */
-const uploadImageAndGetURL = async (imageFile: Blob | ArrayBuffer | Uint8Array<ArrayBufferLike>, path: string | undefined) => {
-  const storageRef = ref(storage, path);
-  const snapshot = await uploadBytes(storageRef, imageFile);
-  const downloadURL = await getDownloadURL(snapshot.ref);
-  return downloadURL;
-};
+// Define types for clarity
+type QuestRole = 'owner' | 'editor' | 'viewer';
 
-export const questService = {
-  // Create a new quest
-  async createQuest(uid: string, questData: { title: string; description: string; privacy: string; tags: never[]; }) {
-    try {
-      const questId = `quest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const questRef = doc(db, 'users', uid, 'quests', questId);
-      
-      const questDocument = {
-        ...questData,
-        uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'draft',
-        type: 'quest',
-        isPrivate: true,
-        likes: [],
-        likesCount: 0,
-        savesCount: 0,
-        viewsCount: 0,
-        duplicationsCount: 0
-      };
-      
-      await setDoc(questRef, questDocument);
-      return { success: true, questId };
-    } catch (error) {
-      console.error('Error creating quest:', error);
-      throw error;
-    }
-  },
+export interface TripData {
+  source: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  transportMode: string[];
+  tripType: string;
+  preferences: string[];
+  budget: number;
+  sourceData?: any;
+  destinationData?: any;
+  uid: string;
+}
 
-  // Get quest by ID
-  async getQuest(uid: string, questId: string) {
-    try {
-      const questRef = doc(db, 'users', uid, 'quests', questId);
-      const questSnap = await getDoc(questRef);
-      
-      if (!questSnap.exists()) {
-        throw new Error('Quest not found');
-      }
-      
-      return { id: questSnap.id, ...questSnap.data() };
-    } catch (error) {
-      console.error('Error fetching quest:', error);
-      throw error;
-    }
-  },
+export interface GenerateQuestResponse {
+  success: boolean;
+  itinerary?: any;
+  questId?: string;
+  error?: string;
+}
 
-  // Update quest
-  // Update itinerary for a quest
-async updateQuest(uid: string, questId: string, updatedDays: any[]) {
+const questService = {
+
+  /**
+   * Generates a new quest using AI
+   */
+  // lib/questService.ts - Update the generateQuest method
+async generateQuest(questData: TripData): Promise<GenerateQuestResponse> {
+  console.log('generateQuest called with:', questData);
+  
   try {
-    const questRef = doc(db, 'users', uid, 'quests', questId);
+    const { uid, ...questDataWithoutUid } = questData;
     
-    await updateDoc(questRef, {
-      'itinerary.days': updatedDays,
-      updatedAt: serverTimestamp()
+    if (!uid) {
+      throw new Error('User UID is required');
+    }
+
+    // Call the AI generation API first
+    const response = await fetch('/api/generate-quest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(questData), // Send full questData including uid
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate itinerary');
+    }
+
+    const result = await response.json();
     
-    return { success: true };
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to generate itinerary');
+    }
+
+    return {
+      success: true,
+      itinerary: result.itinerary,
+      questId: result.questId
+    };
+
+  } catch (error: any) {
+    console.error('Error in generateQuest:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+},
+
+  /**
+   * Core quest creation with transaction
+   */
+  async createQuest(uid: string, questData: any) {
+    console.log('createQuest called with:', { uid, questData });
+    
+    const questCollectionRef = collection(db, 'quest');
+    const newQuestRef = doc(questCollectionRef);
+    const questId = newQuestRef.id;
+
+    const chatCollectionRef = collection(db, 'chats');
+    const newChatRef = doc(chatCollectionRef);
+    const chatId = newChatRef.id;
+
+    const userRef = doc(db, 'users', uid);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        // 1. Create the Quest document
+        const questDocument = {
+          ...questData,
+          id: questId,
+          chatId: chatId,
+          members: {
+            [uid]: 'owner'
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        console.log('Creating quest document:', questDocument);
+        transaction.set(newQuestRef, questDocument);
+
+        // 2. Create the associated Chat document
+        const chatDocument = {
+          questId: questId,
+          questTitle: questData.title || `Quest to ${questData.destination}`,
+          members: [uid],
+          createdAt: serverTimestamp(),
+          lastMessage: null,
+        };
+        console.log('Creating chat document:', chatDocument);
+        transaction.set(newChatRef, chatDocument);
+
+        // 3. Add the new questId to the user's profile
+        console.log('Updating user document with questId:', questId);
+        transaction.update(userRef, {
+          questIds: arrayUnion(questId)
+        });
+      });
+
+      console.log('Transaction completed successfully');
+      return { success: true, questId, chatId };
+    } catch (error) {
+      console.error('Transaction failed: Error creating quest:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetches a single quest document if the user is a member
+   */
+  // lib/questService.ts
+async getQuest(uid: string, questId: string) {
+  try {
+    const questRef = doc(db, 'quest', questId);
+    const questSnap = await getDoc(questRef);
+
+    if (!questSnap.exists()) {
+      throw new Error('Quest not found');
+    }
+    
+    const questData = questSnap.data();
+     if (!questData.members || !questData.members[uid]) {
+      throw new Error('You do not have permission to view this quest.');
+    }
+
+    return { id: questSnap.id, ...questData };
   } catch (error) {
-    console.error('Error updating itinerary:', error);
+    console.error('Error fetching quest:', error);
     throw error;
   }
 },
-   async getUserQuests(uid: string) {
-  try {
-    const questsRef = collection(db, 'users', uid, 'quests');
-    const q = query(questsRef, orderBy('updatedAt', 'desc'));
+
+  /**
+   * Fetches all quests a user is a member of
+   */
+  async getUserQuests(uid: string) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return [];
+      }
+      const questIds = userSnap.data().questIds || [];
+
+      if (questIds.length === 0) {
+        return [];
+      }
+
+      const questsToFetch = questIds.slice(0, 30);
+    const questsRef = collection(db, 'quest');
+    const q = query(
+      questsRef, 
+      where('__name__', 'in', questsToFetch),
+      orderBy('createdAt', 'desc')
+    );
     
     const querySnapshot = await getDocs(q);
-    const quests: { id: string; }[] = [];
+    const quests: any[] = [];
+    
     querySnapshot.forEach((doc) => {
-      quests.push({
-        id: doc.id,
-        ...doc.data()
-      });
+      quests.push({ id: doc.id, ...doc.data() });
     });
     
     return quests;
@@ -115,81 +212,160 @@ async updateQuest(uid: string, questId: string, updatedDays: any[]) {
     throw error;
   }
 },
-
-
-  // Add activity to a day
-  async addActivity(uid: string, questId: string, dayIndex: string | number, activity: any) {
+  /**g
+   * Updates the itinerary of a quest
+   */
+  async updateQuest(questId: string, uid: string, updatedData: object) {
     try {
-      const questRef = doc(db, 'users', uid, 'quests', questId);
+      const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
-      
-      if (!questSnap.exists()) {
-        throw new Error('Quest not found');
-      }
+
+      if (!questSnap.exists()) throw new Error('Quest not found.');
       
       const questData = questSnap.data();
-      const updatedItinerary = { ...questData.itinerary };
-      
-      if (!updatedItinerary.days[dayIndex]) {
-        throw new Error('Day not found');
+      const userRole = questData.members?.[uid];
+
+      if (userRole !== 'owner' && userRole !== 'editor') {
+        throw new Error('You do not have permission to edit this quest.');
       }
-      
-      updatedItinerary.days[dayIndex].activities.push({
-        ...activity,
-        id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
-      });
-      
+
       await updateDoc(questRef, {
-        itinerary: updatedItinerary,
+        ...updatedData,
         updatedAt: serverTimestamp()
       });
       
       return { success: true };
     } catch (error) {
-      console.error('Error adding activity:', error);
-      throw error;
-    }
-  }
-};
-
-// API helper functions for quest management
-export const questAPI = {
-  // Generate quest with AI
-  async generateQuest(questData) {
-    try {
-      const response = await fetch('/api/generate-quest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(questData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error generating quest:', error);
+      console.error('Error updating quest:', error);
       throw error;
     }
   },
- 
-  // Get destination suggestions
-  async getDestinationSuggestions(destination: string | number | boolean) {
-    try {
-      const response = await fetch(`/api/destination-suggestions/${encodeURIComponent(destination)}`);
+  
+  /**
+   * AI Itinerary Generation (placeholder - integrate with your AI service)
+   */
+  async generateAItinerary(questData: TripData): Promise<any> {
+    console.log('Generating AI itinerary for:', questData);
+    
+    // Calculate number of days
+    const startDate = new Date(questData.startDate);
+    const endDate = new Date(questData.endDate);
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Create AI-generated days structure
+    const aiDays = [];
+    for (let i = 0; i < days; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      return result.suggestions || [];
-    } catch (error) {
-      console.error('Error getting destination suggestions:', error);
-      return [];
+      aiDays.push({
+        day: i + 1,
+        date: currentDate.toISOString().split('T')[0],
+        title: `Day ${i + 1} in ${questData.destination}`,
+        activities: [
+          {
+            type: 'ai_generated',
+            time: 'Morning',
+            title: `Morning in ${questData.destination}`,
+            description: `AI-generated morning activity based on your preferences: ${questData.preferences.join(', ')}`,
+            location: questData.destination,
+            duration: '3 hours',
+            cost: Math.floor(questData.budget / days / 4 * 0.3)
+          },
+          {
+            type: 'ai_generated',
+            time: 'Afternoon',
+            title: `Afternoon Exploration`,
+            description: `AI-generated afternoon activity based on your interests`,
+            location: questData.destination,
+            duration: '4 hours',
+            cost: Math.floor(questData.budget / days / 4 * 0.4)
+          },
+          {
+            type: 'ai_generated',
+            time: 'Evening',
+            title: `Evening Experience`,
+            description: `AI-generated evening plans`,
+            location: questData.destination,
+            duration: '3 hours',
+            cost: Math.floor(questData.budget / days / 4 * 0.2)
+          },
+          {
+            type: 'ai_generated',
+            time: 'Night',
+            title: `Night Activities`,
+            description: `AI-generated night suggestions`,
+            location: questData.destination,
+            duration: '2 hours',
+            cost: Math.floor(questData.budget / days / 4 * 0.1)
+          }
+        ]
+      });
     }
+    
+    return {
+      days: aiDays,
+      generated: true,
+      aiNotes: `AI-generated itinerary for ${questData.destination} focusing on: ${questData.preferences.join(', ')}`,
+      estimatedCost: questData.budget,
+      destination: questData.destination,
+      transportModes: questData.transportMode,
+      tripType: questData.tripType
+    };
+  },
+
+  /**
+   * Create blank itinerary structure for manual creation
+   */
+  createBlankItinerary(questData: any): any {
+    const startDate = new Date(questData.startDate);
+    const endDate = new Date(questData.endDate);
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    const blankDays = [];
+    for (let i = 0; i < days; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      
+      blankDays.push({
+        day: i + 1,
+        date: currentDate.toISOString().split('T')[0],
+        title: `Day ${i + 1}`,
+        activities: [
+          {
+            type: 'text',
+            time: 'Morning',
+            title: 'Morning Activity',
+            description: 'Add your morning plans here'
+          },
+          {
+            type: 'text',
+            time: 'Afternoon',
+            title: 'Afternoon Activity',
+            description: 'Add your afternoon plans here'
+          },
+          {
+            type: 'text',
+            time: 'Evening',
+            title: 'Evening Activity',
+            description: 'Add your evening plans here'
+          },
+          {
+            type: 'text',
+            time: 'Night',
+            title: 'Night Activity',
+            description: 'Add your night plans here'
+          }
+        ]
+      });
+    }
+    
+    return {
+      days: blankDays,
+      generated: false,
+      tripData: questData
+    };
   }
 };
+
+export default questService;

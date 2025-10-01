@@ -559,10 +559,12 @@ type EditableItineraryProps = {
     }>;
   };
   tripData: {
+    uid: string;
     destination: string;
     budget?: number;
     transportMode?: string[];
     companion?: string;
+    questId?: string;
   };
 };
 
@@ -625,9 +627,10 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
     setAddAfterIndex(null);
   };
 
-  // TODO: Replace the following lines with your actual user and questId retrieval logic
-  const user = { uid: 'demo-user-id' }; // Replace with actual user object or context
-  const questId = 'demo-quest-id'; // Replace with actual questId
+  // TODO: Replace the following lines with your actual user and questId retrieval logic 
+  const user =  tripData?.uid || 'no-uid' // Replace with actual user object or context
+  // Try to get questId from itinerary or tripData if available
+  const questId = tripData?.questId || 'demo-quest-id';
 
   const handleSaveItinerary = async () => {
     try {
