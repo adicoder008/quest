@@ -1,6 +1,6 @@
 // app/layout.tsx
 import React from 'react';
-import "/home/swati/Documents/quest/app/(root)/globals.css"; // Import global styles
+//  Import global styles
 
 // This component defines the root HTML structure for your application.
 // It wraps all other pages and is a Server Component by default.

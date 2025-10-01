@@ -4,8 +4,8 @@ import { getCurrentUserData } from '../../lib/authService.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useLoadScript } from '@react-google-maps/api';
 import { CiSearch } from "react-icons/ci";
-import { createPost } from '../../lib/postService';
-import { POST_TYPES } from '../../lib/postService';
+import { createPost } from '../../lib/postService.js';
+import { POST_TYPES } from '../../lib/postService.js';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 const libraries = ['places'];

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin } from 'lucide-react';
-import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
+import { subscribeToPosts, likePost, addComment, } from '../../../lib/postService';
 import { getCurrentUserData } from '../../../lib/authService';
 import { auth, db } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -18,6 +18,7 @@ import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc,
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import followUser, {unfollowUser} from '../../../lib/followService';
 
 const ResponsiveFeedPage = () => {
   const isDesktop = useResponsive(768);

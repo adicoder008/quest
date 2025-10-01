@@ -50,6 +50,14 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(null);
 
+  useEffect(()=>{
+    if(user){
+    router.push("/feed");
+  }
+  },[user]);
+
+  
+
   // Monitor auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -442,7 +450,7 @@ const Navbar = () => {
           <RxHamburgerMenu size={30} />
         </button>
 
-        <img src='/OQLogoNew.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="" />
+        <img src='/FullLogo.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="" />
         {/* <div className="hidden py-[0.7rem] md:flex items-center ml-2">
           <SearchBar />
         </div> */}
@@ -457,25 +465,77 @@ const Navbar = () => {
           Home
         </button>
         <button 
-          onClick={() => handleNavigation('/TripPlanner')} 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!user) {
+              // User not logged in → show auth modal
+              console.log("User not logged in → showing auth modal");
+              setShowAuthModal(true);
+            } else {
+              // User logged in → navigate normally
+              console.log("User logged in → navigating to contact");
+              handleNavigation("/TripPlanner");
+            }
+          }} 
           className={`hover:text-black ${selectedSection === "Trip Planner" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
         >
           Trip Planner
         </button>
         <button 
-          onClick={() => handleNavigation('/Events')} 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!user) {
+              // User not logged in → show auth modal
+              console.log("User not logged in → showing auth modal");
+              setShowAuthModal(true);
+            } else {
+              // User logged in → navigate normally
+              console.log("User logged in → navigating to contact");
+              handleNavigation("/Events");
+            }
+          }} 
           className={`hover:text-black ${selectedSection === "Events" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
         >
           Events
         </button>
         <button 
-          onClick={() => handleNavigation('/About')} 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!user) {
+              // User not logged in → show auth modal
+              console.log("User not logged in → showing auth modal");
+              setShowAuthModal(true);
+            } else {
+              // User logged in → navigate normally
+              console.log("User logged in → navigating to contact");
+              handleNavigation("/contact");
+            }
+          }}
           className={`hover:text-black ${selectedSection === "About Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
         >
           About Us
         </button>
         <button 
-          onClick={() => handleNavigation('/contact')} 
+           onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!user) {
+              // User not logged in → show auth modal
+              console.log("User not logged in → showing auth modal");
+              setShowAuthModal(true);
+            } else {
+              // User logged in → navigate normally
+              console.log("User logged in → navigating to contact");
+              handleNavigation("/AboutUs");
+            }
+          }}
           className={`hover:text-black ${selectedSection === "Contact Us" ? "text-orange-500 hover:text-orange-500" : "text-gray-600"}`}
         >
           Contact Us
