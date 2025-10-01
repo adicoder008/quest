@@ -119,7 +119,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
       // Create script element
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
       script.async = true;
       script.defer = true;
       
