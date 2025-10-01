@@ -67,7 +67,7 @@ const QuestPage = () => {
   const generateAIItinerary = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/generate-itinerary', {
+      const response = await fetch('/api/generate-quest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,19 +1,14 @@
-// File: app/api/generate-itinerary/route.ts
-
-import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// app/api/generate-itinerary/route.ts
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 import { createApi } from 'unsplash-js';
 import nodeFetch from 'node-fetch';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import admin, { ServiceAccount } from 'firebase-admin';
-import serviceAccount from '../../../serviceAccountKey.json'
+import serviceAccount from '../../../serviceAccountKey.json';
 
-// ===================================================================
-// INITIALIZE SERVICES
-// ===================================================================
-// Make sure GEMINI_API_KEY and UNSPLASH_ACCESS_KEY are in your .env.local file
-
+// Initialize services
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount as ServiceAccount)
@@ -24,84 +19,64 @@ const db = admin.firestore();
 
 const unsplash = createApi({
   accessKey: process.env.UNSPLASH_ACCESS_KEY!,
-  fetch: nodeFetch as any, // Use node-fetch for server-side requests
+  fetch: nodeFetch as any,
 });
-
-// ===================================================================
-// HELPER FUNCTIONS (Moved from your Express file)
-// ===================================================================
-
-const validateTripData = (tripData: any) => {
-  const { uid, source, destination, startDate, endDate, transportMode, tripType, preferences } = tripData;
-  if (!uid || typeof uid !== 'string') throw new Error('Invalid uid');
-  if (!source || typeof source !== 'string') throw new Error('Invalid source');
-  if (!destination || typeof destination !== 'string') throw new Error('Invalid destination');
-  if (!startDate || isNaN(new Date(startDate).getTime())) throw new Error('Invalid startDate');
-  if (!endDate || isNaN(new Date(endDate).getTime())) throw new Error('Invalid endDate');
-  if (!transportMode || !Array.isArray(transportMode)) throw new Error('Invalid transportMode');
-  if (!tripType || typeof tripType !== 'string') throw new Error('Invalid tripType');
-  if (!Array.isArray(preferences)) throw new Error('Invalid preferences');
-};
-
-const parseJsonResponse = (text: string) => {
-  try {
-    // Attempt to parse directly
-    return JSON.parse(text);
-  } catch (e) {
-    // If direct parse fails, try to extract from markdown code block
-    const match = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (match && match[1]) {
-      return JSON.parse(match[1]);
-    }
-    throw new Error("Failed to parse JSON from response.");
-  }
-};
-
-// Add your transport generation functions here (generateFlightOptions, etc.) if needed.
-// For simplicity, they are omitted in this main route but can be added back following the same pattern.
-
-// ===================================================================
-// MAIN API ROUTE HANDLER
-// ===================================================================
 
 export async function POST(request: Request) {
   try {
-    // 1. Get and validate the request body
     const tripData = await request.json();
     validateTripData(tripData);
-    const { uid , source, destination, startDate, endDate, transportMode, tripType, preferences ,budget} = tripData;
+    const { uid, source, destination, startDate, endDate, transportMode, tripType, preferences, budget } = tripData;
 
-    // 2. Generate itinerary with Gemini
+    // Generate itinerary with Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    
     const prompt = `
-      Create a detailed day-by-day itinerary for a trip to ${destination} from ${source}.
-      Trip details:
-      - Start date: ${startDate}
-      - End date: ${endDate}
-      - Transportation mode: ${transportMode.join(', ')}
-      - Trip type: ${tripType.join}
+      Create a detailed day-by-day travel itinerary for a trip to ${destination} from ${source}.
+      
+      Trip Details:
+      - Dates: ${startDate} to ${endDate}
+      - Travel Style: ${tripType}
       - Interests: ${preferences.join(', ')}
+      - Budget: ₹${budget || 10000} per person per night
+      - Transport: ${transportMode.join(', ')}
 
-      Format the response as a single, valid JSON object with the following structure. Do not include markdown formatting like \`\`\`json.
+      For EVERY activity, include:
+      1. A descriptive title
+      2. Detailed description (2-3 sentences)
+      3. Duration in minutes
+      4. Estimated time of day (Morning/Afternoon/Evening/Night)
+      5. Location object with:
+         - name: The place name
+         - address: Full address
+         - coordinates: { lat: number, lng: number }
+         - googlePlaceId: The actual Google Place ID if available
+      6. An imageQuery for finding relevant photos
+      7. An array of tags (e.g., ["Adventure", "Nature", "Cultural"])
+
+      IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or extra text.
+      
+      Expected format:
       {
         "days": [
           {
             "day": 1,
             "date": "YYYY-MM-DD",
-            "title": "Day title (e.g. Arrival & Exploration)",
+            "title": "Day title",
             "activities": [
               {
-                "type": "text",
                 "time": "Morning",
-                "title": "Activity title",
-                "description": "Brief description"
-              },
-              {
-                "type": "image",
-                "time": "Afternoon",
-                "title": "Activity with visual appeal",
-                "description": "Description of the visual activity.",
-                "imageQuery": "A concise search query for Unsplash (e.g. 'Eiffel Tower at sunset')"
+                "title": "Activity name",
+                "description": "Detailed description",
+                "duration": 120,
+                "location": {
+                  "name": "Place Name",
+                  "address": "Full address",
+                  "coordinates": { "lat": 12.345, "lng": 67.890 },
+                  "googlePlaceId": "ChIJ..."
+                },
+                "imageQuery": "search term for image",
+                "tags": ["tag1", "tag2"]
               }
             ]
           }
@@ -111,16 +86,42 @@ export async function POST(request: Request) {
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    const itinerary = parseJsonResponse(responseText);
-
-    if (!itinerary?.days || !Array.isArray(itinerary.days)) {
-      throw new Error('Invalid itinerary structure from AI - missing days array');
+    
+    console.log('Raw AI Response:', responseText.substring(0, 500)); // Debug log
+    
+    interface Itinerary {
+      days: Array<{
+        day: number;
+        date: string;
+        title: string;
+        activities: Array<{
+          time: string;
+          title: string;
+          description: string;
+          duration: number;
+          location: {
+            name: string;
+            address: string;
+            coordinates: { lat: number; lng: number };
+            googlePlaceId?: string;
+          };
+          imageQuery: string;
+          tags: string[];
+          media?: Array<{ type: string; url: string }>;
+        }>;
+      }>;
     }
 
-    // 3. Process images from Unsplash for activities that need them
+    const itinerary: Itinerary = parseJsonResponse(responseText);
+
+    if (!itinerary?.days || !Array.isArray(itinerary.days)) {
+      throw new Error('Invalid itinerary structure - missing days array');
+    }
+
+    // Fetch images for activities
     for (const day of itinerary.days) {
       for (const activity of day.activities) {
-        if (activity.type === 'image' && activity.imageQuery) {
+        if (activity.imageQuery) {
           try {
             const unsplashResponse = await unsplash.photos.getRandom({
               query: activity.imageQuery,
@@ -128,28 +129,41 @@ export async function POST(request: Request) {
               orientation: 'landscape'
             });
 
-            if (unsplashResponse.type === 'error') {
-              console.error('Unsplash API error:', unsplashResponse.errors[0]);
-              activity.imageUrl = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
-            } else {
+            if (unsplashResponse.type === 'success') {
               const photo = Array.isArray(unsplashResponse.response)
                 ? unsplashResponse.response[0]
                 : unsplashResponse.response;
-              activity.imageUrl = photo.urls.regular;
+              activity.media = [{ type: 'image', url: photo.urls.regular }];
+            } else {
+              // Fallback image
+              activity.media = [{ 
+                type: 'image', 
+                url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+              }];
             }
-          } catch (unsplashError) {
-            console.error('Failed to fetch from Unsplash:', unsplashError);
-            activity.imageUrl = 'https://via.placeholder.com/400x300?text=Image+Fetch+Failed';
+          } catch (error) {
+            console.error('Unsplash error:', error);
+            activity.media = [{ 
+              type: 'image', 
+              url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+            }];
           }
+        } else {
+          // Default image if no query provided
+          activity.media = [{ 
+            type: 'image', 
+            url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+          }];
         }
       }
     }
     
-   const questId = `quest_${Date.now()}`;
-   const questRef = db.collection('users').doc(uid).collection('quests').doc(questId);
+    // Save to Firestore
+    const questId = `quest_${uid}_${Date.now()}`;
+    const questRef = db.collection('quest').doc(questId);
 
-   const questDocument = {
-      // Original trip data
+    const questDocument = {
+      id: questId,
       uid,
       source,
       destination,
@@ -159,30 +173,95 @@ export async function POST(request: Request) {
       tripType,
       preferences,
       budget,
-      // Generated itinerary
       itinerary,
-      // Metadata
-      id: questId,
+        members: {
+    [uid]: 'owner'  // This is required by your rules
+  },
+      type: 'ai_generated',
+      status: 'active',
+      title: `Quest to ${destination}`,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      status: 'active', // or 'draft'
     };
-
     
     await questRef.set(questDocument);
+    
+    // Add to user's questIds array
+    const userRef = db.collection('users').doc(uid);
+    await userRef.update({
+      questIds: admin.firestore.FieldValue.arrayUnion(questId)
+    });
 
-    // 4. Return the complete itinerary
     return NextResponse.json({
       success: true,
       itinerary,
-      questId: questId
+      questId
     });
 
   } catch (error: any) {
-    console.error('Error in generate-itinerary API route:', error);
+    console.error('Error generating itinerary:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to generate itinerary', details: error.message },
       { status: 500 }
     );
+  }
+}
+
+function validateTripData(tripData: any) {
+  const { uid, source, destination, startDate, endDate, transportMode, tripType, preferences } = tripData;
+
+  if (!uid || typeof uid !== 'string') {
+    throw new Error('Invalid uid');
+  }
+  if (!source || typeof source !== 'string') {
+    throw new Error('Invalid source');
+  }
+  if (!destination || typeof destination !== 'string') {
+    throw new Error('Invalid destination');
+  }
+  if (!startDate || isNaN(new Date(startDate).getTime())) {
+    throw new Error('Invalid startDate');
+  }
+  if (!endDate || isNaN(new Date(endDate).getTime())) {
+    throw new Error('Invalid endDate');
+  }
+  if (!transportMode || !Array.isArray(transportMode)) {
+    throw new Error('Invalid transportMode - must be an array');
+  }
+  if (!tripType || typeof tripType !== 'string') {
+    throw new Error('Invalid tripType - must be a string');
+  }
+  if (!Array.isArray(preferences)) {
+    throw new Error('Invalid preferences - must be an array');
+  }
+}
+
+function parseJsonResponse(responseText: string) {
+  try {
+    // First, try direct parse
+    return JSON.parse(responseText);
+  } catch (error) {
+    // Try to extract JSON from markdown code blocks
+    const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      try {
+        return JSON.parse(codeBlockMatch[1]);
+      } catch (e) {
+        console.error('Failed to parse JSON from code block:', e);
+      }
+    }
+    
+    // Try to find JSON object in the text
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        console.error('Failed to parse JSON from match:', e);
+      }
+    }
+    
+    console.error('Raw response text:', responseText);
+    throw new Error("Failed to parse itinerary JSON. AI response may not be in valid JSON format.");
   }
 }

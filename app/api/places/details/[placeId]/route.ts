@@ -5,10 +5,10 @@ import axios from 'axios';
 
 export async function GET(
   request: Request,
-  { params }: { params: { placeId: string } }
+  context: { params: { placeId: string } } // Corrected type for the second argument
 ) {
   try {
-    const placeId = params.placeId;
+    const { placeId } = context.params; // Destructure placeId from context.params
     const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
     
     if (!GOOGLE_PLACES_API_KEY) {
@@ -23,8 +23,8 @@ export async function GET(
       }
     });
 
-    if (!response.data.result) {
-      return NextResponse.json({ success: false, message: 'Place not found' }, { status: 404 });
+    if (response.data.status !== 'OK' || !response.data.result) {
+      return NextResponse.json({ success: false, message: 'Place not found or API error' }, { status: 404 });
     }
     
     return NextResponse.json({ success: true, place: response.data.result });

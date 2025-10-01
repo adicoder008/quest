@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { questService } from '@/lib/questService';
+import questService from '@/lib/questService';
 import { ArrowLeft, MapPin, Calendar, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
+import InteractiveMap from '../../../components/quest/InteractiveMap'
 
 // Define a type for your quest data for better type safety
 interface Quest {
@@ -33,7 +34,15 @@ const MyQuestsPage = () => {
         try {
           // Use the new backend function
           const userQuests = await questService.getUserQuests(user.uid);
-          setQuests(userQuests);
+          setQuests(
+            userQuests.map((q: any) => ({
+              id: q.id,
+              destination: q.destination,
+              startDate: q.startDate,
+              endDate: q.endDate,
+              // Map other properties if needed
+            }))
+          );
         } catch (error) {
           console.error("Failed to fetch quests:", error);
         }

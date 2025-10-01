@@ -1,0 +1,65 @@
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+admin.initializeApp();
+
+const db = admin.firestore();
+
+/**
+ * Triggered when a quest document is deleted from Firestore.
+ * This function cleans up all associated data to maintain database integrity.
+ *
+ * @param {functions.firestore.DocumentSnapshot} snap The snapshot of the deleted quest data.
+ * @param {functions.EventContext} context The event context.
+ * @returns {Promise<void>} A promise that resolves when cleanup is complete.
+ */
+exports.onQuestDeleted = functions.firestore
+    .document("Quest/{questId}")
+    .onDelete(async (snap: { data: () => any; }, context: { params: { questId: any; }; }) => {
+      const deletedQuest = snap.data();
+      const questId = context.params.questId;
+      const batch = db.batch();
+
+      // 1. Delete the associated chat document.
+      const chatId = deletedQuest.chatId;
+      if (chatId) {
+        const chatRef = db.doc(`chats/${chatId}`);
+        const messagesRef = db.collection(`chats/${chatId}/messages`);
+
+        // Delete all messages in the chat subcollection.
+        try {
+          const messagesSnapshot = await messagesRef.get();
+          messagesSnapshot.docs.forEach((doc: { ref: any; }) => batch.delete(doc.ref));
+          console.log(
+              `Scheduled deletion for ${messagesSnapshot.size} messages in chat ${chatId}`
+          );
+        } catch (error) {
+          console.error(`Failed to list messages for chat ${chatId}:`, error);
+        }
+
+        // Delete the parent chat document.
+        batch.delete(chatRef);
+        console.log(`Scheduled deletion for chat: ${chatId}`);
+      }
+
+      // 2. Remove the questId from each member's user profile.
+      const members = deletedQuest.members;
+      if (members) {
+        const memberIds = Object.keys(members);
+        memberIds.forEach((uid) => {
+          const userRef = db.doc(`users/${uid}`);
+          batch.update(userRef, {
+            questIds: admin.firestore.FieldValue.arrayRemove(questId),
+          });
+          console.log(`Scheduled questId removal for user: ${uid}`);
+        });
+      }
+
+      // 3. Commit all batched operations.
+      try {
+        await batch.commit();
+        console.log(`Successfully cleaned up data for deleted quest: ${questId}`);
+      } catch (error) {
+        console.error(`Error during cleanup for quest ${questId}:`, error);
+      }
+    });
+
