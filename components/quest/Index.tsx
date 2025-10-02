@@ -1,11 +1,70 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
+import questService from '@/lib/questService';
 import { MapPin, Calendar, Users, Plane, Train, Bus, Car, Ship, DollarSign, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import EditableItinerary from '../../components/quest/ActivityCard'
+
+interface TripData {
+  uid?: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  transportMode: string[];
+  companion: string;
+  interests: string[];
+  budget: number;
+}
+
+interface Activity {
+  type: string;
+  time: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  hotels?: Hotel[];
+}
+
+interface Hotel {
+  name: string;
+  location: string;
+  price: string;
+  rating: string;
+  ratingCount?: string;
+  imageUrl?: string;
+}
+
+interface Day {
+  day: number;
+  date: string;
+  title: string;
+  activities: Activity[];
+}
+
+interface Itinerary {
+  days: Day[];
+  transportOptions?: {
+    flights?: Flight[];
+  };
+}
+
+interface Flight {
+  airline: string;
+  flightNumber: string;
+  price: string;
+  duration: string;
+  departureTime: string;
+  arrivalTime: string;
+}
 
 const QuestPage = () => {
+  const router = useRouter();
+  const [user, loading] = useAuthState(auth);
   const [currentStep, setCurrentStep] = useState(0);
-  const [isAITrip, setIsAITrip] = useState(null);
-  const [tripData, setTripData] = useState({
+  const [isAITrip, setIsAITrip] = useState<boolean | null>(null);
+  const [tripData, setTripData] = useState<TripData>({
     destination: '',
     startDate: '',
     endDate: '',
@@ -14,8 +73,14 @@ const QuestPage = () => {
     interests: [],
     budget: 10000
   });
-  const [itinerary, setItinerary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [user, loading, router]);
 
   const steps = [
     { title: "What is ur destination?", key: "destination" },
@@ -43,7 +108,7 @@ const QuestPage = () => {
 
   const interestOptions = [
     'Adventure', 'Food', 'Art', 'Hidden gems', 'History', 'Nature',
-    'Nightlife', 'Culture attraction', 'Hidden gems', 'Drinks'
+    'Nightlife', 'Culture attraction', 'Drinks'
   ];
 
   const handleNext = () => {
@@ -65,7 +130,9 @@ const QuestPage = () => {
   };
 
   const generateAIItinerary = async () => {
-    setLoading(true);
+    if (!user?.uid) return;
+    
+    setIsLoading(true);
     try {
       const response = await fetch('/api/generate-quest', {
         method: 'POST',
@@ -73,34 +140,66 @@ const QuestPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          uid: 'user123', // Replace with actual user ID
-          source: 'Current Location', // You can get this from geolocation
+          uid: user.uid,
+          source: 'Current Location',
           destination: tripData.destination,
           startDate: tripData.startDate,
           endDate: tripData.endDate,
           transportMode: tripData.transportMode,
           tripType: [tripData.companion],
-          preferences: tripData.interests
+          preferences: tripData.interests,
+          budget: tripData.budget
         })
       });
 
       const result = await response.json();
       if (result.success) {
-        setItinerary(result.itinerary);
+        // Extract flowCards from itinerary
+        const flowCards = result.itinerary?.days?.flatMap((day: Day) => 
+          day.activities?.map((activity: Activity) => ({
+            location: { name: activity.description || '', coordinates: { lat: 0, lng: 0 } },
+            title: activity.title || '',
+            description: activity.description || '',
+            time: activity.time || '',
+            type: activity.type || 'text',
+          })) || []
+        ) || [];
+
+        const questPayload = { 
+          ...tripData, 
+          uid: user.uid,
+          itinerary: result.itinerary 
+        };
+
+        const createResult = await questService.createQuest(
+          user.uid, 
+          questPayload,
+          null as any, // No cover image file
+          flowCards
+        );
+
+        if (createResult.success) {
+          router.push(`/quest/${createResult.questId}`);
+        } else {
+          console.error('Failed to create quest');
+          setItinerary(result.itinerary);
+        }
       }
     } catch (error) {
       console.error('Error generating itinerary:', error);
       createBlankItinerary();
     }
-    setLoading(false);
+    setIsLoading(false);
   };
 
   const createBlankItinerary = () => {
+    if (!user?.uid) return;
+
     const startDate = new Date(tripData.startDate);
     const endDate = new Date(tripData.endDate);
-    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    const blankDays = [];
+    const blankDays: Day[] = [];
     for (let i = 0; i < days; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
@@ -141,14 +240,14 @@ const QuestPage = () => {
     setItinerary({ days: blankDays });
   };
 
-  const updateTripData = (key, value) => {
+  const updateTripData = (key: keyof TripData, value: any) => {
     setTripData(prev => ({
       ...prev,
       [key]: value
     }));
   };
 
-  const toggleTransport = (transportId) => {
+  const toggleTransport = (transportId: string) => {
     const current = tripData.transportMode;
     const updated = current.includes(transportId)
       ? current.filter(id => id !== transportId)
@@ -156,7 +255,7 @@ const QuestPage = () => {
     updateTripData('transportMode', updated);
   };
 
-  const toggleInterest = (interest) => {
+  const toggleInterest = (interest: string) => {
     const current = tripData.interests;
     const updated = current.includes(interest)
       ? current.filter(i => i !== interest)
@@ -165,6 +264,14 @@ const QuestPage = () => {
   };
 
   if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -176,7 +283,7 @@ const QuestPage = () => {
   }
 
   if (itinerary) {
-    return <ItineraryView itinerary={itinerary} tripData={tripData} />;
+    return <EditableItinerary itinerary={itinerary} tripData={{ ...tripData, uid: user?.uid || '' }} />;
   }
 
   if (isAITrip === null) {
@@ -193,13 +300,13 @@ const QuestPage = () => {
             <div className="space-y-4 mb-8">
               <button
                 onClick={() => setIsAITrip(true)}
-                className="w-full bg-orange-500 text-white py-4 rounded-xl font-semibold"
+                className="w-full bg-orange-500 text-white py-4 rounded-xl font-semibold hover:bg-orange-600 transition-colors"
               >
                 Create Quest with AI
               </button>
               <button
                 onClick={() => setIsAITrip(false)}
-                className="w-full border border-gray-600 text-white py-4 rounded-xl font-semibold"
+                className="w-full border border-gray-600 text-white py-4 rounded-xl font-semibold hover:bg-gray-800 transition-colors"
               >
                 Create Quest from scratch
               </button>
@@ -263,11 +370,17 @@ const QuestPage = () => {
                   className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                 />
                 <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700">
+                  <div 
+                    onClick={() => updateTripData('destination', 'London, UK')}
+                    className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700"
+                  >
                     <MapPin className="w-5 h-5 text-orange-500" />
                     <span>London, UK</span>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700">
+                  <div 
+                    onClick={() => updateTripData('destination', 'Goa, India')}
+                    className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700"
+                  >
                     <MapPin className="w-5 h-5 text-orange-500" />
                     <span>Goa, India</span>
                   </div>
@@ -441,135 +554,6 @@ const QuestPage = () => {
           border: none;
         }
       `}</style>
-    </div>
-  );
-};
-
-// Itinerary View Component
-const ItineraryView = ({ itinerary, tripData }) => {
-  const [selectedDay, setSelectedDay] = useState(0);
-
-  return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-6">
-        <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-xl font-bold">Final planned trip</h1>
-            <button className="text-gray-400">
-              <span className="text-lg">⋯</span>
-            </button>
-          </div>
-
-          {/* Trip Info */}
-          <div className="bg-gray-900 rounded-xl p-4 mb-6">
-            <h2 className="text-lg font-semibold mb-2">{tripData.destination}</h2>
-            <p className="text-sm text-gray-400 mb-4">
-              {tripData.startDate} to {tripData.endDate} • {tripData.companion} • {tripData.transportMode.join(', ')}
-            </p>
-            
-            {/* Transport Options */}
-            {itinerary.transportOptions && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-2">Flight Options:</h3>
-                {itinerary.transportOptions.flights?.slice(0, 1).map((flight, index) => (
-                  <div key={index} className="bg-blue-900/20 rounded-lg p-3 border border-blue-500/30">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-semibold">{flight.airline}</p>
-                        <p className="text-xs text-gray-400">{flight.flightNumber}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{flight.price}</p>
-                        <p className="text-xs text-gray-400">{flight.duration}</p>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-sm">
-                      <span>{flight.departureTime} → {flight.arrivalTime}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Day selector */}
-          <div className="flex gap-2 mb-6 overflow-x-auto">
-            {itinerary.days.map((day, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedDay(index)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium ${
-                  selectedDay === index 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-gray-800 text-gray-300'
-                }`}
-              >
-                Day {day.day}
-              </button>
-            ))}
-          </div>
-
-          {/* Selected day content */}
-          {itinerary.days[selectedDay] && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">
-                {itinerary.days[selectedDay].title}
-              </h3>
-              
-              <div className="space-y-4">
-                {itinerary.days[selectedDay].activities.map((activity, index) => (
-                  <div key={index} className="bg-gray-900 rounded-xl overflow-hidden">
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">
-                          {activity.time}
-                        </span>
-                      </div>
-                      <h4 className="font-semibold mb-2">{activity.title}</h4>
-                      <p className="text-sm text-gray-400 mb-3">{activity.description}</p>
-                      
-                      {activity.imageUrl && (
-                        <img 
-                          src={activity.imageUrl} 
-                          alt={activity.title}
-                          className="w-full h-40 object-cover rounded-lg"
-                        />
-                      )}
-                      
-                      {activity.type === 'hotels' && activity.hotels && (
-                        <div className="space-y-3">
-                          {activity.hotels.map((hotel, hotelIndex) => (
-                            <div key={hotelIndex} className="bg-gray-800 rounded-lg p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <h5 className="font-semibold">{hotel.name}</h5>
-                                  <p className="text-xs text-gray-400">{hotel.location}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold text-green-400">{hotel.price}</p>
-                                  <p className="text-xs text-gray-400">{hotel.rating} • {hotel.ratingCount}</p>
-                                </div>
-                              </div>
-                              {hotel.imageUrl && (
-                                <img 
-                                  src={hotel.imageUrl} 
-                                  alt={hotel.name}
-                                  className="w-full h-24 object-cover rounded"
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

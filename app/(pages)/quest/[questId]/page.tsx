@@ -35,22 +35,24 @@ const QuestViewPage = () => {
   }, [user, loading, questId, router]);
 
   const loadQuest = async () => {
-    try {
-      const questData = await questService.getQuest(user.uid, questId);
-      setQuest(questData);
-      setEditedQuest(JSON.parse(JSON.stringify(questData)));
-    } catch (error) {
-      console.error('Error loading quest:', error);
-    }
-    setQuestLoading(false);
-  };
+  if (!user?.uid) return;
+  
+  try {
+    const questData = await questService.getQuest(user.uid, questId);
+    setQuest(questData);
+    setEditedQuest(JSON.parse(JSON.stringify(questData)));
+  } catch (error) {
+    console.error('Error loading quest:', error);
+  }
+};
 
-  const userRole = quest?.members?.[user?.uid];
+  const userRole = quest?.members?.[user?.uid || ''];
   const canEdit = userRole === 'owner' || userRole === 'editor';
   const isOwner = userRole === 'owner';
   const isPublic = quest?.isPublic || false;
 
   const handleSave = async () => {
+    if (!user?.uid) return;
     setSaving(true);
     try {
       await questService.updateQuest(questId, user.uid, {
@@ -67,6 +69,7 @@ const QuestViewPage = () => {
   };
 
   const handlePublish = async () => {
+    if (!user?.uid) return;
     try {
       await questService.updateQuest(questId, user.uid, { isPublic: !isPublic });
       setQuest({ ...quest, isPublic: !isPublic });
@@ -76,6 +79,7 @@ const QuestViewPage = () => {
   };
 
   const handleCopyQuest = async () => {
+    if (!user?.uid) return;
     try {
       const copiedQuest = {
         ...quest,
@@ -83,9 +87,19 @@ const QuestViewPage = () => {
         members: { [user.uid]: 'owner' },
         isPublic: false,
         copiedFrom: questId
+        
       };
       delete copiedQuest.id;
-      const result = await questService.createQuest(user.uid, copiedQuest);
+      const flowCards = quest?.itinerary?.days?.flatMap((day: any) => 
+      day.activities?.map((activity: any) => ({
+        location: activity.location,
+        title: activity.title,
+        description: activity.description,
+        time: activity.time,
+        // Add other required FlowCardState properties
+      })) || []
+    ) || [];
+      const result = await questService.createQuest(user.uid, copiedQuest, null as any , flowCards);
       router.push(`/quest/${result.questId}`);
     } catch (error) {
       console.error('Error copying quest:', error);
@@ -380,7 +394,7 @@ const QuestViewPage = () => {
                           dayIndex={dayIndex}
                           activityIndex={activityIndex}
                           onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                          onUpdate={(field, value) => updateActivity(dayIndex, activityIndex, field, value)}
+                          onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
                           onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
                           onDragStart={handleDragStart}
                           onDragOver={handleDragOver}
@@ -463,7 +477,7 @@ const QuestViewPage = () => {
                           dayIndex={dayIndex}
                           activityIndex={activityIndex}
                           onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                          onUpdate={(field, value) => updateActivity(dayIndex, activityIndex, field, value)}
+                          onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
                           onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
                           onDragStart={handleDragStart}
                           onDragOver={handleDragOver}

@@ -319,7 +319,24 @@ const QuestPage = () => {
 
       const questPayload = { ...tripData, itinerary: apiResult.itinerary };
 
-      const createResult = await questService.createQuest(user.uid, questPayload);
+      // Extract flowCards from the generated itinerary
+        const flowCards = apiResult.itinerary?.days?.flatMap((day: any) => 
+          day.activities?.map((activity: any) => ({
+            location: activity.location || { name: '', coordinates: { lat: 0, lng: 0 } },
+            title: activity.title || '',
+            description: activity.description || '',
+            time: activity.time || '',
+            type: activity.type || 'text',
+            // Add other required FlowCardState properties
+          })) || []
+        ) || [];
+
+        const createResult = await questService.createQuest(
+          user.uid, 
+          questPayload,
+          null as any, // No cover image file
+          flowCards
+        );
       if (createResult.success) {
         router.push(`/quest/${createResult.questId}`);
       } else {
@@ -353,7 +370,8 @@ const QuestPage = () => {
 
       const questPayload = { ...tripData, itinerary: { days: blankDays } };
 
-      const result = await questService.createQuest(user.uid, questPayload);
+
+      const result = await questService.createQuest(user.uid, questPayload , null as any , []);
       if (result.success) {
         router.push(`/quest/${result.questId}`);
       } else {

@@ -50,6 +50,13 @@ interface DayItineraryProps {
   onAdd: (text: string) => void;
 }
 
+const SECTION_KEYS = ["morning", "afternoon", "evening", "night", "other"] as const;
+type SectionKey = typeof SECTION_KEYS[number];
+
+// Keep your openSections state
+const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
+  () => Object.fromEntries(SECTION_KEYS.map((key) => [key, true])) as Record<SectionKey, boolean>
+);
 
 const TimeSection: React.FC<{
   title: string;
@@ -253,13 +260,12 @@ const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
   const [openSection, setOpenSection] = useState<string>("morning");
 
   // Replace your current handleToggle with this
-const handleToggle = (section: string) => {
+const handleToggle = (section: SectionKey) => {
   setOpenSections(prev => ({
     ...prev,
     [section]: !prev[section]
   }));
 };
-
   // Update to match your state
 const handleItemClick = (id: string) => {
   setActiveItemId(activeItemId === id ? null : id);
@@ -349,7 +355,7 @@ const handleItemClick = (id: string) => {
           title="Morning"
           icon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/1fbdce7451ea9115cd8ed19b8552faff802601b0b3f49ec9bbc0e30a686e9a0b?placeholderIfAbsent=true"
           toggleIcon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/7f07e118a72e5aa15917ae54ea7af35938eee6b092de817196d6a69f3f0c4ab2?placeholderIfAbsent=true"
-          isOpen={openSection === "morning"}
+          isOpen={openSections.morning}
           onToggle={() => handleToggle("morning")}
         >
           <div className="flex flex-col gap-3">
@@ -405,7 +411,7 @@ const handleItemClick = (id: string) => {
           title="Afternoon"
           icon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/8cd35b1e1cd91d36bd698c0f124d95956112a28c3dfa8b1db6919ebb9061be0c?placeholderIfAbsent=true"
           toggleIcon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/fb7b68e83f6616cf802b0d306adf8d1e72b4992c0685c951cc8905e56b8613d8?placeholderIfAbsent=true"
-          isOpen={openSection === "afternoon"}
+          isOpen={openSections.afternoon}
           onToggle={() => handleToggle("afternoon")}
         >
           <div className="flex flex-col gap-3">
@@ -438,7 +444,7 @@ const handleItemClick = (id: string) => {
           title="Night"
           icon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/df12da01b4042d55071f88bb4bb92985c6a6992244033a6c241a7c5c2b931875?placeholderIfAbsent=true"
           toggleIcon="https://cdn.builder.io/api/v1/image/assets/3b64de0bd39c48b8b53f7c91e5d4e417/9f8e48378c0f73444ad3d3375d2a5adce12fd34c36f5db71b322bb5d47ef6324?placeholderIfAbsent=true"
-          isOpen={openSection === "night"}
+          isOpen={openSections.night}
           onToggle={() => handleToggle("night")}
         >
           <div className="flex flex-col gap-3">

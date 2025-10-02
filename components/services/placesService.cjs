@@ -198,7 +198,7 @@ Include check-in date ${checkInDate} and check-out date ${checkOutDate} in the i
 /**
  * API Endpoint to generate itinerary and fetch hotels.
  */
-app.post('/api/generate-itinerary', async (req, res) => {
+app.post('/api/generate-quest', async (req, res) => {
   const { source, destination, dateRange, days, transport, budget, accommodationType, preferences } = req.body;
 
   try {

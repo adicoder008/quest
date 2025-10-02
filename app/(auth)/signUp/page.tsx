@@ -14,7 +14,7 @@ const page = () => {
   const [displayName, setDisplayName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [selectedAvatar, setSelectedAvatar] = React.useState(null);
+  const [selectedAvatar, setSelectedAvatar] = React.useState<string | null>(null);
   const [authStep, setAuthStep] = React.useState<'initial' | 'phone-verify' | 'email-signup'>('initial');
   const [isLoading, setIsLoading] = React.useState(false);
   const [phoneNumber, setPhoneNumber] = React.useState('');
@@ -41,7 +41,7 @@ const page = () => {
     "https://cdn.builder.io/api/v1/image/assets/b783a7681e9247dfa6d0b0f79c8d7bb8/99410d3970fe67ea532993d1c196093377128b25?placeholderIfAbsent=true"
   ];
 
-  const handleEmailSignUp = async (avatar) => {
+  const handleEmailSignUp = async () => {
       try {
         setError('');
         setIsLoading(true);
@@ -51,7 +51,7 @@ const page = () => {
           throw new Error('Please fill all fields');
         }
     
-        const finalAvatar = avatar || 
+        const finalAvatar = selectedAvatar || 
           GOOGLE_AVATAR_OPTIONS[Math.floor(Math.random() * GOOGLE_AVATAR_OPTIONS.length)];
         
         await signUpWithEmail(email, password, displayName, finalAvatar);
@@ -61,11 +61,11 @@ const page = () => {
         setAuthStep('initial');
         setShowAuthModal(false);
         
-        // Optional: Show toast notification
-        alert('Sign up successful! Welcome to our community!');
+        // A toast notification is a better user experience than an alert.
+        console.log('Sign up successful! Welcome to our community!');
         
-      } catch (error) {
-        // setError(error.message || 'Sign up failed. Please try again.');
+      } catch (error: any) {
+        setError(error.message || 'Sign up failed. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -91,7 +91,7 @@ const page = () => {
               />
             </div>
             <AvatarSelector 
-              onSelect={(avatar) => setSelectedAvatar(avatar)} 
+              onSelect={(avatar: string) => setSelectedAvatar(avatar)} 
             />
 
             <div className="flex items-center border border-gray-400 rounded-lg h-10 px-2">

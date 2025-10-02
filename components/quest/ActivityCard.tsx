@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Plus, Trash2, ChevronUp, ChevronDown, Edit3, Save, X, Clock, MapPin, DollarSign, GripVertical } from 'lucide-react';
 
-// Types for Activity and ActivityCard props
+// Types
 type Hotel = {
   name: string;
   location?: string;
@@ -36,7 +38,33 @@ type ActivityCardProps = {
   onAddAfter: (dayIndex: number, activityIndex: number) => void;
 };
 
-// Individual Activity Card Component with Google Forms style
+type AddActivityModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (activity: Activity) => void;
+  timeSlot?: string;
+};
+
+type EditableItineraryProps = {
+  itinerary: {
+    days: Array<{
+      day: number;
+      title: string;
+      date: string;
+      activities: Activity[];
+    }>;
+  };
+  tripData: {
+    uid: string;
+    destination: string;
+    budget?: number;
+    transportMode?: string[];
+    companion?: string;
+    questId?: string;
+  };
+};
+
+// Activity Card Component
 const ActivityCard: React.FC<ActivityCardProps> = ({ 
   activity, 
   index, 
@@ -50,7 +78,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   onAddAfter 
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedActivity, setEditedActivity] = useState({ ...activity });
+  const [editedActivity, setEditedActivity] = useState<Activity>({ ...activity });
 
   const handleSave = () => {
     onEdit(dayIndex, index, editedActivity);
@@ -64,7 +92,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-      {/* Card Header with Controls */}
       <div className="flex items-center justify-between p-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className="flex flex-col gap-1 cursor-grab">
@@ -76,7 +103,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         </div>
         
         <div className="flex items-center gap-1">
-          {/* Reorder buttons */}
           <button
             onClick={() => onMoveUp(dayIndex, index)}
             disabled={!canMoveUp}
@@ -92,7 +118,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <ChevronDown className="w-4 h-4 text-gray-600" />
           </button>
           
-          {/* Edit button */}
           <button
             onClick={() => setIsEditing(!isEditing)}
             className="p-1 rounded hover:bg-gray-100"
@@ -100,7 +125,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <Edit3 className="w-4 h-4 text-gray-600" />
           </button>
           
-          {/* Delete button */}
           <button
             onClick={() => onDelete(dayIndex, index)}
             className="p-1 rounded hover:bg-red-50 text-red-600"
@@ -110,10 +134,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         </div>
       </div>
 
-      {/* Card Content */}
       <div className="p-4">
         {isEditing ? (
-          // Edit Mode
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -203,7 +225,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             </div>
           </div>
         ) : (
-          // View Mode
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">{activity.title}</h4>
             <p className="text-gray-700 text-sm mb-3 leading-relaxed">{activity.description}</p>
@@ -268,7 +289,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         )}
       </div>
       
-      {/* Add Button Below Card */}
       <div className="flex justify-center -mb-3">
         <button
           onClick={() => onAddAfter(dayIndex, index)}
@@ -281,9 +301,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   );
 };
 
-// Add New Activity Modal
-const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
-  const [newActivity, setNewActivity] = useState({
+// Add Activity Modal
+const AddActivityModal: React.FC<AddActivityModalProps> = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
+  const [newActivity, setNewActivity] = useState<Activity>({
     type: 'text',
     time: timeSlot,
     title: '',
@@ -293,7 +313,8 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
     estimatedCost: ''
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (newActivity.title && newActivity.description) {
       onAdd(newActivity);
       setNewActivity({
@@ -305,132 +326,11 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
         duration: '',
         estimatedCost: ''
       });
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
-      handleSubmit();
+      onClose();
     }
   };
 
   if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Add New Activity</h3>
-          
-          <div className="space-y-4" onKeyPress={handleKeyPress}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
-              <select
-                value={newActivity.type}
-                onChange={(e) => setNewActivity(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="text">General Activity</option>
-                <option value="image">Sightseeing</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="hotels">Accommodation</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-              <input
-                type="text"
-                value={newActivity.title}
-                onChange={(e) => setNewActivity(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-              <textarea
-                value={newActivity.description}
-                onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <select
-                  value={newActivity.time}
-                  onChange={(e) => setNewActivity(prev => ({ ...prev, time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="Morning">Morning</option>
-                  <option value="Afternoon">Afternoon</option>
-                  <option value="Evening">Evening</option>
-                  <option value="Night">Night</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                <input
-                  type="text"
-                  value={newActivity.duration}
-                  onChange={(e) => setNewActivity(prev => ({ ...prev, duration: e.target.value }))}
-                  placeholder="2-3 hours"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input
-                  type="text"
-                  value={newActivity.location}
-                  onChange={(e) => setNewActivity(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
-                <input
-                  type="text"
-                  value={newActivity.estimatedCost}
-                  onChange={(e) => setNewActivity(prev => ({ ...prev, estimatedCost: e.target.value }))}
-                  placeholder="₹ 500"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!newActivity.title || !newActivity.description}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Activity
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-  </div>
-);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -494,7 +394,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
                 <input
                   type="text"
-                  value={newActivity.duration}
+                  value={newActivity.duration || ''}
                   onChange={(e) => setNewActivity(prev => ({ ...prev, duration: e.target.value }))}
                   placeholder="2-3 hours"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -507,7 +407,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                 <input
                   type="text"
-                  value={newActivity.location}
+                  value={newActivity.location || ''}
                   onChange={(e) => setNewActivity(prev => ({ ...prev, location: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
@@ -517,7 +417,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
                 <input
                   type="text"
-                  value={newActivity.estimatedCost}
+                  value={newActivity.estimatedCost || ''}
                   onChange={(e) => setNewActivity(prev => ({ ...prev, estimatedCost: e.target.value }))}
                   placeholder="₹ 500"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -548,39 +448,20 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, timeSlot = 'Morning' }) => {
   );
 };
 
-// Main Editable Itinerary Component
-type EditableItineraryProps = {
-  itinerary: {
-    days: Array<{
-      day: number;
-      title: string;
-      date: string;
-      activities: Activity[];
-    }>;
-  };
-  tripData: {
-    uid: string;
-    destination: string;
-    budget?: number;
-    transportMode?: string[];
-    companion?: string;
-    questId?: string;
-  };
-};
-
+// Main Component
 const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripData }) => {
   const [selectedDay, setSelectedDay] = useState(0);
   const [days, setDays] = useState(itinerary?.days || []);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addAfterIndex, setAddAfterIndex] = useState(null);
+  const [addAfterIndex, setAddAfterIndex] = useState<{ dayIndex: number; activityIndex: number } | null>(null);
 
-  const handleEditActivity = (dayIndex, activityIndex, updatedActivity) => {
+  const handleEditActivity = (dayIndex: number, activityIndex: number, updatedActivity: Activity) => {
     const newDays = [...days];
     newDays[dayIndex].activities[activityIndex] = updatedActivity;
     setDays(newDays);
   };
 
-  const handleDeleteActivity = (dayIndex, activityIndex) => {
+  const handleDeleteActivity = (dayIndex: number, activityIndex: number) => {
     if (window.confirm('Are you sure you want to delete this activity?')) {
       const newDays = [...days];
       newDays[dayIndex].activities.splice(activityIndex, 1);
@@ -588,7 +469,7 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
     }
   };
 
-  const handleMoveUp = (dayIndex, activityIndex) => {
+  const handleMoveUp = (dayIndex: number, activityIndex: number) => {
     if (activityIndex > 0) {
       const newDays = [...days];
       const activities = newDays[dayIndex].activities;
@@ -598,7 +479,7 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
     }
   };
 
-  const handleMoveDown = (dayIndex, activityIndex) => {
+  const handleMoveDown = (dayIndex: number, activityIndex: number) => {
     const newDays = [...days];
     const activities = newDays[dayIndex].activities;
     if (activityIndex < activities.length - 1) {
@@ -608,12 +489,12 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
     }
   };
 
-  const handleAddAfter = (dayIndex, activityIndex) => {
+  const handleAddAfter = (dayIndex: number, activityIndex: number) => {
     setAddAfterIndex({ dayIndex, activityIndex });
     setShowAddModal(true);
   };
 
-  const handleAddActivity = (newActivity) => {
+  const handleAddActivity = (newActivity: Activity) => {
     if (addAfterIndex) {
       const newDays = [...days];
       newDays[addAfterIndex.dayIndex].activities.splice(
@@ -627,14 +508,12 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
     setAddAfterIndex(null);
   };
 
-  // TODO: Replace the following lines with your actual user and questId retrieval logic 
-  const user =  tripData?.uid || 'no-uid' // Replace with actual user object or context
-  // Try to get questId from itinerary or tripData if available
+  const user = tripData?.uid || 'no-uid';
   const questId = tripData?.questId || 'demo-quest-id';
 
   const handleSaveItinerary = async () => {
     try {
-      const response = await fetch(`/api/user/${user?.uid}/quests/${questId}/itinerary`, {
+      const response = await fetch(`/api/user/${user}/quests/${questId}/itinerary`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -657,7 +536,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
@@ -676,7 +554,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
       </div>
 
       <div className="max-w-4xl mx-auto p-4 pb-20">
-        {/* Trip Summary Card */}
         <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6 shadow-sm">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -698,7 +575,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
           </div>
         </div>
 
-        {/* Day selector */}
         <div className="mb-6">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {days.map((day, index) => (
@@ -717,7 +593,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
           </div>
         </div>
 
-        {/* Selected day content */}
         {days[selectedDay] && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -734,7 +609,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
               </p>
             </div>
 
-            {/* Activities with spacing */}
             <div className="space-y-6">
               {days[selectedDay].activities.map((activity, index) => (
                 <div key={`${selectedDay}-${index}`}>
@@ -753,7 +627,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
                 </div>
               ))}
               
-              {/* Final Add Button */}
               <div className="flex justify-center pt-2">
                 <button
                   onClick={() => handleAddAfter(selectedDay, days[selectedDay].activities.length - 1)}
@@ -768,7 +641,6 @@ const EditableItinerary: React.FC<EditableItineraryProps> = ({ itinerary, tripDa
         )}
       </div>
 
-      {/* Add Activity Modal */}
       <AddActivityModal
         isOpen={showAddModal}
         onClose={() => {

@@ -14,11 +14,23 @@ export const getUserPosts = async (uid: string) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-export const getUserBadges = async (uid: string) => {
-  const badgesRef = collection(db, 'user_badges');
-  const q = query(badgesRef, where('uid', '==', uid));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+// In firebaseSerive.js - update getUserBadges to return complete badge data
+export const getUserBadges = async (userId: string) => {
+  try {
+    const badgesRef = collection(db, 'users', userId, 'badges');
+    const badgesSnapshot = await getDocs(badgesRef);
+    
+    return badgesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name || 'Unknown Badge',
+      iconUrl: doc.data().iconUrl || '/default-badge.png',
+      description: doc.data().description || '',
+      earnedAt: doc.data().earnedAt?.toDate() || new Date()
+    }));
+  } catch (error) {
+    console.error('Error fetching badges:', error);
+    return [];
+  }
 };
 
 export const getLevelInfo = (xp: number) => {

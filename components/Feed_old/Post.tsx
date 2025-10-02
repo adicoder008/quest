@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Avatar } from "./avatar";
+import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { db, auth } from '../../lib/firebase.js';
 import { 
@@ -54,7 +54,7 @@ interface PostProps {
   };
 }
 
-export const Post = ({ 
+export const PostFeed = ({ 
   id,
   author,
   content,

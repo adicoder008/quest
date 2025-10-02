@@ -3,6 +3,19 @@
 import React from 'react';
 import { Clock, Hotel, Utensils, Camera, MapPin, Edit, Trash2 } from 'lucide-react';
 
+// Define the Activity type
+interface Activity {
+  title: string;
+  time: string;
+  description: string;
+  imageUrl?: string;
+}
+
+// Define props interface
+interface MobileFlowCardProps {
+  activity: Activity;
+}
+
 // A helper to pick an icon based on the activity title
 const getActivityIcon = (title: string = '') => {
   const lowerTitle = title.toLowerCase();
@@ -12,7 +25,7 @@ const getActivityIcon = (title: string = '') => {
   return <MapPin size={18} />;
 };
 
-export const MobileFlowCard = ({ activity }) => {
+export const MobileFlowCard: React.FC<MobileFlowCardProps> = ({ activity }) => {
   const canEdit = false; // Set to true to show edit/delete buttons
 
   return (

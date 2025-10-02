@@ -1,8 +1,14 @@
 'use client';
 
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin } from 'lucide-react';
 import { subscribeToPosts, likePost, addComment, } from '../../../lib/postService';
+=======
+import { useState, useEffect, Key } from 'react';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send } from 'lucide-react';
+import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
+>>>>>>> 261e3b2 (build successfull)
 import { getCurrentUserData } from '../../../lib/authService';
 import { auth, db } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -17,8 +23,12 @@ import Navbar from '@/components/Nav';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
+<<<<<<< HEAD
 import { useNavigate } from 'react-router-dom';
 import followUser, {unfollowUser} from '../../../lib/followService';
+=======
+import { useRouter } from 'next/navigation';
+>>>>>>> 261e3b2 (build successfull)
 
 const ResponsiveFeedPage = () => {
   const isDesktop = useResponsive(768);
@@ -29,7 +39,16 @@ const ResponsiveFeedPage = () => {
   
   return <MobileFeedPage />;
 };
-
+interface Comment {
+  id: string;
+  text: string;        // ✅ Now properly set from Firestore
+  createdAt: any;      // ✅ Now properly set from Firestore
+  author: {
+    name: string;
+    avatar: string;
+  };
+  [key: string]: any;
+}
 // =================================================================
 // COMMENT MODAL FOR DESKTOP (TWITTER-STYLE)
 // =================================================================
@@ -42,7 +61,7 @@ interface CommentModalProps {
 
 const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProps) => {
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,36 +73,38 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
         const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
         const commentsSnapshot = await getDocs(commentsQuery);
         
-        const commentsData = [];
-        for (const commentDoc of commentsSnapshot.docs) {
-          const commentData = commentDoc.data();
-          let commentAuthor = {
-            name: 'Anonymous',
-            avatar: '/default-avatar.png'
-          };
-          
-          // Fetch comment author details
-          if (commentData.uid) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', commentData.uid));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                commentAuthor = {
-                  name: userData.displayName || 'Anonymous',
-                  avatar: userData.photoURL || '/default-avatar.png'
-                };
-              }
-            } catch (error) {
-              console.error('Error fetching comment author:', error);
+        const commentsData: Comment[] = [];
+      for (const commentDoc of commentsSnapshot.docs) {
+        const commentData = commentDoc.data();
+        let commentAuthor = {
+          name: 'Anonymous',
+          avatar: '/default-avatar.png'
+        };
+        
+        if (commentData.uid) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', commentData.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              commentAuthor = {
+                name: userData.displayName || 'Anonymous',
+                avatar: userData.photoURL || '/default-avatar.png'
+              };
             }
+          } catch (error) {
+            console.error('Error fetching comment author:', error);
           }
-          
-          commentsData.push({
-            id: commentDoc.id,
-            ...commentData,
-            author: commentAuthor
-          });
         }
+        
+            commentsData.push({
+  id: commentDoc.id,
+  text: commentData.text || '',      // ✅ Get text from Firestore
+  createdAt: commentData.createdAt,  // ✅ Get timestamp from Firestore
+  author: commentAuthor,
+  ...commentData                      // ✅ Spread AFTER to avoid overwriting
+});
+        
+      }
         
         setComments(commentsData);
       } catch (error) {
@@ -132,11 +153,14 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
           }
         }
         
-        commentsData.push({
-          id: commentDoc.id,
-          ...commentData,
-          author: commentAuthor
-        });
+       
+commentsData.push({
+  id: commentDoc.id,
+  text: commentData.text || '',      // ✅ Get text from Firestore
+  createdAt: commentData.createdAt,  // ✅ Get timestamp from Firestore
+  author: commentAuthor,
+  ...commentData                      // ✅ Spread AFTER
+});
       }
       
       setComments(commentsData);
@@ -145,7 +169,7 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
     }
   };
 
-  const formatCommentTime = (timestamp) => {
+  const formatCommentTime = (timestamp: { toDate: () => any; seconds: number; }) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
@@ -277,34 +301,41 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
 
 const Feed = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState(null);
+const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [posts, setPosts] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [popularUsers, setPopularUsers] = useState([]);
-  const [selectedPostForComment, setSelectedPostForComment] = useState(null);
+ const [posts, setPosts] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [popularUsers, setPopularUsers] = useState<any[]>([]);
+const [selectedPostForComment, setSelectedPostForComment] = useState<any>(null); 
+ const router = useRouter();
  
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    if (currentUser) {
+      // Convert Firebase User to custom User type
+      setUser({
+        uid: currentUser.uid,
+        displayName: currentUser.displayName ?? undefined,
+        email: currentUser.email ?? undefined,
+        photoURL: currentUser.photoURL ?? undefined
+      });
       
-      if (currentUser) {
-        try {
-          const userDetails = await getCurrentUserData();
-          setUserData(userDetails);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      } else {
-        setUserData(null);
+      try {
+        const userDetails = await getCurrentUserData();
+        setUserData(userDetails);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
       }
-      
-      setLoading(false);
-    });
+    } else {
+      setUser(null);
+      setUserData(null);
+    }
     
-    return () => unsubscribe();
-  }, []);
+    setLoading(false);
+  });
+  
+  return () => unsubscribe();
+}, []);
 
   useEffect(() => {
     const unsubscribePosts = onSnapshot(
@@ -312,8 +343,8 @@ const Feed = () => {
       async (snapshot) => {
         const postsData = [];
         
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
+        for (const docc of snapshot.docs) {
+          const data = docc.data();
           let authorName = 'Anonymous';
           let authorAvatar = '/default-avatar.png';
           let authorTitle = '';
@@ -331,7 +362,7 @@ const Feed = () => {
           }
     
           postsData.push({
-            id: doc.id,
+            id: docc.id,
             author: {
               id: data.userId,
               name: authorName,
@@ -365,12 +396,12 @@ const Feed = () => {
     const unsubscribeEvents = onSnapshot(
       query(collection(db, 'events'), orderBy('startTime', 'asc')),
       (snapshot) => {
-        const eventsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
+        const eventsData = snapshot.docs.map(docc => ({
+          id: docc.id,
+          ...docc.data(),
           formattedDate: {
-            day: new Date(doc.data().startTime).getDate(),
-            month: new Date(doc.data().startTime).toLocaleString('default', { month: 'short' })
+            day: new Date(docc.data().startTime).getDate(),
+            month: new Date(docc.data().startTime).toLocaleString('default', { month: 'short' })
           }
         }));
         setEvents(eventsData.slice(0, 5));
@@ -380,11 +411,11 @@ const Feed = () => {
     const unsubscribeUsers = onSnapshot(
       query(collection(db, 'users'), orderBy('followers', 'desc')),
       (snapshot) => {
-        const usersData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          photoURL: doc.data().photoURL || '/default-avatar.png',
-          followers: doc.data().followers || []
+        const usersData = snapshot.docs.map(docc => ({
+          id: docc.id,
+          ...docc.data(),
+          photoURL: docc.data().photoURL || '/default-avatar.png',
+          followers: docc.data().followers || []
         }));
         setPopularUsers(usersData.slice(0, 4));
       }
@@ -472,7 +503,7 @@ const Feed = () => {
     }
   };
 
-  const formatTime = (timestamp) => {
+  const formatTime = (timestamp: { seconds: number; }) => {
     if (!timestamp) return '';
     const date = new Date(timestamp.seconds * 1000);
     const now = new Date();
@@ -485,8 +516,12 @@ const Feed = () => {
   };
 
   // Event Card Component
-  const EventCard = ({ date, title, location, type = "other" }) => {
-    const getTypeColor = () => {
+const EventCard = ({ date, title, location, type = "other" }: {
+  date: { day: string; month: string };
+  title: string;
+  location: string;
+  type?: string;
+}) => {    const getTypeColor = () => {
       switch (type) {
         case "music": return "bg-blue-500";
         case "workshop": return "bg-green-500";
@@ -511,7 +546,13 @@ const Feed = () => {
   };
 
   // Traveler Card Component
-  const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }) => {
+ const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }: {
+  name: string;
+  title: string;
+  avatar: string;
+  onFollow: () => void;
+  isFollowing: boolean;
+}) => {
     return (
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -536,7 +577,7 @@ const Feed = () => {
   };
 
   // Desktop Post Component
-  const DesktopPost = ({ post }) => {
+  const DesktopPost = ({ post }: { post: any }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
 
     return (
@@ -567,7 +608,7 @@ const Feed = () => {
         {/* Images */}
         {post.content.images && post.content.images.length > 0 && (
           <div className="px-4 pb-3">
-            {post.content.images.map((image, index) => (
+            {post.content.images.map((image: string | Blob | undefined, index: Key | null | undefined) => (
               <img
                 key={index}
                 src={image}
@@ -736,7 +777,7 @@ const Feed = () => {
         {user && (
           <div className="fixed bottom-6 right-6 z-50">
             <button
-              onClick={() => navigate('/create-quest')}
+              onClick={() => router.push('/create-quest')}
               className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F7CEB0] focus:ring-opacity-50"
               aria-label="Create new quest"
             >
@@ -746,15 +787,14 @@ const Feed = () => {
         )}
       </main>
 
-      {/* Comment Modal */}
-      {selectedPostForComment && (
-        <CommentModal
-          post={selectedPostForComment}
-          user={user}
-          onClose={() => setSelectedPostForComment(null)}
-          onCommentSubmit={handleCommentSubmit}
-        />
-      )}
+    {selectedPostForComment && user && (
+      <CommentModal
+        post={selectedPostForComment}
+        user={user}
+        onClose={() => setSelectedPostForComment(null)}
+        onCommentSubmit={handleCommentSubmit}
+      />
+    )}
     </div>
   );
 };
@@ -775,9 +815,10 @@ const MobileFeedPage = () => {
           console.error('Error getting user data:', error);
           setUser({
             uid: authUser.uid,
-            displayName: authUser.displayName ?? undefined,
-            email: authUser.email ?? undefined,
-            photoURL: authUser.photoURL ?? undefined
+            displayName: authUser.displayName ?? 'Anonymous',
+            email: authUser.email ?? 'Anonymous',
+            photoURL: authUser.photoURL ?? '',
+        
           });
         }
       } else {

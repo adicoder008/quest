@@ -114,9 +114,9 @@ const ActivitySection: React.FC<{ uid: string }> = ({ uid }) => {
             timeAgo={formatTimeAgo(post.createdAt?.toDate())}
             location={post.location || ""}
             content={post.text}
-            likes={formatNumber(post.likeCount)}
-            comments={formatNumber(post.commentCount)}
-          />
+            likes={post.likeCount}
+            comments={post.commentCount} 
+            postId={""}          />
         ))}
       </div>
       <div className="border min-h-px w-full mt-4 border-[rgba(139,138,143,1)] border-solid max-md:max-w-full" />

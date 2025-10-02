@@ -8,23 +8,23 @@ import { createPost } from '../../lib/postService.js';
 import { POST_TYPES } from '../../lib/postService.js';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
-const libraries = ['places'];
-const googleMapsApiKey = "AIzaSyD3ZFwUynLIrpQ0P4Uvmwohv-E15WJHCuo";
 
-export const CreatePost = ({ onPostCreated }) => {
-  // State management
-  const [user, setUser] = useState(null);
-  const [userData, setUserData] = useState(null);
+
+const libraries = ['places'];
+const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+export const CreatePost = ({ onPostCreated }: { onPostCreated?: () => void }) => {  // State management
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [postType, setPostType] = useState(POST_TYPES.REGULAR);
   const [text, setText] = useState('');
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFile, setImageFile] = useState<any>(null);
   const [imagePreview, setImagePreview] = useState('');
   const [location, setLocation] = useState('');
-  const [topics, setTopics] = useState([]);
-  const [taggedUsers, setTaggedUsers] = useState([]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [taggedUsers, setTaggedUsers] = useState<string[]>([]);
   const [eventDetails, setEventDetails] = useState({
     startTime: '',
     endTime: '',
@@ -37,14 +37,13 @@ export const CreatePost = ({ onPostCreated }) => {
   });
 
   // Refs
-  const autocompleteRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const topicInputRef = useRef(null);
-
+const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+const fileInputRef = useRef<HTMLInputElement | null>(null);
+const topicInputRef = useRef<HTMLInputElement | null>(null);
   // Google Maps
-  const { isLoaded, loadError } = useLoadScript({
+ const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey,
-    libraries,
+    libraries: libraries as any, // Type assertion as workaround
   });
 
   // Auth state listener
@@ -70,16 +69,16 @@ export const CreatePost = ({ onPostCreated }) => {
   }, []);
 
   // Handle image selection
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+};
 
   // Handle place selection
-  const onLoad = (autocomplete) => {
+  const onLoad = (autocomplete: null) => {
     autocompleteRef.current = autocomplete;
   };
 
@@ -136,21 +135,21 @@ export const CreatePost = ({ onPostCreated }) => {
       daysTaken: 0
     });
   };
-
-  const handleAddTopic = (e) => {
+  const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!topicInputRef.current) return;
+    
     const topic = topicInputRef.current.value.trim();
     if (topic && !topics.includes(topic)) {
       setTopics([...topics, topic]);
       topicInputRef.current.value = '';
     }
   };
+  const handleRemoveTopic = (topicToRemove: string) => {
+  setTopics(topics.filter(topic => topic !== topicToRemove));
+};
 
-  const handleRemoveTopic = (topicToRemove) => {
-    setTopics(topics.filter(topic => topic !== topicToRemove));
-  };
-
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!text) {
@@ -209,70 +208,109 @@ export const CreatePost = ({ onPostCreated }) => {
     }
   };
 
-  // UI Components
-  const Avatar = ({ src, alt, className = "w-10 h-10 rounded-full object-cover" }) => (
-    <img 
-      src={src || "/default-avatar.png"}
-      alt={alt} 
-      className={className} 
-    />
-  );
+  // UI Components with proper types
+const Avatar = ({ 
+  src, 
+  alt, 
+  className = "w-10 h-10 rounded-full object-cover" 
+}: { 
+  src?: string; 
+  alt: string; 
+  className?: string;
+}) => (
+  <img 
+    src={src || "/default-avatar.png"}
+    alt={alt} 
+    className={className} 
+  />
+);
 
-  const Button = ({ children, variant = "default", className = "", onClick = () => {}, ...props }) => {
-      const baseClasses = "font-medium leading-[150%]";
-      const variantClasses = variant === "primary" 
-        ? "bg-blue-500 text-white" 
-        : "bg-gray-200 text-gray-800";
-      
-      return (
-        <button 
-          className={`${baseClasses} ${variantClasses} ${className} rounded px-4 py-2`}
-          onClick={onClick}
-          {...props}
-        >
-          {children}
-        </button>
-      );
-    };
-
-  const ActionButton = ({ icon, label, onClick }) => (
+const Button = ({ 
+  children, 
+  variant = "default", 
+  className = "", 
+  onClick = () => {}, 
+  type = "button",
+  ...props 
+}: { 
+  children: React.ReactNode; 
+  variant?: "default" | "primary"; 
+  className?: string; 
+  onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+}) => {
+  const baseClasses = "font-medium leading-[150%]";
+  const variantClasses = variant === "primary" 
+    ? "bg-blue-500 text-white" 
+    : "bg-gray-200 text-gray-800";
+  
+  return (
     <button 
-      className="box-border flex items-center gap-2 text-gray-700 text-sm hover:bg-gray-100 px-3 py-2 rounded"
+      type={type}
+      className={`${baseClasses} ${variantClasses} ${className} rounded px-4 py-2`}
       onClick={onClick}
+      {...props}
     >
-      {icon === "image" && (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM5 19V5H19V19H5ZM8.5 13.5L11 16.51L14.5 12L19 18H5L8.5 13.5Z" fill="currentColor"/>
-        </svg>
-      )}
-      {icon === "video" && (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M17 10.5V7C17 6.45 16.55 6 16 6H4C3.45 6 3 6.45 3 7V17C3 17.55 3.45 18 4 18H16C16.55 18 17 17.55 17 17V13.5L21 17.5V6.5L17 10.5Z" fill="currentColor"/>
-        </svg>
-      )}
-      {icon === "location" && (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
-        </svg>
-      )}
-      <span>{label}</span>
+      {children}
     </button>
   );
+};
 
-  const OptionButton = ({ icon, label, onClick }) => (
-    <div 
-      className="self-stretch rounded-lg bg-white border border-gray-300 flex items-center justify-between py-2 px-3 text-sm cursor-pointer hover:bg-gray-50"
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-2">
-        <img className="w-5 h-5" alt="" src={icon} />
-        <div className="font-medium text-gray-700">{label}</div>
-      </div>
-      <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+const ActionButton = ({ 
+  icon, 
+  label, 
+  onClick 
+}: { 
+  icon: string; 
+  label: string; 
+  onClick: () => void;
+}) => (
+  <button 
+    className="box-border flex items-center gap-2 text-gray-700 text-sm hover:bg-gray-100 px-3 py-2 rounded"
+    onClick={onClick}
+  >
+    {icon === "image" && (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM5 19V5H19V19H5ZM8.5 13.5L11 16.51L14.5 12L19 18H5L8.5 13.5Z" fill="currentColor"/>
       </svg>
+    )}
+    {icon === "video" && (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 10.5V7C17 6.45 16.55 6 16 6H4C3.45 6 3 6.45 3 7V17C3 17.55 3.45 18 4 18H16C16.55 18 17 17.55 17 17V13.5L21 17.5V6.5L17 10.5Z" fill="currentColor"/>
+      </svg>
+    )}
+    {icon === "location" && (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
+      </svg>
+    )}
+    <span>{label}</span>
+  </button>
+);
+
+const OptionButton = ({ 
+  icon, 
+  label, 
+  onClick 
+}: { 
+  icon: string; 
+  label: string; 
+  onClick: () => void;
+}) => (
+  <div 
+    className="self-stretch rounded-lg bg-white border border-gray-300 flex items-center justify-between py-2 px-3 text-sm cursor-pointer hover:bg-gray-50"
+    onClick={onClick}
+  >
+    <div className="flex items-center gap-2">
+      <img className="w-5 h-5" alt="" src={icon} />
+      <div className="font-medium text-gray-700">{label}</div>
     </div>
-  );
+    <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  </div>
+);
 
   if (loading) {
     return <div className="min-h-screen bg-white">Loading...</div>;
@@ -414,42 +452,42 @@ export const CreatePost = ({ onPostCreated }) => {
                 
                 {/* Quest Completion Details (conditional) */}
                 {postType === POST_TYPES.QUEST_COMPLETION && (
-                  <div className="mt-3 space-y-3">
-                    <h3 className="font-medium text-gray-700">Quest Completion</h3>
-                    <div>
-                      <label className="block text-sm text-gray-500">Quest ID</label>
+                <div className="mt-3 space-y-3">
+                  <h3 className="font-medium text-gray-700">Quest Completion</h3>
+                  <div>
+                    <label className="block text-sm text-gray-500">Quest ID</label>
+                    <input
+                      type="text"
+                      value={questContext.questId}
+                      onChange={(e) => setQuestContext({...questContext, questId: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      placeholder="Enter quest ID"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-500">Places Visited</label>
                       <input
-                        type="text"
-                        value={questContext.questId}
-                        onChange={(e) => setQuestContext({...questContext, questId: e.target.value})}
+                        type="number"
+                        value={questContext.placesVisited}
+                        onChange={(e) => setQuestContext({...questContext, placesVisited: parseInt(e.target.value) || 0})}
                         className="w-full p-2 border border-gray-300 rounded-lg"
-                        placeholder="Enter quest ID"
+                        min="1"
                       />
                     </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="block text-sm text-gray-500">Places Visited</label>
-                        <input
-                          type="number"
-                          value={questContext.placesVisited}
-                          onChange={(e) => setQuestContext({...questContext, placesVisited: e.target.value})}
-                          className="w-full p-2 border border-gray-300 rounded-lg"
-                          min="1"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-sm text-gray-500">Days Taken</label>
-                        <input
-                          type="number"
-                          value={questContext.daysTaken}
-                          onChange={(e) => setQuestContext({...questContext, daysTaken: e.target.value})}
-                          className="w-full p-2 border border-gray-300 rounded-lg"
-                          min="1"
-                        />
-                      </div>
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-500">Days Taken</label>
+                      <input
+                        type="number"
+                        value={questContext.daysTaken}
+                        onChange={(e) => setQuestContext({...questContext, daysTaken: parseInt(e.target.value) || 0})}
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        min="1"
+                      />
                     </div>
                   </div>
-                )}
+                </div>
+              )}
                 
                 {/* Topics */}
                 <div className="mt-3">
@@ -492,7 +530,7 @@ export const CreatePost = ({ onPostCreated }) => {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current.click()}
+                        onClick={() => fileInputRef.current?.click()}
                       className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
                       title="Add photo"
                     >
@@ -595,13 +633,12 @@ export const CreatePost = ({ onPostCreated }) => {
                   if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                       (position) => {
-                        // Reverse geocode to get address
                         if (isLoaded) {
                           const geocoder = new window.google.maps.Geocoder();
                           geocoder.geocode(
                             { location: { lat: position.coords.latitude, lng: position.coords.longitude } },
                             (results, status) => {
-                              if (status === 'OK' && results[0]) {
+                              if (status === 'OK' && results && results[0]) {
                                 setLocation(results[0].formatted_address);
                               }
                             }
@@ -618,6 +655,7 @@ export const CreatePost = ({ onPostCreated }) => {
                   }
                 }}
               >
+              
                 <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
                 </svg>

@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { getUserData } from "../../../lib/firebaseSerive";
-import { getAuth } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../../../lib/firebase";
 import { updateBio } from "../../../lib/profileService";
-
-const auth = getAuth();
-const currentUser = auth.currentUser;
-const uid = currentUser?.uid;
 
 interface UserData {
   bio?: string;
@@ -13,11 +10,26 @@ interface UserData {
 
 const AboutSection: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [uid, setUid] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [bioInput, setBioInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        setUid(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+
     const fetchUserData = async () => {
       try {
         const data = await getUserData(uid);
@@ -31,7 +43,9 @@ const AboutSection: React.FC = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [uid]);
+
+  // ... rest of the component
 
   const handleSave = async () => {
     if (!uid) return;

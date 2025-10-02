@@ -11,22 +11,39 @@ interface TransportOptions {
   flights?: any[];
   trains?: any[];
   buses?: any[];
-  vehicles?: any;
+  vehicles?: {
+    estimatedTime?: string;
+    routeSuggestions?: Array<{ description: string }>;
+  };
 }
 
-const TransportOptionsDisplay = ({ 
-  transportModes = ['flight', 'train', 'bus', 'vehicle'],
-  source, 
-  destination, 
-  date 
+type TransportMode = 'flight' | 'train' | 'bus' | 'vehicle';
+
+interface TransportOptionsDisplayProps {
+  transportModes?: TransportMode[];
+}
+
+// Helper function to map mode to property name
+const getModeProperty = (mode: TransportMode): keyof TransportOptions => {
+  const modeMap: Record<TransportMode, keyof TransportOptions> = {
+    'flight': 'flights',
+    'train': 'trains',
+    'bus': 'buses',
+    'vehicle': 'vehicles'
+  };
+  return modeMap[mode];
+};
+
+const TransportOptionsDisplay: React.FC<TransportOptionsDisplayProps> = ({ 
+  transportModes = ['flight', 'train', 'bus', 'vehicle']
 }) => {
   const [transportData, setTransportData] = useState<TransportOptions | null>(null);
-  const [activeTab, setActiveTab] = useState('');
+  const [activeTab, setActiveTab] = useState<TransportMode | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const { tripId } = useParams();
+  const { tripId } = useParams<{ tripId: string }>();
   const db = getFirestore(app);
   const isMounted = useRef(true);
 
@@ -86,12 +103,13 @@ const TransportOptionsDisplay = ({
           throw new Error("Trip document doesn't contain transportOptions");
         }
 
-        const transportOptions = tripData.transportOptions;
+        const transportOptions = tripData.transportOptions as TransportOptions;
         console.log("Transport options:", transportOptions);
 
         // Validate at least one transport mode has data
         const hasValidData = transportModes.some(mode => {
-          const data = transportOptions[mode];
+          const propName = getModeProperty(mode);
+          const data = transportOptions[propName];
           return data && (Array.isArray(data) ? data.length > 0 : true);
         });
 
@@ -104,7 +122,8 @@ const TransportOptionsDisplay = ({
           
           // Set first available tab
           const firstTab = transportModes.find(mode => {
-            const data = transportOptions[mode];
+            const propName = getModeProperty(mode);
+            const data = transportOptions[propName];
             return data && (Array.isArray(data) ? data.length > 0 : true);
           });
           if (firstTab) setActiveTab(firstTab);
@@ -114,7 +133,8 @@ const TransportOptionsDisplay = ({
       } catch (err) {
         console.error("Failed to load transport data:", err);
         if (isMounted.current) {
-          setError(err.message);
+          const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+          setError(`Failed to load transport data: ${errorMessage}`);
           setLoading(false);
           setTransportData(null);
         }
@@ -159,7 +179,8 @@ const TransportOptionsDisplay = ({
 
   // Prepare available tabs
   const availableTabs = transportModes.filter(mode => {
-    const data = transportData[mode];
+    const propName = getModeProperty(mode);
+    const data = transportData[propName];
     return data && (Array.isArray(data) ? data.length > 0 : data);
   });
 
@@ -191,12 +212,8 @@ const TransportOptionsDisplay = ({
         {activeTab === 'flight' && transportData.flights?.map((flight, i) => (
           <FlightCard key={`flight-${i}`} {...flight} />
         ))}
-        {activeTab === 'train' && transportData.trains?.map((train, i) => (
-          <TrainCard key={`train-${i}`} {...train} />
-        ))}
-        {activeTab === 'bus' && transportData.buses?.map((bus, i) => (
-          <BusCard key={`bus-${i}`} {...bus} />
-        ))}
+        {activeTab === 'train' && <TrainCard />}
+        {activeTab === 'bus' && <BusCard />}
         {activeTab === 'vehicle' && transportData.vehicles && (
           <div className="vehicle-options">
             <h3>Vehicle Options</h3>
