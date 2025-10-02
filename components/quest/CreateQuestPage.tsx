@@ -4,11 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { questService } from '@/lib/questService';
+import questService, { FlowCardState } from '@/lib/questService';
 import { ImageUploader } from '@/components/quest/ImageUploader';
 import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
 
-interface FlowCardState {
+// Local interface for form state (extends the service interface)
+interface FlowCardFormState {
+  id: string;
+  type: string;
   title: string;
   description: string;
   imageFile: File | null;
@@ -23,18 +26,28 @@ const CreateQuestPage = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [flowCards, setFlowCards] = useState<FlowCardState[]>([
-    { title: '', description: '', imageFile: null }
+  const [flowCards, setFlowCards] = useState<FlowCardFormState[]>([
+    { id: Date.now().toString(), type: 'journey', title: '', description: '', imageFile: null }
   ]);
 
-  const handleFlowCardChange = (index: number, field: keyof FlowCardState, value: string | File | null) => {
+  const handleFlowCardChange = (index: number, field: keyof FlowCardFormState, value: string | File | null) => {
     const newFlowCards = [...flowCards];
-    (newFlowCards[index] as any)[field] = value;
+    if (field === 'imageFile') {
+      newFlowCards[index].imageFile = value as File | null;
+    } else {
+      (newFlowCards[index] as any)[field] = value;
+    }
     setFlowCards(newFlowCards);
   };
 
   const addFlowCard = () => {
-    setFlowCards([...flowCards, { title: '', description: '', imageFile: null }]);
+    setFlowCards([...flowCards, { 
+      id: Date.now().toString(), 
+      type: 'journey', 
+      title: '', 
+      description: '', 
+      imageFile: null 
+    }]);
   };
 
   const removeFlowCard = (index: number) => {
@@ -53,10 +66,21 @@ const CreateQuestPage = () => {
     setIsSubmitting(true);
     try {
       const questData = { title, description, privacy: 'public', tags: [] };
-      const result = await questService.createQuest(user.uid, questData, coverImageFile, flowCards);
+      
+      // Convert FlowCardFormState to FlowCardState (remove imageFile, keep only necessary data)
+      const flowCardsData: FlowCardState[] = flowCards.map(card => ({
+        id: card.id,
+        type: card.type,
+        content: {
+          title: card.title,
+          description: card.description
+        }
+      }));
+      
+      const result = await questService.createQuest(user.uid, questData, coverImageFile, flowCardsData);
       
       alert('Quest created successfully!');
-      router.push(`/quest/${result.questId}`); // Navigate to the new quest page
+      router.push(`/quest/${result.questId}`);
     } catch (error) {
       console.error("Failed to create quest:", error);
       alert('There was an error creating your quest. Please try again.');
@@ -109,7 +133,7 @@ const CreateQuestPage = () => {
             <h2 className="text-lg font-bold mb-4">Journey Cards</h2>
             <div className="space-y-6">
               {flowCards.map((card, index) => (
-                <div key={index} className="bg-gray-900 p-4 rounded-xl border border-gray-800">
+                <div key={card.id} className="bg-gray-900 p-4 rounded-xl border border-gray-800">
                   <div className="flex justify-between items-center mb-4">
                     <p className="font-semibold">Card {index + 1}</p>
                     {flowCards.length > 1 && (

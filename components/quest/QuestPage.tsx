@@ -1,11 +1,87 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MapPin, Calendar, Users, Plane, Train, Bus, Car, Ship, DollarSign, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 
-const QuestPage = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isAITrip, setIsAITrip] = useState(null);
-  const [tripData, setTripData] = useState({
+// Type definitions
+interface TripData {
+  destination: string;
+  startDate: string;
+  endDate: string;
+  transportMode: string[];
+  companion: string;
+  interests: string[];
+  budget: number;
+}
+
+interface Hotel {
+  name: string;
+  location: string;
+  price: string;
+  rating: string;
+  ratingCount: string;
+  imageUrl?: string;
+}
+
+interface Activity {
+  type: string;
+  time: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  hotels?: Hotel[];
+}
+
+interface Day {
+  day: number;
+  date: string;
+  title: string;
+  activities: Activity[];
+}
+
+interface Flight {
+  airline: string;
+  flightNumber: string;
+  price: string;
+  duration: string;
+  departureTime: string;
+  arrivalTime: string;
+}
+
+interface TransportOptions {
+  flights?: Flight[];
+}
+
+interface Itinerary {
+  days: Day[];
+  transportOptions?: TransportOptions;
+}
+
+interface Step {
+  title: string;
+  key: string;
+}
+
+interface TransportOption {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface CompanionOption {
+  id: string;
+  label: string;
+  icon: string;
+}
+
+interface ItineraryViewProps {
+  itinerary: Itinerary;
+  tripData: TripData;
+}
+
+const QuestPage: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [isAITrip, setIsAITrip] = useState<boolean | null>(null);
+  const [tripData, setTripData] = useState<TripData>({
     destination: '',
     startDate: '',
     endDate: '',
@@ -14,10 +90,10 @@ const QuestPage = () => {
     interests: [],
     budget: 10000
   });
-  const [itinerary, setItinerary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const steps = [
+  const steps: Step[] = [
     { title: "What is ur destination?", key: "destination" },
     { title: "Got dates in mind?", key: "dates" },
     { title: "How would you like to travel?", key: "transport" },
@@ -26,7 +102,7 @@ const QuestPage = () => {
     { title: "What is your budget for this trip?", key: "budget" }
   ];
 
-  const transportOptions = [
+  const transportOptions: TransportOption[] = [
     { id: 'flight', label: 'Flight', icon: Plane },
     { id: 'train', label: 'Train', icon: Train },
     { id: 'bus', label: 'Bus', icon: Bus },
@@ -34,14 +110,14 @@ const QuestPage = () => {
     { id: 'ship', label: 'Ship', icon: Ship }
   ];
 
-  const companionOptions = [
+  const companionOptions: CompanionOption[] = [
     { id: 'solo', label: 'Flying Solo', icon: '✈️' },
     { id: 'partner', label: 'A Partner', icon: '💑' },
     { id: 'friends', label: 'Friends', icon: '👥' },
     { id: 'family', label: 'Family', icon: '👨‍👩‍👧‍👦' }
   ];
 
-  const interestOptions = [
+  const interestOptions: string[] = [
     'Adventure', 'Food', 'Art', 'Hidden gems', 'History', 'Nature',
     'Nightlife', 'Culture attraction', 'Hidden gems', 'Drinks'
   ];
@@ -98,9 +174,9 @@ const QuestPage = () => {
   const createBlankItinerary = () => {
     const startDate = new Date(tripData.startDate);
     const endDate = new Date(tripData.endDate);
-    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    const blankDays = [];
+    const blankDays: Day[] = [];
     for (let i = 0; i < days; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
@@ -141,14 +217,14 @@ const QuestPage = () => {
     setItinerary({ days: blankDays });
   };
 
-  const updateTripData = (key, value) => {
+  const updateTripData = (key: keyof TripData, value: any) => {
     setTripData(prev => ({
       ...prev,
       [key]: value
     }));
   };
 
-  const toggleTransport = (transportId) => {
+  const toggleTransport = (transportId: string) => {
     const current = tripData.transportMode;
     const updated = current.includes(transportId)
       ? current.filter(id => id !== transportId)
@@ -156,7 +232,7 @@ const QuestPage = () => {
     updateTripData('transportMode', updated);
   };
 
-  const toggleInterest = (interest) => {
+  const toggleInterest = (interest: string) => {
     const current = tripData.interests;
     const updated = current.includes(interest)
       ? current.filter(i => i !== interest)
@@ -446,8 +522,8 @@ const QuestPage = () => {
 };
 
 // Itinerary View Component
-const ItineraryView = ({ itinerary, tripData }) => {
-  const [selectedDay, setSelectedDay] = useState(0);
+const ItineraryView: React.FC<ItineraryViewProps> = ({ itinerary, tripData }) => {
+  const [selectedDay, setSelectedDay] = useState<number>(0);
 
   return (
     <div className="min-h-screen bg-black text-white">

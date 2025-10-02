@@ -26,7 +26,8 @@ export async function GET(
     try {
       suggestions = JSON.parse(responseText);
     } catch {
-      const match = responseText.match(/\[.*\]/s);
+      // Use [\s\S] instead of . with s flag to match any character including newlines
+      const match = responseText.match(/\[[\s\S]*\]/);
       if (match) {
         suggestions = JSON.parse(match[0]);
       }

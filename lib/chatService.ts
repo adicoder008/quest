@@ -11,7 +11,8 @@ import {
   getDoc,
   where,
   limit,
-  getDocs
+  getDocs,
+  updateDoc
 } from 'firebase/firestore';
 
 export const chatService = {

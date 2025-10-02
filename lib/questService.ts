@@ -42,60 +42,92 @@ export interface GenerateQuestResponse {
   error?: string;
 }
 
+// Add FlowCardState interface
+export interface FlowCardState {
+  id: string;
+  type: string;
+  content?: any;
+  // Add other properties as needed
+}
+
 const questService = {
 
   /**
    * Generates a new quest using AI
    */
-  // lib/questService.ts - Update the generateQuest method
-async generateQuest(questData: TripData): Promise<GenerateQuestResponse> {
-  console.log('generateQuest called with:', questData);
-  
-  try {
-    const { uid, ...questDataWithoutUid } = questData;
+  async generateQuest(questData: TripData): Promise<GenerateQuestResponse> {
+    console.log('generateQuest called with:', questData);
     
-    if (!uid) {
-      throw new Error('User UID is required');
+    try {
+      const { uid, ...questDataWithoutUid } = questData;
+      
+      if (!uid) {
+        throw new Error('User UID is required');
+      }
+
+      // Call the AI generation API first
+      const response = await fetch('/api/generate-quest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(questData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate itinerary');
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to generate itinerary');
+      }
+
+      return {
+        success: true,
+        itinerary: result.itinerary,
+        questId: result.questId
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error in generateQuest:', error);
+      return {
+        success: false,
+        error: errorMessage
+      };
     }
+  },
 
-    // Call the AI generation API first
-    const response = await fetch('/api/generate-quest', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(questData), // Send full questData including uid
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate itinerary');
+  /**
+   * Get AI-generated destination suggestions for interests
+   */
+  async getDestinationSuggestions(destination: string): Promise<string[]> {
+    try {
+      const response = await fetch(`/api/destination-suggestions/${encodeURIComponent(destination)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch destination suggestions');
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get suggestions');
+      }
+      
+      return result.suggestions || [];
+    } catch (error) {
+      console.error('Error fetching destination suggestions:', error);
+      return [];
     }
-
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to generate itinerary');
-    }
-
-    return {
-      success: true,
-      itinerary: result.itinerary,
-      questId: result.questId
-    };
-
-  } catch (error: any) {
-    console.error('Error in generateQuest:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-},
+  },
 
   /**
    * Core quest creation with transaction
    */
-  async createQuest(uid: string, questData: any) {
+  async createQuest(uid: string, questData: any, coverImageFile?: File, flowCards?: FlowCardState[]) {
     console.log('createQuest called with:', { uid, questData });
     
     const questCollectionRef = collection(db, 'quest');
@@ -153,27 +185,26 @@ async generateQuest(questData: TripData): Promise<GenerateQuestResponse> {
   /**
    * Fetches a single quest document if the user is a member
    */
-  // lib/questService.ts
-async getQuest(uid: string, questId: string) {
-  try {
-    const questRef = doc(db, 'quest', questId);
-    const questSnap = await getDoc(questRef);
+  async getQuest(uid: string, questId: string) {
+    try {
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
 
-    if (!questSnap.exists()) {
-      throw new Error('Quest not found');
-    }
-    
-    const questData = questSnap.data();
-     if (!questData.members || !questData.members[uid]) {
-      throw new Error('You do not have permission to view this quest.');
-    }
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
+      
+      const questData = questSnap.data();
+      if (!questData.members || !questData.members[uid]) {
+        throw new Error('You do not have permission to view this quest.');
+      }
 
-    return { id: questSnap.id, ...questData };
-  } catch (error) {
-    console.error('Error fetching quest:', error);
-    throw error;
-  }
-},
+      return { id: questSnap.id, ...questData };
+    } catch (error) {
+      console.error('Error fetching quest:', error);
+      throw error;
+    }
+  },
 
   /**
    * Fetches all quests a user is a member of
@@ -192,27 +223,28 @@ async getQuest(uid: string, questId: string) {
       }
 
       const questsToFetch = questIds.slice(0, 30);
-    const questsRef = collection(db, 'quest');
-    const q = query(
-      questsRef, 
-      where('__name__', 'in', questsToFetch),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    const quests: any[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      quests.push({ id: doc.id, ...doc.data() });
-    });
-    
-    return quests;
-  } catch (error) {
-    console.error('Error fetching user quests:', error);
-    throw error;
-  }
-},
-  /**g
+      const questsRef = collection(db, 'quest');
+      const q = query(
+        questsRef, 
+        where('__name__', 'in', questsToFetch),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const quests: any[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        quests.push({ id: doc.id, ...doc.data() });
+      });
+      
+      return quests;
+    } catch (error) {
+      console.error('Error fetching user quests:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Updates the itinerary of a quest
    */
   async updateQuest(questId: string, uid: string, updatedData: object) {
@@ -242,7 +274,7 @@ async getQuest(uid: string, questId: string) {
   },
   
   /**
-   * AI Itinerary Generation (placeholder - integrate with your AI service)
+   * AI Itinerary Generation
    */
   async generateAItinerary(questData: TripData): Promise<any> {
     console.log('Generating AI itinerary for:', questData);
@@ -313,7 +345,7 @@ async getQuest(uid: string, questId: string) {
       tripType: questData.tripType
     };
   },
-
+  
   /**
    * Create blank itinerary structure for manual creation
    */

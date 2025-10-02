@@ -138,7 +138,10 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+// Type for helper function options - excludes properties we're setting
+type ToastHelperOptions = Omit<Toast, 'title' | 'description'>;
+
+function toast(props: Toast) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -168,16 +171,16 @@ function toast({ ...props }: Toast) {
 }
 
 // Helper functions for common toast types
-toast.success = (description: string, options = {}) => 
-  toast({ title: "Success", description, variant: "success", ...options });
+toast.success = (description: string, options: ToastHelperOptions = {}) => 
+  toast({ title: "Success", description, variant: "default", ...options });
 
-toast.error = (description: string, options = {}) => 
+toast.error = (description: string, options: ToastHelperOptions = {}) => 
   toast({ title: "Error", description, variant: "destructive", ...options });
 
-toast.warning = (description: string, options = {}) => 
-  toast({ title: "Warning", description, variant: "warning", ...options });
+toast.warning = (description: string, options: ToastHelperOptions = {}) => 
+  toast({ title: "Warning", description, variant: "default", ...options });
 
-toast.info = (description: string, options = {}) => 
+toast.info = (description: string, options: ToastHelperOptions = {}) => 
   toast({ title: "Info", description, variant: "default", ...options });
 
 function useToast() {

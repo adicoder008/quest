@@ -10,6 +10,11 @@ const AuthForm = ({ type }: AuthFormProps) => {
 
     const [error, setError] = React.useState('');
     const [showAuthModal, setShowAuthModal] = React.useState(false);
+    
+    const resetForm = () => {
+      setError('');
+      // Add any other form state resets you need
+    };
 
     const toggleAuthModal = () => {
     setShowAuthModal(!showAuthModal);
@@ -54,3 +59,4 @@ const AuthForm = ({ type }: AuthFormProps) => {
 }
 
 export default AuthForm
+

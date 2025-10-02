@@ -51,7 +51,7 @@ export async function POST(request: Request) {
          - address: Full address
          - coordinates: { lat: number, lng: number }
          - googlePlaceId: The actual Google Place ID if available
-      6. An imageQuery for finding relevant photos
+      6. An imageQuery for finding relevant/original photos for applicable activities 
       7. An array of tags (e.g., ["Adventure", "Nature", "Cultural"])
 
       IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or extra text.

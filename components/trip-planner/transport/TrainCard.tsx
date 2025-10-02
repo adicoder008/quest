@@ -63,7 +63,10 @@ const TrainCard: FunctionComponent = () => {
         setLoading(false);
       } catch (err) {
         console.error('Error fetching train data:', err);
-        setError(`Failed to load train data: ${err.message}`);
+        
+        // Properly handle the unknown error type
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+        setError(`Failed to load train data: ${errorMessage}`);
         setLoading(false);
       }
     };
@@ -71,7 +74,7 @@ const TrainCard: FunctionComponent = () => {
     if (!authLoading) {
       fetchTrainData();
     }
-  }, [userId, tripId, db, authLoading]); // Added dependencies
+  }, [userId, tripId, db, authLoading]);
 
   if (authLoading) {
     return <div>Checking authentication...</div>;

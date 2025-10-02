@@ -1,6 +1,27 @@
 import React from "react";
 
-export const TripHeader = ({ tripData, onBack }) => {
+interface Activity {
+  location?: string;
+  // Add other activity properties as needed
+}
+
+interface Day {
+  date?: string;
+  activities?: Activity[];
+  // Add other day properties as needed
+}
+
+interface TripData {
+  days?: Day[];
+  // Add other tripData properties as needed
+}
+
+interface TripHeaderProps {
+  tripData?: TripData;
+  onBack?: () => void;
+}
+
+export const TripHeader: React.FC<TripHeaderProps> = ({ tripData, onBack }) => {
   // Extract destination from the first day's first activity location
   const getDestination = () => {
     if (tripData?.days?.[0]?.activities?.[0]?.location) {
@@ -16,11 +37,14 @@ export const TripHeader = ({ tripData, onBack }) => {
 
   // Get the start and end date from the first and last day
   const getTripDates = () => {
-    if (tripData?.days?.length > 0) {
-      if (tripData.days[0].date) {
-        const startDate = new Date(tripData.days[0].date);
-        const endDate = tripData.days.length > 1 && tripData.days[tripData.days.length - 1].date 
-          ? new Date(tripData.days[tripData.days.length - 1].date)
+    if (tripData?.days && tripData.days.length > 0) {
+      const firstDate = tripData.days[0].date;
+      const lastDate = tripData.days[tripData.days.length - 1].date;
+      
+      if (firstDate) {
+        const startDate = new Date(firstDate);
+        const endDate = tripData.days.length > 1 && lastDate
+          ? new Date(lastDate)
           : startDate;
         
         return `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${endDate.getFullYear()}`;
@@ -33,17 +57,9 @@ export const TripHeader = ({ tripData, onBack }) => {
     <div className="flex items-center font-normal justify-between flex-wrap mt-[23px] max-md:px-5">
       <div className="self-stretch flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%] my-auto max-md:max-w-full">
         <h1 className="text-black text-[40px] max-md:max-w-full">
-          <span className="font-bold text-[#F86F0A]">Goa</span> trip
+          <span className="font-bold text-[#F86F0A]">{getDestination()}</span> trip
         </h1>
-        {/* <p className="gap-2 text-base text-black mt-4 max-md:max-w-full">
-          Here's a well-planned{" "}
-          <span className="font-medium">Delhi to Goa solo trip</span> itinerary{" "}
-          <span className="font-medium">(March 15–18)</span> under a budget of{" "}
-          <span className="font-medium">
-            ₹2500 per night (excluding flight costs)
-          </span>
-          .
-        </p> */}
+        <p className="text-sm text-gray-600 mt-2">{getTripDates()}</p>
       </div>
     </div>
   );

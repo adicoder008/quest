@@ -1,6 +1,26 @@
 import React from "react";
 
-export const TripSidebar = ({ tripData }) => {
+interface Activity {
+  location?: string;
+  // Add other activity properties as needed
+}
+
+interface Day {
+  date?: string;
+  activities?: Activity[];
+  // Add other day properties as needed
+}
+
+interface TripData {
+  days?: Day[];
+  // Add other tripData properties as needed
+}
+
+interface TripSidebarProps {
+  tripData?: TripData;
+}
+
+export const TripSidebar: React.FC<TripSidebarProps> = ({ tripData }) => {
   // Calculate the total activities across all days
   const getTotalActivities = () => {
     if (!tripData?.days) return 0;
@@ -8,10 +28,10 @@ export const TripSidebar = ({ tripData }) => {
   };
 
   // Get all unique locations from all activities
-  const getUniqueLocations = () => {
+  const getUniqueLocations = (): string[] => {
     if (!tripData?.days) return [];
     
-    const locations = new Set();
+    const locations = new Set<string>();
     tripData.days.forEach(day => {
       day.activities?.forEach(activity => {
         if (activity.location) {
@@ -31,6 +51,16 @@ export const TripSidebar = ({ tripData }) => {
   };
 
   const uniqueLocations = getUniqueLocations();
+
+  // Helper function to get month safely
+  const getMonthFromDate = (dateString?: string): string => {
+    if (!dateString) return 'this period';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', { month: 'long' });
+    } catch {
+      return 'this period';
+    }
+  };
 
   return (
     <div className="flex flex-col p-5 rounded-xl border border-solid border-[#D3D3D3] shadow-sm h-fit">
@@ -53,7 +83,7 @@ export const TripSidebar = ({ tripData }) => {
           <div className="text-zinc-500 mb-2">Destinations</div>
           <div className="flex flex-col gap-2">
             {uniqueLocations.length > 0 ? (
-              uniqueLocations.slice(0, 5).map((location: string, index: number) => (
+              uniqueLocations.slice(0, 5).map((location, index) => (
                 <div key={index} className="text-black font-medium">{location}</div>
               ))
             ) : (
@@ -74,7 +104,9 @@ export const TripSidebar = ({ tripData }) => {
             <div className="text-2xl">☀️</div>
             <div className="text-black font-medium">28°C / 82°F</div>
           </div>
-          <div className="text-zinc-500 text-sm mt-1">Average for {tripData?.days?.[0]?.date ? new Date(tripData.days[0].date).toLocaleDateString('en-US', { month: 'long' }) : 'this period'}</div>
+          <div className="text-zinc-500 text-sm mt-1">
+            Average for {getMonthFromDate(tripData?.days?.[0]?.date)}
+          </div>
         </div>
       </div>
       
