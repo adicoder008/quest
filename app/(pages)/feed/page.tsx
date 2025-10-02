@@ -1,14 +1,8 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState, useEffect } from 'react';
-import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin } from 'lucide-react';
-import { subscribeToPosts, likePost, addComment, } from '../../../lib/postService';
-=======
 import { useState, useEffect, Key } from 'react';
 import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send } from 'lucide-react';
 import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
->>>>>>> 261e3b2 (build successfull)
 import { getCurrentUserData } from '../../../lib/authService';
 import { auth, db } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -23,12 +17,7 @@ import Navbar from '@/components/Nav';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
-<<<<<<< HEAD
-import { useNavigate } from 'react-router-dom';
-import followUser, {unfollowUser} from '../../../lib/followService';
-=======
 import { useRouter } from 'next/navigation';
->>>>>>> 261e3b2 (build successfull)
 
 const ResponsiveFeedPage = () => {
   const isDesktop = useResponsive(768);
