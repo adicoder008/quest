@@ -457,14 +457,10 @@ const Navbar = () => {
           <RxHamburgerMenu size={30} />
         </button>
 
-<<<<<<< HEAD
         <img src='/FullLogo.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="" />
         {/* <div className="hidden py-[0.7rem] md:flex items-center ml-2">
           <SearchBar />
         </div> */}
-=======
-        <img src='/OQLogoNew.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="Logo" />
->>>>>>> 261e3b2 (build successfull)
       </div>  
 
       <div className="hidden md:flex gap-[3vw] items-center cursor-pointer">
