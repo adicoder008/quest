@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { useParams} from "react-router-dom";
+import { useParams } from "next/navigation"; // Correct import for Next.js App Router
 import { FlightCard } from "./FlightCard";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
-import { app } from "../../../lib/firebase.js";
-import { auth } from "../../../lib/firebase.js"; // Import auth from your firebase config
+import { app, auth } from "../../../lib/firebase.js"; // Import both app and auth
 
+// Interface for the component's props
 interface FlightDetailsProps {
   source: string;
   destination: string;
   departureDate: string;
 }
 
+// Interface for a single flight object
 interface Flight {
   airline: string;
   flightNumber: string;
@@ -29,55 +30,71 @@ export const FlightDetails: React.FC<FlightDetailsProps> = ({
   destination,
   departureDate,
 }) => {
+  // State management
   const [flights, setFlights] = useState<Flight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // Tracks auth state readiness
+
+  // Get tripId from URL using the Next.js useParams hook
   const { tripId } = useParams();
   const db = getFirestore(app);
 
+  // Effect to handle user authentication state in real-time
   useEffect(() => {
-    // Listen for auth state changes
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      setAuthLoading(false);
       setUserId(user?.uid || null);
+      setIsAuthLoading(false); // Auth check is complete
     });
-
+    // Cleanup subscription on component unmount
     return () => unsubscribe();
   }, []);
 
+  // Effect to fetch flight data from Firestore once user is authenticated
   useEffect(() => {
-    const fetchFlightData = async () => {
-      try {
-        if (!userId) {
-          throw new Error("User not authenticated");
-        }
-        if (!tripId) {
-          throw new Error("Trip information missing");
-        }
+    // Do not run fetch logic until authentication status is confirmed
+    if (isAuthLoading) {
+      return;
+    }
 
-        setLoading(true);
-        setError(null);
-        
-        const tripRef = doc(db, 'users', userId, 'trips', tripId);
+    const fetchFlightData = async () => {
+      // Ensure we have the necessary IDs to proceed
+      if (!userId) {
+        setError("Please log in to view flight details.");
+        setLoading(false);
+        setFlights(getMockFlightData(source, destination));
+        return;
+      }
+      if (!tripId) {
+        setError("Trip information is missing from the URL.");
+        setLoading(false);
+        setFlights(getMockFlightData(source, destination));
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Construct the path to the specific trip document in Firestore
+        const tripRef = doc(db, 'users', userId, 'trips', tripId as string);
         const tripSnap = await getDoc(tripRef);
-        
+
         if (!tripSnap.exists()) {
-          throw new Error("Trip not found");
+          throw new Error("Trip not found in the database.");
         }
 
         const tripData = tripSnap.data();
         if (!tripData) {
-          throw new Error("Trip data is empty");
+          throw new Error("Trip data is empty.");
         }
 
-        const flightsData = tripData?.flights || 
-                         tripData?.transportOptions?.flights || 
-                           [];
-        
+        // Safely access flight data from multiple possible locations in the document
+        const flightsData = tripData?.flights || tripData?.transportOptions?.flights || [];
+
         if (!Array.isArray(flightsData)) {
-          throw new Error("Flight data is not in expected format");
+          throw new Error("Flight data is not in the expected format (should be an array).");
         }
 
         const processedFlights = flightsData.map(flight => ({
@@ -96,34 +113,29 @@ export const FlightDetails: React.FC<FlightDetailsProps> = ({
         setFlights(processedFlights);
       } catch (err) {
         console.error("Error fetching flight options:", err);
-        setError(err instanceof Error ? err.message : "Failed to load flight options");
+        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+        setError(`Failed to load flight options: ${errorMessage}`);
+        // Show mock data as a fallback when there's an error
         setFlights(getMockFlightData(source, destination));
       } finally {
         setLoading(false);
       }
     };
 
-    if (userId && tripId) {
-      fetchFlightData();
-    } else if (!authLoading) {
-      setLoading(false);
-      setError(!userId ? "Please log in to view flight details" : "Trip information is missing");
-      setFlights(getMockFlightData(source, destination));
-    }
-  }, [source, destination, tripId, userId, db, authLoading]);
+    fetchFlightData();
+  }, [tripId, userId, isAuthLoading, source, destination, departureDate, db]); // Dependencies for the effect
 
-  
-
+  // Helper to format date strings for display
   const formatDisplayDate = (dateString: string) => {
     if (!dateString) return "N/A";
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
     } catch {
-      return "N/A";
+      return dateString; // Return original string if parsing fails
     }
   };
 
+  // Generates placeholder data for UI development or as a fallback
   const getMockFlightData = (source: string, destination: string): Flight[] => {
     return [
       {
@@ -153,106 +165,70 @@ export const FlightDetails: React.FC<FlightDetailsProps> = ({
     ];
   };
 
-  if (authLoading) {
+  // Conditional Rendering based on loading and error states
+  if (isAuthLoading) {
     return (
-      <div className="max-md:max-w-full">
-        <div className="flex w-[732px] max-w-full flex-col overflow-hidden pl-6 max-md:pl-5">
-          <div className="font-normal max-md:max-w-full">
-            <h2 className="text-black text-2xl">
-              <span className="font-bold">Flight</span> Details ({source} to {destination})
-            </h2>
-            <p className="text-center mt-4">Checking authentication status...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <div className="max-md:max-w-full">
-        <div className="flex w-[732px] max-w-full flex-col overflow-hidden pl-6 max-md:pl-5">
-          <div className="font-normal max-md:max-w-full">
-            <h2 className="text-black text-2xl">
-              <span className="font-bold">Flight</span> Details ({source} to {destination})
-            </h2>
-            <p className="text-center text-red-500 mt-4">
-              Please log in to view flight details
-            </p>
-          </div>
-        </div>
+      <div className="p-4 w-full max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold mb-2">Flight Details</h2>
+        <p className="text-center text-gray-500 mt-4">Checking authentication status...</p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="max-md:max-w-full">
-        <div className="flex w-[732px] max-w-full flex-col overflow-hidden pl-6 max-md:pl-5">
-          <div className="font-normal max-md:max-w-full">
-            <h2 className="text-black text-2xl">
-              <span className="font-bold">Flight</span> Details ({source} to {destination})
-            </h2>
-            <p className="text-center mt-4">Loading flight options...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-md:max-w-full">
-        <div className="flex w-[732px] max-w-full flex-col overflow-hidden pl-6 max-md:pl-5">
-          <div className="font-normal max-md:max-w-full">
-            <h2 className="text-black text-2xl">
-              <span className="font-bold">Flight</span> Details ({source} to {destination})
-            </h2>
-            <p className="text-center text-red-500 mt-4">{error}</p>
-            <p className="text-center text-gray-500 mt-2">Showing sample data</p>
-          </div>
-        </div>
+      <div className="p-4 w-full max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold mb-2">Flight Details</h2>
+        <p className="text-center text-gray-500 mt-4">Loading flight options...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-md:max-w-full">
-      <div className="flex w-[732px] max-w-full flex-col overflow-hidden pl-6 max-md:pl-5">
-        <div className="font-normal max-md:max-w-full">
-          <h2 className="text-black text-2xl">
-            <span className="font-bold">Flight</span> Details ({source} to {destination})
-          </h2>
-          <p className="self-stretch gap-2 text-base text-black text-center mt-1.5 max-md:max-w-full">
-            Here are some flight options from {source} to {destination} on {formatDisplayDate(departureDate)}
-          </p>
+    <div className="p-4 w-full max-w-3xl mx-auto">
+        <h2 className="text-black text-2xl">
+          <span className="font-bold">Flight</span> Details ({source} to {destination})
+        </h2>
+        <p className="text-base text-gray-600 text-center mt-1.5">
+          Here are some flight options for {formatDisplayDate(departureDate)}
+        </p>
+      
+      {error && (
+        <div className="my-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
+          <p className="font-semibold">Error</p>
+          <p>{error}</p>
+          <p className="text-sm text-gray-600 mt-1">Showing sample data instead.</p>
         </div>
+      )}
 
-        <div className="flex overflow-x-auto py-2 gap-4 scrollbar-hide">
+      {flights.length === 0 && !error && (
+         <p className="text-center text-gray-500 mt-8">No flight details found for this trip.</p>
+      )}
 
-          {flights.map((flight, index) => (
-            <FlightCard
-              key={index}
-              airline={flight.airline}
-              flightNumber={flight.flightNumber}
-              price={flight.price}
-              departureDate={formatDisplayDate(flight.departureDate)}
-              departureTime={flight.departureTime}
-              departureCity={flight.departureCity}
-              duration={flight.duration}
-              arrivalDate={formatDisplayDate(flight.arrivalDate)}
-              arrivalTime={flight.arrivalTime}
-              arrivalCity={flight.arrivalCity}
-            />
-          ))}
-        </div>
-
-        {flights.length > 0 && (
-          <button className="text-[rgba(53,138,233,1)] text-sm font-normal text-center mt-3">
-            See More
-          </button>
-        )}
+      {/* Horizontally scrolling container for flight cards */}
+      <div className="flex overflow-x-auto py-4 gap-4 scrollbar-hide">
+        {flights.map((flight, index) => (
+          <FlightCard
+            key={`${flight.flightNumber}-${index}`} // A more unique key
+            airline={flight.airline}
+            flightNumber={flight.flightNumber}
+            price={flight.price}
+            departureDate={formatDisplayDate(flight.departureDate)}
+            departureTime={flight.departureTime}
+            departureCity={flight.departureCity}
+            duration={flight.duration}
+            arrivalDate={formatDisplayDate(flight.arrivalDate)}
+            arrivalTime={flight.arrivalTime}
+            arrivalCity={flight.arrivalCity}
+          />
+        ))}
       </div>
+
+      {flights.length > 0 && (
+        <button className="text-blue-500 hover:text-blue-700 text-sm font-medium text-center w-full mt-3">
+          See More
+        </button>
+      )}
     </div>
   );
 };
