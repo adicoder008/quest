@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { destination } = await params;  // Await it here
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     const prompt = `
       Generate 10 relevant travel interests/preferences for someone visiting ${destination}.
