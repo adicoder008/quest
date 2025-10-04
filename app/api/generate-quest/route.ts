@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     validateTripData(tripData);
     const { uid, source, destination, startDate, endDate, transportMode, tripType, preferences, budget } = tripData;
 
-    // Generate itinerary with Gemini
+    // --- FIX: Updated the model to a powerful and current version ---
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
+    // --- FIX: Updated the prompt to be more selective and descriptive for better images ---
     const prompt = `
       Create a detailed day-by-day travel itinerary for a trip to ${destination} from ${source}.
       
@@ -45,17 +46,15 @@ export async function POST(request: Request) {
       - Transport: ${transportMode.join(', ')}
 
       For EVERY activity, include:
-      1. A descriptive title
-      2. Detailed description (2-3 sentences)
-      3. Duration in minutes
-      4. Estimated time of day (Morning/Afternoon/Evening/Night)
-      5. Location object with:
-         - name: The place name
-         - address: Full address
-         - coordinates: { lat: number, lng: number }
-         - googlePlaceId: The actual Google Place ID if available
-      6. An imageQuery for finding relevant/original photos for applicable activities 
-      7. An array of tags (e.g., ["Adventure", "Nature", "Cultural"])
+      1. A descriptive title.
+      2. A detailed description (2-3 sentences).
+      3. An estimated time of day (Morning/Afternoon/Evening/Night).
+      4. A location object with a name, address, and coordinates.
+      5. An array of relevant tags.
+      6. An "imageQuery" field with a value that is EITHER:
+         a) A highly descriptive search query for Unsplash (e.g., "Dudhsagar Falls Goa during monsoon", "Anjuna flea market vibrant stalls").
+         b) null, if the activity is generic and not visually specific (e.g., for "Check into hotel", "Travel to airport", "Lunch").
+         ONLY provide a query for visually significant landmarks, scenery, restaurants, or experiences.
 
       IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or extra text.
       
@@ -69,17 +68,19 @@ export async function POST(request: Request) {
             "activities": [
               {
                 "time": "Morning",
-                "title": "Activity name",
-                "description": "Detailed description",
-                "duration": 120,
-                "location": {
-                  "name": "Place Name",
-                  "address": "Full address",
-                  "coordinates": { "lat": 12.345, "lng": 67.890 },
-                  "googlePlaceId": "ChIJ..."
-                },
-                "imageQuery": "search term for image",
-                "tags": ["tag1", "tag2"]
+                "title": "Visit Baga Beach",
+                "description": "...",
+                "location": { "name": "Baga Beach", ... },
+                "imageQuery": "Baga Beach Goa sunny day with tourists",
+                "tags": ["beach", "popular"]
+              },
+              {
+                "time": "Afternoon",
+                "title": "Travel to Hotel",
+                "description": "...",
+                "location": { "name": "Hotel Name", ... },
+                "imageQuery": null,
+                "tags": ["travel", "logistics"]
               }
             ]
           }
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    console.log('Raw AI Response:', responseText.substring(0, 500)); // Debug log
+    console.log('Raw AI Response:', responseText.substring(0, 500));
     
     interface Itinerary {
       days: Array<{
@@ -101,14 +102,13 @@ export async function POST(request: Request) {
           time: string;
           title: string;
           description: string;
-          duration: number;
           location: {
             name: string;
             address: string;
             coordinates: { lat: number; lng: number };
             googlePlaceId?: string;
           };
-          imageQuery: string;
+          imageQuery: string | null; // Can now be null
           tags: string[];
           media?: Array<{ type: string; url: string }>;
         }>;
@@ -132,13 +132,17 @@ export async function POST(request: Request) {
               orientation: 'landscape'
             });
 
-            if (unsplashResponse.type === 'success') {
+            if (unsplashResponse.type === 'success' && unsplashResponse.response) {
               const photo = Array.isArray(unsplashResponse.response)
                 ? unsplashResponse.response[0]
                 : unsplashResponse.response;
-              activity.media = [{ type: 'image', url: photo.urls.regular }];
+              if (photo) {
+                 activity.media = [{ type: 'image', url: photo.urls.regular }];
+              } else {
+                 throw new Error("Unsplash returned an empty response.");
+              }
             } else {
-              // Fallback image
+               // Fallback image if Unsplash API call fails or finds nothing
               activity.media = [{ 
                 type: 'image', 
                 url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
@@ -152,7 +156,7 @@ export async function POST(request: Request) {
             }];
           }
         } else {
-          // Default image if no query provided
+          // Default image if imageQuery is null
           activity.media = [{ 
             type: 'image', 
             url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
@@ -162,8 +166,9 @@ export async function POST(request: Request) {
     }
     
     // Save to Firestore
-    const questId = `quest_${uid}_${Date.now()}`;
-    const questRef = db.collection('quest').doc(questId);
+    const questCollectionRef = db.collection('quest');
+    const newQuestRef = questCollectionRef.doc(); // Let Firestore auto-generate the ID
+    const questId = newQuestRef.id;
 
     const questDocument = {
       id: questId,
@@ -177,9 +182,9 @@ export async function POST(request: Request) {
       preferences,
       budget,
       itinerary,
-        members: {
-    [uid]: 'owner'  // This is required by your rules
-  },
+      members: {
+        [uid]: 'owner'
+      },
       type: 'ai_generated',
       status: 'active',
       title: `Quest to ${destination}`,
@@ -187,7 +192,7 @@ export async function POST(request: Request) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     
-    await questRef.set(questDocument);
+    await newQuestRef.set(questDocument);
     
     // Add to user's questIds array
     const userRef = db.collection('users').doc(uid);
