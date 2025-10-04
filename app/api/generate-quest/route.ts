@@ -4,12 +4,15 @@ import { NextResponse } from "next/server";
 import { createApi } from 'unsplash-js';
 import nodeFetch from 'node-fetch';
 import admin, { ServiceAccount } from 'firebase-admin';
-import serviceAccount from '../../../serviceAccountKey.json';
 
 // Initialize services
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!, 'base64').toString('utf-8')
+  );
+  
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount as ServiceAccount)
   });

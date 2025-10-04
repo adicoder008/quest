@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { RxHamburgerMenu } from "react-icons/rx";
 import { IoClose } from "react-icons/io5";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { AvatarSelector } from './AvatarSelector';
@@ -16,6 +16,7 @@ import {
   signOut,
   getCurrentUserData
 } from '../lib/authService';
+import { SearchBar } from './Feed_old/SearchBar';
 
 interface UserData {
   uid: string;
@@ -36,6 +37,7 @@ type AuthStep = 'initial' | 'phone-verify' | 'email-signin' | 'email-signup';
 
 const Navbar = () => {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState("home");
@@ -58,10 +60,10 @@ const Navbar = () => {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
 
   useEffect(()=>{
-    if(user){
+    if(user && pathname === '/'){
     router.push("/feed");
   }
-  },[user]);
+  },[user, pathname, router]);
 
   
 
@@ -105,7 +107,7 @@ const Navbar = () => {
   }, []);
 
   const toggleAuthModal = () => {
-    console.log("toggleAuthModal called, current state:", showAuthModal);
+    console.log("toggleAuthModal called, current state:", showAuthModal); // Debug log
     setShowAuthModal(!showAuthModal);
     resetForm();
   };
@@ -145,9 +147,9 @@ const Navbar = () => {
     try {
       setError('');
       setIsLoading(true);
-      await verifyPhoneCode(verificationCode);
+      await verifyPhoneCode(verificationCode, displayName || undefined);
       toggleAuthModal();
-      router.push('/feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error: any) {
       console.error('Verify code error:', error);
       setError(error.message || 'Invalid verification code');
@@ -162,7 +164,7 @@ const Navbar = () => {
       setIsLoading(true);
       await signInWithEmail(email, password);
       toggleAuthModal();
-      router.push('/feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error: any) {
       console.error('Email signin error:', error);
       setError(error.message || 'Sign in failed');
@@ -188,7 +190,7 @@ const Navbar = () => {
       setError('');
       toggleAuthModal();
       alert('Sign up successful! Welcome to our community!');
-      router.push('/feed');
+      router.push('/feed'); // Navigate to feed after signup
       
     } catch (error: any) {
       console.error('Email signup error:', error);
@@ -204,7 +206,7 @@ const Navbar = () => {
       setIsLoading(true);
       await signInWithGoogle();
       toggleAuthModal();
-      router.push('/feed');
+      router.push('/feed'); // Fixed navigation for Next.js
     } catch (error: any) {
       console.error('Google signin error:', error);
       setError(error.message || 'Google sign in failed');
@@ -216,7 +218,7 @@ const Navbar = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.push('/');
+      router.push('/'); // Navigate to home after signout
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -224,7 +226,7 @@ const Navbar = () => {
 
   const handleNavigation = (path: string) => {
     router.push(path);
-    setIsOpen(false);
+    setIsOpen(false); // Close mobile menu
   };
 
   const renderAuthContent = () => {
@@ -232,6 +234,7 @@ const Navbar = () => {
       case 'initial':
         return (
           <>
+            {/* Phone Number Input */}
             <div className="flex items-center border border-gray-400 rounded-lg h-14 px-2">
               <div className="flex items-center pr-2 border-r border-gray-400">
                 <span className="text-gray-500">+91</span>
@@ -247,6 +250,7 @@ const Navbar = () => {
               />
             </div>
 
+            {/* Continue Button */}
             <button 
               className={`w-full ${phoneNumber && !isLoading ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-700'} rounded-lg h-14 font-medium`}
               disabled={!phoneNumber || isLoading}
@@ -255,12 +259,14 @@ const Navbar = () => {
               {isLoading ? 'Sending...' : 'Continue'}
             </button>
 
+            {/* Divider */}
             <div className="flex items-center gap-2">
               <div className="flex-1 h-px bg-gray-400"></div>
               <span className="text-gray-500 text-sm">Other login options:</span>
               <div className="flex-1 h-px bg-gray-400"></div>
             </div>
 
+            {/* Google Login */}
             <button 
               className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md hover:bg-gray-50 disabled:opacity-50"
               onClick={handleGoogleSignIn}
@@ -270,6 +276,7 @@ const Navbar = () => {
               <span className="font-medium">{isLoading ? 'Signing in...' : 'Log in with Google'}</span>
             </button>
 
+            {/* Email Login */}
             <button 
               className="w-full flex justify-center items-center gap-2 border border-gray-200 rounded-lg h-12 shadow-md hover:bg-gray-50"
               onClick={() => setAuthStep('email-signin')}
@@ -457,16 +464,13 @@ const Navbar = () => {
           <RxHamburgerMenu size={30} />
         </button>
 
-<<<<<<< HEAD
         <img src='/FullLogo.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="" />
         {/* <div className="hidden py-[0.7rem] md:flex items-center ml-2">
           <SearchBar />
         </div> */}
-=======
-        <img src='/OQLogoNew.svg' className="w-[100px] md:w-[130px] py-[0.7rem]" alt="Logo" />
->>>>>>> 261e3b2 (build successfull)
       </div>  
 
+      {/* Desktop Menu */}
       <div className="hidden md:flex gap-[3vw] items-center cursor-pointer">
         <button 
           onClick={() => handleNavigation('/')} 
@@ -552,6 +556,7 @@ const Navbar = () => {
         </button>
       </div>
 
+      {/* User Section - Fixed click handler */}
       {loading ? (
         <div className="h-[34px] w-[100px] bg-gray-200 animate-pulse rounded"></div>
       ) : user ? (
@@ -583,7 +588,7 @@ const Navbar = () => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("Sign-In/Up button clicked!");
+            console.log("Sign-In/Up button clicked!"); // Debug log
             setShowAuthModal(true);
           }}
           style={{ background: 'none', border: 'none' }}
@@ -595,6 +600,7 @@ const Navbar = () => {
         </button>
       )}
 
+      {/* Mobile Sidebar */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300 z-30 ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -648,6 +654,7 @@ const Navbar = () => {
         </ul>
       </div>
 
+      {/* Auth Modal */}
       {showAuthModal && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4"
@@ -686,6 +693,8 @@ const Navbar = () => {
               )}
               
               {renderAuthContent()}
+              <div id="recaptcha-container" style={{ display: authStep === 'initial' ? 'block' : 'none' }}></div>
+
               
               {authStep === 'initial' && (
                 <p className="text-center text-sm text-gray-500">

@@ -15,6 +15,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getCurrentUserData } from '@/lib/authService';
 import { subscribeToPosts } from '@/lib/postService';
+import { useRouter } from 'next/navigation';
 
 
 const Footer = () => {

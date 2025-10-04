@@ -1,8 +1,9 @@
-import { FunctionComponent, useEffect, useState } from 'react';
+import React, { FunctionComponent, useEffect, useState } from 'react';
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { auth, app } from '../../../lib/firebase.js';
-import { useParams } from "react-router-dom";
+import { useParams } from "next/navigation"; // Correct import for Next.js
 
+// Interface for a single train data object
 interface TrainData {
   arrivalTime: string;
   departureTime: string;
@@ -13,140 +14,141 @@ interface TrainData {
 }
 
 const TrainCard: FunctionComponent = () => {
+  // State management
   const [trains, setTrains] = useState<TrainData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const { tripId } = useParams<{ tripId: string }>();
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Get tripId from URL using the correct Next.js hook
+  const { tripId } = useParams();
   const db = getFirestore(app);
   
-  // Auth listener
+  // Effect to handle user authentication state
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      console.log("Auth state changed in TrainCard:", user?.uid || "No user");
-      setAuthLoading(false);
       setUserId(user?.uid || null);
+      setIsAuthLoading(false); // Auth check is complete
     });
   
+    // Cleanup subscription on component unmount
     return () => unsubscribe();
   }, []);
 
-  // Data fetching - depends on userId and tripId
+  // Effect to fetch train data once authentication is resolved
   useEffect(() => {
+    // Wait until the auth state is confirmed
+    if (isAuthLoading) {
+      return;
+    }
+
     const fetchTrainData = async () => {
-      // Don't attempt to fetch if we don't have userId or tripId
-      if (!userId || !tripId) {
-        console.log("Missing userId or tripId, cannot fetch train data");
+      // Validate that we have the necessary information before fetching
+      if (!userId) {
+        setError("Please log in to view train options.");
+        setLoading(false);
         return;
       }
+      if (!tripId) {
+        setError("Trip information is missing from the URL.");
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
 
       try {
-        console.log(`Fetching train data for trip: ${tripId}, user: ${userId}`);
-        setLoading(true);
-        
-        // Get the trip document
-        const tripDocRef = doc(db, 'users', userId, 'trips', tripId);
+        const tripDocRef = doc(db, 'users', userId, 'trips', tripId as string);
         const tripDoc = await getDoc(tripDocRef);
         
         if (!tripDoc.exists()) {
-          throw new Error(`Trip ${tripId} not found`);
+          throw new Error(`Trip with ID '${tripId}' was not found.`);
         }
         
         const tripData = tripDoc.data();
         
-        // Access the transportOptions.trains array directly from the trip document
+        // Safely access the train data from the document
         const trainData = tripData?.transportOptions?.trains || [];
         
-        console.log(`Found ${trainData.length} trains`);
+        if (!Array.isArray(trainData)) {
+            throw new Error("Train data is not in the expected format (should be an array).");
+        }
+
         setTrains(trainData as TrainData[]);
-        setLoading(false);
       } catch (err) {
         console.error('Error fetching train data:', err);
-        
-        // Properly handle the unknown error type
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         setError(`Failed to load train data: ${errorMessage}`);
+      } finally {
         setLoading(false);
       }
     };
 
-    if (!authLoading) {
-      fetchTrainData();
-    }
-  }, [userId, tripId, db, authLoading]);
+    fetchTrainData();
+  }, [userId, tripId, db, isAuthLoading]); // Dependencies for the effect
 
-  if (authLoading) {
-    return <div>Checking authentication...</div>;
-  }
+  // --- Conditional Rendering ---
 
-  if (!userId) {
-    return <div>Please log in to view train options</div>;
+  if (isAuthLoading) {
+    return <div className="text-center p-4">Checking authentication...</div>;
   }
 
   if (loading) {
-    return <div>Loading train data...</div>;
+    return <div className="text-center p-4">Loading train data...</div>;
   }
 
   if (error) {
-    return <div>{error}</div>;
+    return <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">{error}</div>;
   }
 
   if (trains.length === 0) {
-    return <div>No train data available</div>;
+    return <div className="text-center p-4 text-gray-500">No train data available for this trip.</div>;
   }
 
   return (
-    <div className="w-full relative rounded-[5px] border-blueviolet border-dashed border-[1px] box-border overflow-hidden flex flex-col items-start justify-start p-[1.25rem] gap-[1.25rem] text-left text-[0.875rem] text-label-primary font-body-bold-b3">
+    <div className="w-full p-5 border-blue-600 border-dashed border rounded-md flex flex-col gap-5">
       {trains.map((train, index) => (
         <div 
-          key={`${train.trainNumber}-${index}`}
-          className="self-stretch shadow-[4px_4px_10px_rgba(0,_0,_0,_0.1)] rounded-lg bg-background-primary border-label-tertiary border-solid border-[1px] flex flex-col items-start justify-start py-[0.75rem] px-[1rem] gap-[1rem] mb-[1.25rem]"
+          key={`${train.trainNumber}-${index}`} // Use a more reliable key
+          className="self-stretch shadow-lg rounded-lg bg-white border border-gray-200 flex flex-col p-4 gap-4"
         >
-          <div className="self-stretch flex flex-col items-start justify-start gap-[1rem]">
-            <div className="self-stretch flex flex-row items-start justify-between gap-[0rem]">
-              <div className="flex flex-row items-center justify-start">
-                <div className="flex flex-col items-start justify-start">
-                  <div className="relative leading-[150%]">{train.trainName}</div>
-                  <div className="self-stretch relative text-[0.75rem] leading-[150%] text-label-secondary mt-[-0.125rem]">
-                    {train.trainNumber}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-end justify-start text-[1rem]">
-                <div className="relative leading-[150%] font-medium">{train.fare}</div>
-                <div className="relative text-[0.75rem] leading-[150%] mt-[-0.125rem] text-label-secondary">
-                  <span className="whitespace-pre-wrap">3AC  </span>
-                  <span className="text-gold">62RAC</span>
-                </div>
-              </div>
+          {/* Train Name and Price Section */}
+          <div className="self-stretch flex justify-between items-start">
+            <div>
+              <div className="text-base font-semibold text-gray-800">{train.trainName}</div>
+              <div className="text-sm text-gray-500">{train.trainNumber}</div>
             </div>
-            <div className="self-stretch flex flex-row items-end justify-start text-[0.625rem] text-label-secondary">
-              <div className="flex-1 flex flex-row items-center justify-between gap-[0rem]">
-                <div className="w-[4rem] flex flex-col items-start justify-start">
-                  <div className="relative leading-[150%]">Today</div>
-                  <div className="relative text-[0.875rem] leading-[150%] font-medium text-label-primary mt-[-0.125rem]">
-                    {train.departureTime}
-                  </div>
-                  <div className="relative text-[0.75rem] leading-[150%] mt-[-0.125rem]">Departure</div>
-                </div>
-                <div className="w-[3.563rem] h-[2.5rem] flex flex-col items-center justify-between gap-[0rem] text-center">
-                  <div className="self-stretch relative leading-[150%]">{train.duration}</div>
-                  <div className="self-stretch relative rounded-lg bg-functional-success h-[0.125rem]" />
-                  <div className="self-stretch relative leading-[150%]">Route</div>
-                </div>
-                <div className="w-[4rem] flex flex-col items-end justify-start">
-                  <div className="relative leading-[150%]">Today</div>
-                  <div className="relative text-[0.875rem] leading-[150%] font-medium text-label-primary mt-[-0.125rem]">
-                    {train.arrivalTime}
-                  </div>
-                  <div className="relative text-[0.75rem] leading-[150%] mt-[-0.125rem]">Arrival</div>
-                </div>
+            <div className="text-right">
+              <div className="text-lg font-medium text-gray-900">{train.fare}</div>
+              <div className="text-xs text-gray-500">
+                <span>3AC </span>
+                <span className="text-yellow-600 font-semibold">62RAC</span>
               </div>
             </div>
           </div>
-          <div className="w-[15.563rem] rounded-13xl bg-primary-600 hidden flex-row items-center justify-center py-[0.375rem] px-[1rem] box-border text-[0.75rem] text-background-primary">
-            <div className="relative leading-[150%] font-medium">View More</div>
+          
+          {/* Timing and Route Section */}
+          <div className="self-stretch flex items-center justify-between text-xs text-gray-500">
+            {/* Departure */}
+            <div className="text-left w-1/3">
+              <div className="text-sm font-medium text-gray-800">{train.departureTime}</div>
+              <div>Departure</div>
+            </div>
+
+            {/* Duration and Route Visual */}
+            <div className="flex-1 flex flex-col items-center text-center mx-2">
+              <div>{train.duration}</div>
+              <div className="w-full h-0.5 bg-green-500 rounded-full my-1" />
+              <div>Route</div>
+            </div>
+            
+            {/* Arrival */}
+            <div className="text-right w-1/3">
+              <div className="text-sm font-medium text-gray-800">{train.arrivalTime}</div>
+              <div>Arrival</div>
+            </div>
           </div>
         </div>
       ))}
