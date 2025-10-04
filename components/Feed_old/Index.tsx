@@ -1,5 +1,5 @@
 import React from "react";
-import Navbar from "../My-Profile/profile/Navbar";
+import Navbar from "@/components/Nav";
 import MainLayout from "./MainLayout";
 import PostCreator from "./PostCreator";
 import TextPost from "./TextPost";

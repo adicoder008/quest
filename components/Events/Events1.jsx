@@ -1,5 +1,5 @@
 import React from 'react'
-import Navbar from '../Navbar'
+import Navbar from '@components/Nav'
 import Destination from './Destination'
 
 const Events1 = () => {

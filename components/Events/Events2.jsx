@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Navbar from '../Navbar';
+import Navbar from '@components/Nav';
 import { FaCalendarDay } from "react-icons/fa6";
 import { IoIosCheckboxOutline } from "react-icons/io";
 import { RiCheckboxBlankLine } from "react-icons/ri";
