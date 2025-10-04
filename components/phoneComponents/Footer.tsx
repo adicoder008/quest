@@ -1,8 +1,5 @@
 'use client'
 import React from 'react'
-import { HiHome } from "react-icons/hi";
-import { IoSearch } from "react-icons/io5";
-import { FaSearchLocation } from "react-icons/fa";
 import { FaRegPlusSquare } from "react-icons/fa";
 import { HiUser } from "react-icons/hi2";
 import Link from 'next/link';
@@ -16,6 +13,7 @@ import { auth } from '@/lib/firebase';
 import { getCurrentUserData } from '@/lib/authService';
 import { subscribeToPosts } from '@/lib/postService';
 import { useRouter } from 'next/navigation';
+import { House, Plus, Search} from 'lucide-react';
 
 
 const Footer = () => {
@@ -68,36 +66,37 @@ const Footer = () => {
             />
           )}
     {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-md border-t border-peach-200/20">
+      <div className="py-1 fixed -bottom-1 left-0 right-0 border-1 border-white bg-black backdrop-blur-md border-t border-peach-200/20">
         <div className="flex items-center justify-between px-6 py-2">
-          <Link href={'/feed'}><div className="flex flex-col items-center text-peach-200">
+          <Link href={'/feed'}><div className="flex flex-col items-center text-peach-200 text-white">
             {/* <div className="w-6 h-6 mb-1">🏠</div> */}
-            <HiHome size={24}/>
+            <House size={24}/>
             <span className="text-xs">Home</span>
           </div></Link>
 
-          <Link href={'/explore'}><div className="flex flex-col items-center text-white">
+          <Link href={'/explore'}><div className="flex flex-col items-center text-[#F7CEB0]">
             {/* <div className="w-6 h-6 mb-1">🔍</div> */}
-            <IoSearch size={24}/>
+            <Search size={24}/>
             {/* <FaSearchLocation size={22}/> */}
             
-            <span className="text-xs">Explore</span>
+            <span className="text-xs ">Explore</span>
           </div></Link>
 
           <div onClick={() => setShowCreateModal(true)} className="flex flex-col items-center text-white">
             {/* <div className="w-6 h-6 mb-1">➕</div> */}
-            <FaRegPlusSquare size={22} className="text-[#F7CEB0]" />
-            <span className="text-xs">Post</span>
+            <Plus size={22} className="" />
+            <span className="text-xs ">Post</span>
           </div>
 
           <Link href={'/quest'}><div className="flex flex-col items-center text-white">
-            <div className="w-6 h-6 mb-1">🎯</div>
-            <span className="text-xs">Quest</span>
+          {/* <Quest size={22} className="" /> */}
+          <img src="../quest_explore_footer.png" alt="" className='' />
+          <span className="text-xs ">Quest</span>
           </div></Link>
 
           <Link href={'/account'}><div className="flex flex-col items-center text-white">
             {/* <div className="w-6 h-6 mb-1">👤</div> */}
-            <HiUser size={22} className="text-[#F7CEB0]"/>
+            <HiUser size={22} className=""/>
             <span className="text-xs">Account</span>
           </div></Link>
         </div>
