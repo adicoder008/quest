@@ -83,14 +83,15 @@ export interface QuestContext {
 
 export interface Post {
   id: string;
-  authorId: string; // Changed from uid to authorId for clarity
-  content: string;
+  authorId: string;
+  text: string; // Changed from 'content' to 'text' to match component usage
+  caption?: string; // Added optional caption
+  userName: string; // Added userName
+  userProfilePic: string; // Added userProfilePic
+  createdAt: string; // Should be a string (ISO) from Firestore
   questId?: string;
   questTitle?: string;
   questImage?: string;
-  createdAt: string;
-  userName?: string;
-  userProfilePic?: string;
   photoUrl?: string;
   postType?: 'regular' | 'event' | 'sponsored' | 'quest_completion';
   contentType?: 'text_only' | 'photo_only' | 'photo_with_text';
@@ -188,3 +189,4 @@ export interface CommentData {
   userProfilePic: string;
   text: string;
 }
+
