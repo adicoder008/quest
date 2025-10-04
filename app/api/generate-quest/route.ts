@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const { uid, source, destination, startDate, endDate, transportMode, tripType, preferences, budget } = tripData;
 
     // Generate itinerary with Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     const prompt = `
       Create a detailed day-by-day travel itinerary for a trip to ${destination} from ${source}.
