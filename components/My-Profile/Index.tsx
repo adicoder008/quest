@@ -67,7 +67,7 @@ useEffect(() => {
 }, []);
 
 
-  if (loading || !userData) return <div>Loading...</div>;
+  // if (loading || !userData) return <div>Loading...</div>;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
