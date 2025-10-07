@@ -833,7 +833,7 @@ const MobileFeedPage = () => {
       await likePost(postId, user.uid);
       setPosts(prev => prev.map(post => 
         post.id === postId 
-          ? { ...post, likeCount: post.likeCount + 1 }
+          ? { ...post, likeCount: (post.likeCount || 0) + 1 }
           : post
       ));
     } catch (error) {
@@ -854,7 +854,7 @@ const MobileFeedPage = () => {
       
       setPosts(prev => prev.map(post => 
         post.id === postId 
-          ? { ...post, commentCount: post.commentCount + 1 }
+          ? { ...post, commentCount: (post.commentCount || 0) + 1 }
           : post
       ));
     } catch (error) {

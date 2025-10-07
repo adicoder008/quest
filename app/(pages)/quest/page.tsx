@@ -313,37 +313,15 @@ const QuestPage = () => {
     setQuestLoading(true);
     try {
       const apiResult = await questService.generateQuest({ ...tripData, uid: user.uid });
-      if (!apiResult.success || !apiResult.itinerary) {
-        throw new Error("Failed to get itinerary from AI");
-      }
-
-      const questPayload = { ...tripData, itinerary: apiResult.itinerary };
-
-      // Extract flowCards from the generated itinerary
-        const flowCards = apiResult.itinerary?.days?.flatMap((day: any) => 
-          day.activities?.map((activity: any) => ({
-            location: activity.location || { name: '', coordinates: { lat: 0, lng: 0 } },
-            title: activity.title || '',
-            description: activity.description || '',
-            time: activity.time || '',
-            type: activity.type || 'text',
-            // Add other required FlowCardState properties
-          })) || []
-        ) || [];
-
-        const createResult = await questService.createQuest(
-          user.uid, 
-          questPayload,
-          null as any, // No cover image file
-          flowCards
-        );
-      if (createResult.success) {
-        router.push(`/quest/${createResult.questId}`);
+      if (apiResult.success && apiResult.questId) {
+        // The API route already created the quest, so we just need to navigate.
+        router.push(`/quest/${apiResult.questId}`);
       } else {
-        throw new Error("Failed to save the created quest.");
+        throw new Error(apiResult.error || "Failed to generate and create AI quest.");
       }
     } catch (error) {
       console.error('Error in AI quest creation flow:', error);
+      alert(`Error creating quest: ${error instanceof Error ? error.message : String(error)}`);
       setQuestLoading(false);
     }
   };
@@ -928,15 +906,14 @@ const QuestPage = () => {
             <button
               onClick={handleNext}
               disabled={
-                (currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
+                (currentStepData.key === 'destination' && !tripData.destination) ||
                 (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
-                (isAITrip && currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
-                (isAITrip && currentStepData.key === 'tripType' && !tripData.tripType) ||
-                loadingpreferences
+                (currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
+                (currentStepData.key === 'companion' && !tripData.tripType)
               }
               className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >
-              {currentStep === steps.length - 1 ? (isAITrip ? 'Generate Quest' : 'Create Quest') : 'Next'}
+              {currentStep === steps.length - 1 ? 'Generate Quest' : 'Next'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

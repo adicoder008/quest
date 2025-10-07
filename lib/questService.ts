@@ -17,6 +17,7 @@ import {
   runTransaction
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { Quest } from '@/app/types'; // <-- FIX: Import your Quest type
 
 // Define types for clarity
 type QuestRole = 'owner' | 'editor' | 'viewer';
@@ -185,7 +186,7 @@ const questService = {
   /**
    * Fetches a single quest document if the user is a member
    */
-  async getQuest(uid: string, questId: string) {
+  async getQuest(uid: string, questId: string): Promise<Quest> { // <-- FIX: Added explicit return type
     try {
       const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
@@ -199,7 +200,7 @@ const questService = {
         throw new Error('You do not have permission to view this quest.');
       }
 
-      return { id: questSnap.id, ...questData };
+      return { id: questSnap.id, ...questData } as Quest; // <-- FIX: Cast the returned data to the Quest type
     } catch (error) {
       console.error('Error fetching quest:', error);
       throw error;
@@ -209,7 +210,7 @@ const questService = {
   /**
    * Fetches all quests a user is a member of
    */
-  async getUserQuests(uid: string) {
+  async getUserQuests(uid: string): Promise<Quest[]> { // <-- FIX: Added explicit return type
     try {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
@@ -231,10 +232,10 @@ const questService = {
       );
       
       const querySnapshot = await getDocs(q);
-      const quests: any[] = [];
+      const quests: Quest[] = []; // <-- FIX: Use the Quest[] type here
       
       querySnapshot.forEach((doc) => {
-        quests.push({ id: doc.id, ...doc.data() });
+        quests.push({ id: doc.id, ...doc.data() } as Quest); // <-- FIX: Cast each document's data
       });
       
       return quests;
@@ -243,6 +244,7 @@ const questService = {
       throw error;
     }
   },
+  
 
   /**
    * Updates the itinerary of a quest

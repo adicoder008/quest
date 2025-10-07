@@ -9,8 +9,6 @@ import { FaHeartbeat } from "react-icons/fa";
 import { FaRegCommentDots } from "react-icons/fa";
 import { FaShareSquare } from "react-icons/fa";
 
-
-
 interface PostCardProps {
   post: Post;
   onLike: () => void;
@@ -28,11 +26,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
     onLike();
   };
 
-  const formatTime = (timestamp: Date | undefined): string => {
+  const formatTime = (timestamp: string | undefined): string => {
     if (!timestamp) return '';
     
     const now = new Date();
-    const postTime = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const postTime = new Date(timestamp);
     const diffMs = now.getTime() - postTime.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     
@@ -120,15 +118,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             
-            {/* {post.userProfilePic &&  <img 
-              src={post.userProfilePic } 
-              alt={post.userName}
-              className="w-6 h-6 rounded-full object-cover"
-            /> */}
-            {/* } */}
-            {/* {!post.userProfilePic && */}
-              <FaUser className="size-5 rounded-full object-cover text-white bg-gray-600" />
-            {/* } */}
+            {post.userProfilePic ? (
+              <img 
+                src={post.userProfilePic} 
+                alt={post.userName}
+                className="w-6 h-6 rounded-full object-cover"
+              />
+            ) : (
+              <FaUser className="size-5 rounded-full object-cover text-white bg-gray-600 p-1" />
+            )}
             
             <span className="text-peach-200 text-sm">{post.userName}</span>
           </div>
@@ -154,18 +152,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
               onClick={handleLike}
               className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-white'}`}
             >
-              {/* <Heart className={`w-6 h-6 ${liked ? 'fill-current' : ''}`} /> */}
               <FaHeartbeat className='text-red-500' size={24} />
             </button>
             <button 
               onClick={() => setShowComments(true)}
               className="text-white"
             >
-              {/* <MessageCircle className="w-6 h-6" /> */}
               <FaRegCommentDots size={24} className='' />
             </button>
             <button className="text-white">
-              {/* <Share className="w-6 h-6" /> */}
               <FaShareSquare size={24} className=''/>
             </button>
           </div>
@@ -178,12 +173,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUse
         </div>
 
         {/* Engagement stats */}
-        {(post.likeCount > 0 || post.commentCount > 0) && (
+        {((post.likeCount || 0) > 0 || (post.commentCount || 0) > 0) && (
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            {post.likeCount > 0 && (
+            {(post.likeCount || 0) > 0 && (
               <span>{post.likeCount} likes</span>
             )}
-            {post.commentCount > 0 && (
+            {(post.commentCount || 0) > 0 && (
               <span>{post.commentCount} comments</span>
             )}
           </div>

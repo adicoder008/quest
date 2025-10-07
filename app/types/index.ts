@@ -1,4 +1,3 @@
-// types/index.ts
 export interface User {
   uid: string;
   email?: string;
@@ -24,6 +23,55 @@ export interface User {
   pushNotifications?: boolean;
 }
 
+export interface QuestActivity {
+  time: string;
+  title: string;
+  description: string;
+  location?: {
+    name: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+  media?: { url: string; type: 'image' | 'video' }[];
+  tags?: string[];
+  type?: 'activity' | 'travel';
+  collapsed?: boolean;
+}
+
+export interface QuestDay {
+  day: number;
+  date: string;
+  title: string;
+  activities: QuestActivity[];
+}
+
+export interface QuestItinerary {
+  days: QuestDay[];
+}
+
+export interface Quest {
+  id: string;
+  uid: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  members: { [key: string]: 'owner' | 'editor' | 'viewer' };
+  isPublic: boolean;
+  itinerary: QuestItinerary;
+  createdAt: string;
+  updatedAt: string;
+  source?: string;
+  transportMode?: string[];
+  tripType?: string;
+  preferences?: string[];
+  budget?: number;
+  copiedFrom?: string;
+}
+
+
 export interface QuestContext {
   questId: string;
   questTitle: string;
@@ -35,30 +83,32 @@ export interface QuestContext {
 
 export interface Post {
   id: string;
-  uid: string;
-  userName: string;
-  userProfilePic: string;
-  text: string;
-  photoUrl: string;
-  postType: 'regular' | 'event' | 'sponsored' | 'quest_completion';
+  authorId: string;
+  text: string; // Changed from 'content' to 'text' to match component usage
+  caption?: string; // Added optional caption
+  userName: string; // Added userName
+  userProfilePic: string; // Added userProfilePic
+  createdAt: string; // Should be a string (ISO) from Firestore
+  questId?: string;
+  questTitle?: string;
+  questImage?: string;
+  photoUrl?: string;
+  postType?: 'regular' | 'event' | 'sponsored' | 'quest_completion';
   contentType?: 'text_only' | 'photo_only' | 'photo_with_text';
   location?: string | null;
-  topics: string[];
-  taggedUsers: string[];
-  caption: string;
-  createdAt: Date;
-  updatedAt: Date;
-  likeCount: number;
-  commentCount: number;
-  shareCount: number;
-  isDeleted: boolean;
-  visibility: 'public' | 'friends' | 'private';
+  topics?: string[];
+  taggedUsers?: string[];
+  likeCount?: number;
+  commentCount?: number;
+  shareCount?: number;
+  isDeleted?: boolean;
+  visibility?: 'public' | 'friends' | 'private';
   
   // Event-specific fields
   eventTitle?: string;
   eventSubtitle?: string;
   eventPrice?: string | null;
-  eventDate?: Date | null;
+  eventDate?: string | null;
   eventLocation?: string;
   eventCapacity?: number | null;
   attendeesCount?: number;
@@ -100,15 +150,18 @@ export interface CommentModalProps {
 }
 
 export interface CreatePostData {
-  uid: string;
-  userName: string;
-  userProfilePic: string;
-  text: string;
-  postType: string;
+  authorId: string;
+  content: string;
+  questId?: string;
+  questTitle?: string;
+  questImage?: string;
+  createdAt: string;
+  userName?: string;
+  userProfilePic?: string;
+  postType?: string;
   location?: string | null;
-  topics: string[];
+  topics?: string[];
   imageFile?: File;
-  caption: string;
   visibility?: string;
   
   // Event-specific
@@ -136,3 +189,4 @@ export interface CommentData {
   userProfilePic: string;
   text: string;
 }
+
