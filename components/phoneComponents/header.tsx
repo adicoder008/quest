@@ -2,6 +2,7 @@ import { MessageSquareMore } from 'lucide-react';
 import React from 'react'
 import { IoMdChatboxes } from "react-icons/io";
 import { MdNotifications } from "react-icons/md";
+import Link from 'next/link'; 
 
 const header = () => {
   return (
@@ -16,7 +17,10 @@ const header = () => {
           </div>
           <div className="flex items-center gap-4">
             {/* <IoMdChatboxes className='text-[#F7CEB0] size-6' /> */}
+            <Link href="/chats">
             <MessageSquareMore className='text-[#F7CEB0] size-6' />
+            </Link>
+
             <MdNotifications className='text-[#F7CEB0] size-6'/>
 
             {/* <MessageCircle className="w-6 h-6" /> */}
