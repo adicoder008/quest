@@ -82,6 +82,7 @@ export interface QuestContext {
 }
 
 export interface Post {
+  likedBy: any;
   id: string;
   authorId: string;
   text: string; // Changed from 'content' to 'text' to match component usage
@@ -103,6 +104,7 @@ export interface Post {
   shareCount?: number;
   isDeleted?: boolean;
   visibility?: 'public' | 'friends' | 'private';
+  isSaved?: boolean; 
   
   // Event-specific fields
   eventTitle?: string;
