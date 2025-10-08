@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, Key } from 'react';
-import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send } from 'lucide-react';
-import { subscribeToPosts, likePost, addComment, followUser, unfollowUser } from '../../../lib/postService';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck } from 'lucide-react';
+import { subscribeToPosts, addComment, followUser, unfollowUser, savePost, unsavePost, sharePost, reportPost, deletePost } from '../../../lib/postService';
 import { getCurrentUserData } from '../../../lib/authService';
 import { auth, db } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -28,16 +28,296 @@ const ResponsiveFeedPage = () => {
   
   return <MobileFeedPage />;
 };
+
 interface Comment {
   id: string;
-  text: string;        // ✅ Now properly set from Firestore
-  createdAt: any;      // ✅ Now properly set from Firestore
+  text: string;
+  createdAt: any;
   author: {
     name: string;
     avatar: string;
   };
   [key: string]: any;
 }
+
+// =================================================================
+// POST MENU MODAL
+// =================================================================
+interface PostMenuProps {
+  post: any;
+  user: User | null;
+  onClose: () => void;
+  onDelete?: () => void;
+  onReport?: () => void;
+}
+
+const PostMenu = ({ post, user, onClose, onDelete, onReport }: PostMenuProps) => {
+  const isOwnPost = user?.uid === post.author.id;
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+
+  const handleCopyLink = () => {
+    const postUrl = `${window.location.origin}/post/${post.id}`;
+    navigator.clipboard.writeText(postUrl);
+    alert('Link copied to clipboard!');
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      try {
+        await deletePost(post.id, user!.uid);
+        onDelete?.();
+        onClose();
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Failed to delete post');
+      }
+    }
+  };
+
+  const handleReport = async () => {
+    if (!reportReason) {
+      alert('Please select a reason');
+      return;
+    }
+
+    try {
+      await reportPost(post.id, user!.uid, reportReason, reportDescription);
+      alert('Post reported successfully');
+      setShowReportModal(false);
+      onClose();
+    } catch (error) {
+      console.error('Error reporting post:', error);
+      alert('Failed to report post');
+    }
+  };
+
+  if (showReportModal) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+        <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">Report Post</h3>
+            <button onClick={() => setShowReportModal(false)}>
+              <X size={20} className="text-gray-400" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-gray-300 mb-2 block">Reason</label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none"
+              >
+                <option value="">Select a reason</option>
+                <option value="spam">Spam</option>
+                <option value="harassment">Harassment</option>
+                <option value="inappropriate">Inappropriate Content</option>
+                <option value="false_info">False Information</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 mb-2 block">Additional Details (Optional)</label>
+              <textarea
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                placeholder="Provide more details..."
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none resize-none"
+                rows={3}
+              />
+            </div>
+
+            <button
+              onClick={handleReport}
+              className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Submit Report
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+      <div className="bg-gray-900 rounded-lg w-full max-w-sm border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 className="text-lg font-bold text-white">Post Options</h3>
+          <button onClick={onClose}>
+            <X size={20} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="py-2">
+          <button
+            onClick={handleCopyLink}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white"
+          >
+            <Copy size={20} />
+            <span>Copy Link</span>
+          </button>
+
+          {isOwnPost ? (
+            <>
+              <button
+                onClick={() => {/* Edit functionality can be added later */}}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white"
+              >
+                <Edit size={20} />
+                <span>Edit Post</span>
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500"
+              >
+                <Trash2 size={20} />
+                <span>Delete Post</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500"
+            >
+              <Flag size={20} />
+              <span>Report Post</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =================================================================
+// SHARE MODAL
+// =================================================================
+interface ShareModalProps {
+  post: any;
+  onClose: () => void;
+}
+
+const ShareModal = ({ post, onClose }: ShareModalProps) => {
+  const postUrl = `${window.location.origin}/post/${post.id}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(postUrl);
+    alert('Link copied to clipboard!');
+  };
+
+  const handleShare = async (platform: string) => {
+    let shareUrl = '';
+    const text = encodeURIComponent(post.content.text || 'Check out this post!');
+    
+    switch (platform) {
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'whatsapp':
+        shareUrl = `https://wa.me/?text=${text}%20${encodeURIComponent(postUrl)}`;
+        break;
+      case 'telegram':
+        shareUrl = `https://t.me/share/url?url=${encodeURIComponent(postUrl)}&text=${text}`;
+        break;
+    }
+
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+      <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 className="text-lg font-bold text-white">Share Post</h3>
+          <button onClick={onClose}>
+            <X size={20} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="bg-gray-800 p-3 rounded-lg mb-4 flex items-center gap-2">
+            <input
+              type="text"
+              value={postUrl}
+              readOnly
+              className="flex-1 bg-transparent text-gray-300 text-sm outline-none"
+            />
+            <button
+              onClick={handleCopyLink}
+              className="bg-[#F7CEB0] text-black px-3 py-1 rounded text-sm font-medium hover:bg-[#f5c094] transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            <button
+              onClick={() => handleShare('twitter')}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path>
+                </svg>
+              </div>
+              <span className="text-xs text-gray-300">Twitter</span>
+            </button>
+
+            <button
+              onClick={() => handleShare('facebook')}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"></path>
+                </svg>
+              </div>
+              <span className="text-xs text-gray-300">Facebook</span>
+            </button>
+
+            <button
+              onClick={() => handleShare('whatsapp')}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"></path>
+                </svg>
+              </div>
+              <span className="text-xs text-gray-300">WhatsApp</span>
+            </button>
+
+            <button
+              onClick={() => handleShare('telegram')}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-12 h-12 bg-blue-400 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"></path>
+                </svg>
+              </div>
+              <span className="text-xs text-gray-300">Telegram</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // =================================================================
 // COMMENT MODAL FOR DESKTOP (TWITTER-STYLE)
 // =================================================================
@@ -63,37 +343,36 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
         const commentsSnapshot = await getDocs(commentsQuery);
         
         const commentsData: Comment[] = [];
-      for (const commentDoc of commentsSnapshot.docs) {
-        const commentData = commentDoc.data();
-        let commentAuthor = {
-          name: 'Anonymous',
-          avatar: '/default-avatar.png'
-        };
-        
-        if (commentData.uid) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', commentData.uid));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              commentAuthor = {
-                name: userData.displayName || 'Anonymous',
-                avatar: userData.photoURL || '/default-avatar.png'
-              };
+        for (const commentDoc of commentsSnapshot.docs) {
+          const commentData = commentDoc.data();
+          let commentAuthor = {
+            name: 'Anonymous',
+            avatar: '/default-avatar.png'
+          };
+          
+          if (commentData.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', commentData.uid));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                commentAuthor = {
+                  name: userData.displayName || 'Anonymous',
+                  avatar: userData.photoURL || '/default-avatar.png'
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching comment author:', error);
             }
-          } catch (error) {
-            console.error('Error fetching comment author:', error);
           }
+          
+          commentsData.push({
+            id: commentDoc.id,
+            text: commentData.text || '',
+            createdAt: commentData.createdAt,
+            author: commentAuthor,
+            ...commentData
+          });
         }
-        
-            commentsData.push({
-  id: commentDoc.id,
-  text: commentData.text || '',      // ✅ Get text from Firestore
-  createdAt: commentData.createdAt,  // ✅ Get timestamp from Firestore
-  author: commentAuthor,
-  ...commentData                      // ✅ Spread AFTER to avoid overwriting
-});
-        
-      }
         
         setComments(commentsData);
       } catch (error) {
@@ -142,14 +421,13 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
           }
         }
         
-       
-commentsData.push({
-  id: commentDoc.id,
-  text: commentData.text || '',      // ✅ Get text from Firestore
-  createdAt: commentData.createdAt,  // ✅ Get timestamp from Firestore
-  author: commentAuthor,
-  ...commentData                      // ✅ Spread AFTER
-});
+        commentsData.push({
+          id: commentDoc.id,
+          text: commentData.text || '',
+          createdAt: commentData.createdAt,
+          author: commentAuthor,
+          ...commentData
+        });
       }
       
       setComments(commentsData);
@@ -173,7 +451,6 @@ commentsData.push({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
       <div className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col border border-gray-700 shadow-xl">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <button 
             onClick={onClose}
@@ -182,10 +459,9 @@ commentsData.push({
             <X size={20} className="text-white" />
           </button>
           <h2 className="text-xl font-bold text-white">Comments</h2>
-          <div className="w-8"></div> {/* Spacer for balance */}
+          <div className="w-8"></div>
         </div>
 
-        {/* Original Post */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-start gap-3">
             <img 
@@ -215,7 +491,6 @@ commentsData.push({
           </div>
         </div>
 
-        {/* Comments List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center p-8">
@@ -252,7 +527,6 @@ commentsData.push({
           )}
         </div>
 
-        {/* Comment Input - Fixed at bottom */}
         <div className="p-4 border-t border-gray-700 bg-gray-900">
           <form onSubmit={handleSubmit} className="flex items-start gap-3">
             <img 
@@ -290,41 +564,42 @@ commentsData.push({
 
 const Feed = () => {
   const [user, setUser] = useState<User | null>(null);
-const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
- const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
-const [selectedPostForComment, setSelectedPostForComment] = useState<any>(null); 
- const router = useRouter();
+  const [selectedPostForComment, setSelectedPostForComment] = useState<any>(null);
+  const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
+  const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const router = useRouter();
  
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-    if (currentUser) {
-      // Convert Firebase User to custom User type
-      setUser({
-        uid: currentUser.uid,
-        displayName: currentUser.displayName ?? undefined,
-        email: currentUser.email ?? undefined,
-        photoURL: currentUser.photoURL ?? undefined
-      });
-      
-      try {
-        const userDetails = await getCurrentUserData();
-        setUserData(userDetails);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser({
+          uid: currentUser.uid,
+          displayName: currentUser.displayName ?? undefined,
+          email: currentUser.email ?? undefined,
+          photoURL: currentUser.photoURL ?? undefined
+        });
+        
+        try {
+          const userDetails = await getCurrentUserData();
+          setUserData(userDetails);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        setUser(null);
+        setUserData(null);
       }
-    } else {
-      setUser(null);
-      setUserData(null);
-    }
+      
+      setLoading(false);
+    });
     
-    setLoading(false);
-  });
-  
-  return () => unsubscribe();
-}, []);
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const unsubscribePosts = onSnapshot(
@@ -338,22 +613,24 @@ useEffect(() => {
           let authorAvatar = '/default-avatar.png';
           let authorTitle = '';
           
-          try {
-            const userDoc = await getDoc(doc(db, 'users', data.userId));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              authorName = userData.displayName || authorName;
-              authorAvatar = userData.photoURL || authorAvatar;
-              authorTitle = userData.title || '';
+          if (data.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', data.uid));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                authorName = userData.displayName || authorName;
+                authorAvatar = userData.photoURL || authorAvatar;
+                authorTitle = userData.title || '';
+              }
+            } catch (error) {
+              console.error("Error fetching user data:", error);
             }
-          } catch (error) {
-            console.error("Error fetching user data:", error);
           }
     
           postsData.push({
             id: docc.id,
             author: {
-              id: data.userId,
+              id: data.uid,
               name: authorName,
               avatar: authorAvatar,
               title: data.postType === 'sponsored' ? 'Sponsored' : authorTitle
@@ -370,9 +647,11 @@ useEffect(() => {
             stats: {
               likes: data.likeCount || 0,
               comments: data.commentCount || 0,
+              shares: data.shareCount || 0,
               likedBy: data.likedBy || []
             },
             postType: data.postType,
+            isSaved: userData?.savedPosts?.includes(docc.id) || false,
             ...(data.eventDetails && { eventDetails: data.eventDetails }),
             ...(data.questContext && { questContext: data.questContext })
           });
@@ -415,16 +694,32 @@ useEffect(() => {
       unsubscribeEvents();
       unsubscribeUsers();
     };
-  }, []);
+  }, [userData]);
 
   const handleLike = async (postId: string) => {
     if (!user?.uid) return;
     
     try {
       const post = posts.find(p => p.id === postId);
-      const isLiked = post?.stats?.likedBy?.includes(user.uid);
+      if (!post) return;
       
+      const isLiked = post.stats?.likedBy?.includes(user.uid);
       const postRef = firestoreDoc(db, 'posts', postId);
+      
+      setPosts(prev => prev.map(p => 
+        p.id === postId 
+          ? {
+              ...p,
+              stats: {
+                ...p.stats,
+                likes: isLiked ? p.stats.likes - 1 : p.stats.likes + 1,
+                likedBy: isLiked 
+                  ? p.stats.likedBy.filter((uid: string) => uid !== user.uid)
+                  : [...p.stats.likedBy, user.uid]
+              }
+            }
+          : p
+      ));
       
       if (isLiked) {
         await updateDoc(postRef, {
@@ -439,6 +734,66 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      const postDoc = await getDoc(firestoreDoc(db, 'posts', postId));
+      if (postDoc.exists()) {
+        const data = postDoc.data();
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? {
+                ...p,
+                stats: {
+                  ...p.stats,
+                  likes: data.likeCount || 0,
+                  likedBy: data.likedBy || []
+                }
+              }
+            : p
+        ));
+      }
+    }
+  };
+
+  const handleSave = async (postId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      const post = posts.find(p => p.id === postId);
+      const isSaved = post?.isSaved;
+      
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, isSaved: !isSaved } : p
+      ));
+      
+      if (isSaved) {
+        await unsavePost(postId, user.uid);
+      } else {
+        await savePost(postId, user.uid);
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, isSaved: !p.isSaved } : p
+      ));
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPostForShare(post);
+      
+      if (user?.uid) {
+        try {
+          await sharePost(postId, user.uid);
+          setPosts(prev => prev.map(p => 
+            p.id === postId 
+              ? { ...p, stats: { ...p.stats, shares: p.stats.shares + 1 } }
+              : p
+          ));
+        } catch (error) {
+          console.error('Error sharing post:', error);
+        }
+      }
     }
   };
 
@@ -458,7 +813,7 @@ useEffect(() => {
         createdAt: new Date()
       });
       
-      // Update local state to reflect the new comment count
+      // Optimistic update
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { 
@@ -470,22 +825,52 @@ useEffect(() => {
             }
           : post
       ));
+
+      // Verify actual count from Firestore
+      const postRef = firestoreDoc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      if (postDoc.exists()) {
+        const data = postDoc.data();
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { 
+                ...post, 
+                stats: { 
+                  ...post.stats, 
+                  comments: data.commentCount || 0 
+                } 
+              }
+            : post
+        ));
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
+      // Revert optimistic update on error
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { 
+              ...post, 
+              stats: { 
+                ...post.stats, 
+                comments: Math.max(0, post.stats.comments - 1) 
+              } 
+            }
+          : post
+      ));
     }
   };
 
-  const handleFollow = async (userId: string) => {
-    if (!user?.uid || userId === user.uid) return;
+  const handleFollow = async (uid: string) => {
+    if (!user?.uid || uid === user.uid) return;
     
     try {
-      const userToFollow = popularUsers.find(u => u.id === userId);
+      const userToFollow = popularUsers.find(u => u.id === uid);
       const isFollowing = userToFollow?.followers?.includes(user.uid);
       
       if (isFollowing) {
-        await unfollowUser(user.uid, userId);
+        await unfollowUser(user.uid, uid);
       } else {
-        await followUser(user.uid, userId);
+        await followUser(user.uid, uid);
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
@@ -504,13 +889,13 @@ useEffect(() => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Event Card Component
-const EventCard = ({ date, title, location, type = "other" }: {
-  date: { day: string; month: string };
-  title: string;
-  location: string;
-  type?: string;
-}) => {    const getTypeColor = () => {
+  const EventCard = ({ date, title, location, type = "other" }: {
+    date: { day: string; month: string };
+    title: string;
+    location: string;
+    type?: string;
+  }) => {
+    const getTypeColor = () => {
       switch (type) {
         case "music": return "bg-blue-500";
         case "workshop": return "bg-green-500";
@@ -534,14 +919,13 @@ const EventCard = ({ date, title, location, type = "other" }: {
     );
   };
 
-  // Traveler Card Component
- const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }: {
-  name: string;
-  title: string;
-  avatar: string;
-  onFollow: () => void;
-  isFollowing: boolean;
-}) => {
+  const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }: {
+    name: string;
+    title: string;
+    avatar: string;
+    onFollow: () => void;
+    isFollowing: boolean;
+  }) => {
     return (
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -565,13 +949,12 @@ const EventCard = ({ date, title, location, type = "other" }: {
     );
   };
 
-  // Desktop Post Component
   const DesktopPost = ({ post }: { post: any }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
+    const isSaved = post.isSaved;
 
     return (
       <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
-        {/* Post Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <img 
@@ -586,18 +969,21 @@ const EventCard = ({ date, title, location, type = "other" }: {
               </p>
             </div>
           </div>
-          <MoreHorizontal className="w-6 h-6 text-gray-400 cursor-pointer" />
+          <button 
+            onClick={() => setSelectedPostForMenu(post)}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+          >
+            <MoreHorizontal className="w-6 h-6 text-gray-400" />
+          </button>
         </div>
 
-        {/* Post Content */}
         {post.content.text && (
           <p className="px-4 pb-3 text-white">{post.content.text}</p>
         )}
 
-        {/* Images */}
         {post.content.images && post.content.images.length > 0 && (
           <div className="px-4 pb-3">
-            {post.content.images.map((image: string | Blob | undefined, index: Key | null | undefined) => (
+            {post.content.images.map((image: string, index: Key | null | undefined) => (
               <img
                 key={index}
                 src={image}
@@ -608,7 +994,6 @@ const EventCard = ({ date, title, location, type = "other" }: {
           </div>
         )}
 
-        {/* Actions */}
         <div className="border-t border-gray-700 px-4 py-3">
           <div className="flex items-center gap-6">
             <button 
@@ -629,12 +1014,21 @@ const EventCard = ({ date, title, location, type = "other" }: {
               <span className="text-sm">{post.stats.comments}</span>
             </button>
             
-            <button className="text-gray-400 hover:text-[#F7CEB0] transition-colors">
-              <FaShareSquare className="w-6 h-6" />
+            <button 
+              onClick={() => handleShare(post.id)}
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            >
+              <Share2 className="w-6 h-6" />
+              <span className="text-sm">{post.stats.shares || 0}</span>
             </button>
 
-            <button className="ml-auto text-gray-400 hover:text-[#F7CEB0] transition-colors">
-              <Bookmark className="w-6 h-6" />
+            <button 
+              onClick={() => handleSave(post.id)}
+              className={`ml-auto transition-colors ${
+                isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+              }`}
+            >
+              {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
             </button>
           </div>
         </div>
@@ -651,7 +1045,6 @@ const EventCard = ({ date, title, location, type = "other" }: {
       <Navbar />
 
       <main className="box-border flex gap-4 max-w-[1800px] mx-auto px-[67px] py-5 max-md:flex-col max-md:p-5 max-sm:p-2.5">
-        {/* Left Sidebar */}
         <aside className="w-[332px] max-md:w-full">
           <div className="border bg-gray-900 mb-3 rounded-lg border-gray-700">
             <div className="h-[76px] overflow-hidden bg-gradient-to-r from-gray-800 to-gray-900 rounded-t-lg">
@@ -689,14 +1082,16 @@ const EventCard = ({ date, title, location, type = "other" }: {
               <Search className="w-5 h-5" />
               <span>Events</span>
             </div>
-            <div className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
+            <div 
+              onClick={() => router.push('/saved')}
+              className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors"
+            >
               <Bookmark className="w-5 h-5" />
               <span>Saved</span>
             </div>
           </nav>
         </aside>
 
-        {/* Main Feed */}
         <section className="w-[680px] max-md:w-full">
           {user && <CreatePost onPostCreated={() => {}} />}
             
@@ -714,7 +1109,6 @@ const EventCard = ({ date, title, location, type = "other" }: {
           )}
         </section>
 
-        {/* Right Sidebar */}
         <aside className="w-[332px] max-md:w-full">
           <div className="border bg-gray-900 p-4 rounded-lg border-gray-700">
             <h2 className="text-base font-medium mb-4 text-white">Upcoming Events</h2>
@@ -776,15 +1170,293 @@ const EventCard = ({ date, title, location, type = "other" }: {
         )}
       </main>
 
-    {selectedPostForComment && user && (
-      <CommentModal
-        post={selectedPostForComment}
-        user={user}
-        onClose={() => setSelectedPostForComment(null)}
-        onCommentSubmit={handleCommentSubmit}
-      />
-    )}
+      {selectedPostForComment && user && (
+        <CommentModal
+          post={selectedPostForComment}
+          user={user}
+          onClose={() => setSelectedPostForComment(null)}
+          onCommentSubmit={handleCommentSubmit}
+        />
+      )}
+
+      {selectedPostForMenu && (
+        <PostMenu
+          post={selectedPostForMenu}
+          user={user}
+          onClose={() => setSelectedPostForMenu(null)}
+          onDelete={() => {
+            setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
+            setSelectedPostForMenu(null);
+          }}
+        />
+      )}
+
+      {selectedPostForShare && (
+        <ShareModal
+          post={selectedPostForShare}
+          onClose={() => setSelectedPostForShare(null)}
+        />
+      )}
     </div>
+  );
+};
+
+// =================================================================
+// MOBILE POST CARD COMPONENT
+// =================================================================
+interface MobilePostCardProps {
+  post: any;
+  currentUser: User;
+  onLike: () => void;
+  onComment: (text: string) => void;
+  onSave: () => void;
+  onShare: () => void;
+  onMenuClick: () => void;
+}
+
+const MobilePostCard = ({ 
+  post, 
+  currentUser, 
+  onLike, 
+  onComment, 
+  onSave, 
+  onShare, 
+  onMenuClick 
+}: MobilePostCardProps) => {
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  const isLiked = post.likedBy?.includes(currentUser.uid);
+  const isSaved = post.isSaved;
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const loadComments = async () => {
+    if (!post?.id) return;
+    
+    setLoadingComments(true);
+    try {
+      const commentsRef = collection(db, 'posts', post.id, 'comments');
+      const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
+      const commentsSnapshot = await getDocs(commentsQuery);
+      
+      const commentsData: Comment[] = [];
+      for (const commentDoc of commentsSnapshot.docs) {
+        const commentData = commentDoc.data();
+        let commentAuthor = {
+          name: 'Anonymous',
+          avatar: '/default-avatar.png'
+        };
+        
+        if (commentData.uid) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', commentData.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              commentAuthor = {
+                name: userData.displayName || 'Anonymous',
+                avatar: userData.photoURL || '/default-avatar.png'
+              };
+            }
+          } catch (error) {
+            console.error('Error fetching comment author:', error);
+          }
+        }
+        
+        commentsData.push({
+          id: commentDoc.id,
+          text: commentData.text || '',
+          createdAt: commentData.createdAt,
+          author: commentAuthor,
+          ...commentData
+        });
+      }
+      
+      setComments(commentsData);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleToggleComments = () => {
+    if (!showComments) {
+      loadComments();
+    }
+    setShowComments(!showComments);
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+
+    await onComment(commentText);
+    setCommentText('');
+    loadComments();
+  };
+
+  return (
+    <article className="border-b border-gray-800 bg-black p-4">
+      {/* Post Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <img 
+            src={post.userProfilePic || '/default-avatar.png'} 
+            alt={post.userName}
+            className="w-10 h-10 rounded-full object-cover"
+          />
+          <div>
+            <h3 className="text-sm font-medium text-white">{post.userName}</h3>
+            <p className="text-xs text-gray-400">
+              {formatTime(post.createdAt)} {post.location && `· ${post.location}`}
+            </p>
+          </div>
+        </div>
+        <button 
+          onClick={onMenuClick}
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+        >
+          <MoreHorizontal className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
+
+      {/* Post Content */}
+      {post.text && (
+        <p className="text-white text-sm mb-3">{post.text}</p>
+      )}
+
+      {/* Post Image */}
+      {post.photoUrl && (
+        <div className="mb-3">
+          <img
+            src={post.photoUrl}
+            alt="Post content"
+            className="w-full rounded-lg object-cover"
+          />
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+        <button 
+          onClick={onLike}
+          className={`flex items-center gap-2 transition-colors ${
+            isLiked ? 'text-red-500' : 'text-gray-400'
+          }`}
+        >
+          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <span className="text-xs">{post.likeCount || 0}</span>
+        </button>
+        
+        <button 
+          onClick={handleToggleComments}
+          className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-xs">{post.commentCount || 0}</span>
+        </button>
+        
+        <button 
+          onClick={onShare}
+          className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+        >
+          <Share2 className="w-5 h-5" />
+          <span className="text-xs">{post.shareCount || 0}</span>
+        </button>
+
+        <button 
+          onClick={onSave}
+          className={`transition-colors ${
+            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+          }`}
+        >
+          {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="mt-4 pt-4 border-t border-gray-800">
+          {/* Comment Input */}
+          <form onSubmit={handleSubmitComment} className="mb-4">
+            <div className="flex items-start gap-2">
+              <img 
+                src={currentUser.photoURL || '/default-avatar.png'} 
+                alt="Your profile"
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
+                    commentText.trim() 
+                      ? 'text-[#F7CEB0]' 
+                      : 'text-gray-600'
+                  }`}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Comments List */}
+          {loadingComments ? (
+            <div className="text-center py-4">
+              <div className="text-gray-400 text-sm">Loading comments...</div>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-400 text-sm">No comments yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-2">
+                  <img 
+                    src={comment.author.avatar} 
+                    alt={comment.author.name}
+                    className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <div className="bg-gray-900 rounded-lg p-2">
+                      <h4 className="text-xs font-medium text-white mb-1">
+                        {comment.author.name}
+                      </h4>
+                      <p className="text-xs text-gray-300">{comment.text}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 ml-2">
+                      {formatTime(comment.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   );
 };
 
@@ -793,6 +1465,9 @@ const MobileFeedPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
+  const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
@@ -800,6 +1475,7 @@ const MobileFeedPage = () => {
         try {
           const userData = await getCurrentUserData();
           setUser(userData);
+          setUserData(userData);
         } catch (error) {
           console.error('Error getting user data:', error);
           setUser({
@@ -807,37 +1483,162 @@ const MobileFeedPage = () => {
             displayName: authUser.displayName ?? 'Anonymous',
             email: authUser.email ?? 'Anonymous',
             photoURL: authUser.photoURL ?? '',
-        
           });
         }
       } else {
         setUser(null);
+        setUserData(null);
       }
     });
 
-    const unsubscribePosts = subscribeToPosts((newPosts: Post[]) => {
-      setPosts(newPosts);
-      setLoading(false);
-    });
-
-    return () => {
-      unsubscribeAuth();
-      unsubscribePosts();
-    };
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribePosts = onSnapshot(
+      query(collection(db, 'posts'), orderBy('createdAt', 'desc')),
+      async (snapshot) => {
+        const postsData = [];
+        
+        for (const docc of snapshot.docs) {
+          const data = docc.data();
+          let authorName = 'Anonymous';
+          let authorAvatar = '/default-avatar.png';
+          
+          if (data.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', data.uid));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                authorName = userData.displayName || authorName;
+                authorAvatar = userData.photoURL || authorAvatar;
+              }
+            } catch (error) {
+              console.error("Error fetching user data:", error);
+            }
+          }
+    
+          postsData.push({
+            id: docc.id,
+            authorId: data.uid,
+            uid: data.uid,
+            userName: authorName,
+            userProfilePic: authorAvatar,
+            text: data.text || '',
+            photoUrl: data.photoUrl || '',
+            location: data.location || '',
+            createdAt: data.createdAt,
+            likeCount: data.likeCount || 0,
+            commentCount: data.commentCount || 0,
+            shareCount: data.shareCount || 0,
+            likedBy: data.likedBy || [],
+            isSaved: userData?.savedPosts?.includes(docc.id) || false,
+            postType: data.postType || 'regular'
+          });
+        }
+        
+        setPosts(postsData);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribePosts();
+  }, [user, userData]);
 
   const handleLikePost = async (postId: string) => {
     if (!user?.uid) return;
     
     try {
-      await likePost(postId, user.uid);
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, likeCount: (post.likeCount || 0) + 1 }
-          : post
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const isLiked = post.likedBy?.includes(user.uid);
+      const postRef = firestoreDoc(db, 'posts', postId);
+      
+      setPosts(prev => prev.map(p => 
+        p.id === postId 
+          ? {
+              ...p,
+              likeCount: isLiked ? (p.likeCount || 1) - 1 : (p.likeCount || 0) + 1,
+              likedBy: isLiked 
+                ? (p.likedBy || []).filter((uid: string) => uid !== user.uid)
+                : [...(p.likedBy || []), user.uid]
+            }
+          : p
       ));
+      
+      if (isLiked) {
+        await updateDoc(postRef, {
+          likedBy: arrayRemove(user.uid),
+          likeCount: increment(-1)
+        });
+      } else {
+        await updateDoc(postRef, {
+          likedBy: arrayUnion(user.uid),
+          likeCount: increment(1)
+        });
+      }
     } catch (error) {
       console.error('Error liking post:', error);
+      const postDoc = await getDoc(firestoreDoc(db, 'posts', postId));
+      if (postDoc.exists()) {
+        const data = postDoc.data();
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? {
+                ...p,
+                likeCount: data.likeCount || 0,
+                likedBy: data.likedBy || []
+              }
+            : p
+        ));
+      }
+    }
+  };
+
+  const handleSavePost = async (postId: string) => {
+    if (!user?.uid) return;
+    
+    try {
+      const post = posts.find(p => p.id === postId);
+      const isSaved = post?.isSaved;
+      
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, isSaved: !isSaved } : p
+      ));
+      
+      if (isSaved) {
+        await unsavePost(postId, user.uid);
+      } else {
+        await savePost(postId, user.uid);
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, isSaved: !p.isSaved } : p
+      ));
+    }
+  };
+
+  const handleSharePost = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPostForShare(post);
+      
+      if (user?.uid) {
+        try {
+          await sharePost(postId, user.uid);
+          setPosts(prev => prev.map(p => 
+            p.id === postId 
+              ? { ...p, shareCount: (p.shareCount || 0) + 1 }
+              : p
+          ));
+        } catch (error) {
+          console.error('Error sharing post:', error);
+        }
+      }
     }
   };
 
@@ -852,13 +1653,32 @@ const MobileFeedPage = () => {
         text: commentText.trim()
       });
       
+      // Optimistic update
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, commentCount: (post.commentCount || 0) + 1 }
           : post
       ));
+
+      // Verify from Firestore
+      const postRef = firestoreDoc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      if (postDoc.exists()) {
+        const data = postDoc.data();
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, commentCount: data.commentCount || 0 }
+            : post
+        ));
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
+      // Revert on error
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, commentCount: Math.max(0, (post.commentCount || 1) - 1) }
+          : post
+      ));
     }
   };
 
@@ -918,12 +1738,15 @@ const MobileFeedPage = () => {
           </div>
         ) : (
           posts.map((post) => (
-            <PostCard
+            <MobilePostCard
               key={post.id}
               post={post}
+              currentUser={user!}
               onLike={() => handleLikePost(post.id)}
               onComment={(text) => handleAddComment(post.id, text)}
-              currentUser={user}
+              onSave={() => handleSavePost(post.id)}
+              onShare={() => handleSharePost(post.id)}
+              onMenuClick={() => setSelectedPostForMenu(post)}
             />
           ))
         )}
@@ -933,6 +1756,25 @@ const MobileFeedPage = () => {
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}
           user={user}
+        />
+      )}
+
+      {selectedPostForMenu && (
+        <PostMenu
+          post={selectedPostForMenu}
+          user={user}
+          onClose={() => setSelectedPostForMenu(null)}
+          onDelete={() => {
+            setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
+            setSelectedPostForMenu(null);
+          }}
+        />
+      )}
+
+      {selectedPostForShare && (
+        <ShareModal
+          post={selectedPostForShare}
+          onClose={() => setSelectedPostForShare(null)}
         />
       )}
 
