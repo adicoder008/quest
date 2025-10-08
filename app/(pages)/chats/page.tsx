@@ -37,6 +37,8 @@ import useResponsive from '@/hooks/useResponsive';
 import imageCompression from 'browser-image-compression';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
+import { notifyNewMessage } from '@/lib/notificationService';
+
 
 interface Chat {
   id: string;
@@ -253,14 +255,18 @@ const NewDMModal = ({ onClose, currentUser, onSelectUser }: NewDMModalProps) => 
       const chatsSnapshot = await getDocs(chatsQuery);
       const existingChat = chatsSnapshot.docs.find(doc => {
         const members = doc.data().members;
-        return members.includes(userId);
+        return members.includes(userId) && members.length === 2;
       });
 
       if (existingChat) {
         onSelectUser(existingChat.id);
+        onClose();
       } else {
-        // Create new DM
-        const otherUser = users.find(u => u.id === userId);
+        // Get other user's info
+        const otherUserDoc = await getDoc(doc(db, 'users', userId));
+        const otherUser = otherUserDoc.exists() ? otherUserDoc.data() : null;
+
+        // Create new DM with all required fields
         const chatData = {
           isGroup: false,
           members: [currentUser.uid, userId],
@@ -268,16 +274,17 @@ const NewDMModal = ({ onClose, currentUser, onSelectUser }: NewDMModalProps) => 
           avatar: otherUser?.photoURL || '/default-avatar.png',
           lastMessage: '',
           lastMessageTime: serverTimestamp(),
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid
         };
 
         const chatRef = await addDoc(collection(db, 'chats'), chatData);
         onSelectUser(chatRef.id);
+        onClose();
       }
-      
-      onClose();
     } catch (error) {
       console.error('Error creating DM:', error);
+      alert('Failed to create chat. Please try again.');
     }
   };
 
@@ -527,6 +534,17 @@ export default function ChatsPage() {
       });
 
       setMessageText('');
+
+      const recipientIds = selectedChat.members.filter(id => id !== user.uid);
+      await notifyNewMessage(
+        selectedChat.id,
+        selectedChat.name,
+        user.uid,
+        user.displayName || 'Anonymous',
+        user.photoURL || '/default-avatar.png',
+        messageText,
+        recipientIds
+      );
     } catch (error) {
       console.error('Error sending message:', error);
     }

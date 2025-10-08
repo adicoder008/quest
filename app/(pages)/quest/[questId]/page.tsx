@@ -8,6 +8,8 @@ import questService from '@/lib/questService';
 import { createPost } from '@/lib/postService';
 import { Map, Calendar, ArrowLeft, Clock, MapPin as MapPinIcon, Filter, Edit3, Save, Copy, Globe, Lock, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Share2, Send, X, Plane, Train, Bus, Car, Ship } from 'lucide-react';
 import InteractiveMap from '../../../../components/quest/InteractiveMap';
+import { CreateGroupFromQuest } from '@/components/quest/CreateGroupFromQuest';
+
 
 interface ActivityLocation {
   name: string;

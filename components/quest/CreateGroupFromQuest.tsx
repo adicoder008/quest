@@ -5,6 +5,9 @@ import { Users, X, Check } from 'lucide-react';
 import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { notifyGroupAdd } from '@/lib/notificationService';
+import { useAuth } from '@/hooks/useAuth'; 
+
 
 interface CreateGroupFromQuestProps {
   questId: string;
@@ -25,6 +28,7 @@ export const CreateGroupFromQuest = ({
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const router = useRouter();
+  const { user: currentUser } = useAuth(); // <-- 2. Get the current user from the hook
 
   const loadUsers = async () => {
     try {
@@ -63,9 +67,19 @@ export const CreateGroupFromQuest = ({
 
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedMembers.length === 0) {
-      alert('Please enter a group name and select at least one member');
+      // Note: alert() can have issues in sandboxed environments.
+      // Consider a custom UI modal for messages.
+      console.log('Validation failed: Group name and members are required.');
       return;
     }
+
+    // <-- 3. Add a check to ensure the user object is available
+    if (!currentUser) {
+      console.error('Authentication error. Please make sure you are logged in.');
+      setLoading(false);
+      return;
+    }
+
 
     setLoading(true);
     try {
@@ -77,9 +91,12 @@ export const CreateGroupFromQuest = ({
       );
       
       const existingGroups = await getDocs(existingGroupQuery);
+
       
       if (!existingGroups.empty) {
-        const confirmed = window.confirm('A group for this quest already exists. Do you want to create another one?');
+        // Note: confirm() can have issues in sandboxed environments.
+        // A custom UI modal is recommended for confirmations.
+        const confirmed = confirm('A group for this quest already exists. Do you want to create another one?');
         if (!confirmed) {
           setLoading(false);
           return;
@@ -101,6 +118,16 @@ export const CreateGroupFromQuest = ({
 
       const chatRef = await addDoc(collection(db, 'chats'), groupData);
 
+      // <-- 4. The error is now fixed. 'currentUser' is defined from the hook.
+      await notifyGroupAdd(
+        chatRef.id,
+        groupName,
+        currentUserId,
+        currentUser.displayName || 'Someone',
+        currentUser.photoURL || '',
+        selectedMembers
+      );
+
       // Send initial message
       await addDoc(collection(db, 'chats', chatRef.id, 'messages'), {
         text: `🎯 Group created for quest: ${questTitle}`,
@@ -118,7 +145,6 @@ export const CreateGroupFromQuest = ({
       router.push(`/chats?chatId=${chatRef.id}`);
     } catch (error) {
       console.error('Error creating group:', error);
-      alert('Failed to create group. Please try again.');
     } finally {
       setLoading(false);
     }

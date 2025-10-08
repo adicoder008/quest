@@ -17,6 +17,8 @@ import {
   getCurrentUserData
 } from '../lib/authService';
 import { SearchBar } from './Feed_old/SearchBar';
+import { NotificationBell } from '@/components/Notifications/NotificationBell';
+
 
 interface UserData {
   uid: string;
