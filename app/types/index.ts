@@ -4,6 +4,7 @@ export interface User {
   displayName?: string;
   photoURL?: string;
   bio?: string;
+  about?:string;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
@@ -21,6 +22,12 @@ export interface User {
   showOnlineStatus?: boolean;
   emailNotifications?: boolean;
   pushNotifications?: boolean;
+  followers?: string[]; 
+  following?: string[];
+  savedPosts?: string[]; // Array of post IDs
+  badges?: number[];
+  quests?: string[]; // Array of quest IDs
+
 }
 
 export interface QuestActivity {
