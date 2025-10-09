@@ -562,6 +562,11 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
   );
 };
 
+// Add this import at the top of your Feed component
+import { getPaginatedPosts } from '../../../lib/postService';
+
+// Replace the Feed component's state and useEffect with this:
+
 const Feed = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -573,7 +578,14 @@ const Feed = () => {
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const router = useRouter();
+  
+  // NEW: Pagination state
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
  
+  // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -601,66 +613,82 @@ const Feed = () => {
     return () => unsubscribe();
   }, []);
 
+  // NEW: Load initial posts
   useEffect(() => {
-    const unsubscribePosts = onSnapshot(
-      query(collection(db, 'posts'), orderBy('createdAt', 'desc')),
-      async (snapshot) => {
-        const postsData = [];
+    const loadInitialPosts = async () => {
+      if (!userData) return;
+      
+      try {
+        setInitialLoading(true);
+        const result = await getPaginatedPosts(null, 5);
         
-        for (const docc of snapshot.docs) {
-          const data = docc.data();
-          let authorName = 'Anonymous';
-          let authorAvatar = '/default-avatar.png';
-          let authorTitle = '';
-          
-          if (data.uid) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', data.uid));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                authorName = userData.displayName || authorName;
-                authorAvatar = userData.photoURL || authorAvatar;
-                authorTitle = userData.title || '';
-              }
-            } catch (error) {
-              console.error("Error fetching user data:", error);
-            }
-          }
-    
-          postsData.push({
-            id: docc.id,
-            author: {
-              id: data.uid,
-              name: authorName,
-              avatar: authorAvatar,
-              title: data.postType === 'sponsored' ? 'Sponsored' : authorTitle
-            },
-            content: {
-              text: data.text,
-              images: data.photoUrl ? [data.photoUrl] : []
-            },
-            metadata: {
-              time: '',
-              location: data.location || '',
-              createdAt: data.createdAt
-            },
-            stats: {
-              likes: data.likeCount || 0,
-              comments: data.commentCount || 0,
-              shares: data.shareCount || 0,
-              likedBy: data.likedBy || []
-            },
-            postType: data.postType,
-            isSaved: userData?.savedPosts?.includes(docc.id) || false,
-            ...(data.eventDetails && { eventDetails: data.eventDetails }),
-            ...(data.questContext && { questContext: data.questContext })
-          });
-        }
+        // Add saved status
+        const postsWithSavedStatus = result.posts.map(post => ({
+          ...post,
+          isSaved: userData?.savedPosts?.includes(post.id) || false
+        }));
         
-        setPosts(postsData);
+        setPosts(postsWithSavedStatus);
+        setLastVisible(result.lastVisible);
+        setHasMore(result.hasMore);
+      } catch (error) {
+        console.error('Error loading initial posts:', error);
+      } finally {
+        setInitialLoading(false);
       }
+    };
+
+    loadInitialPosts();
+  }, [userData]);
+
+  // NEW: Load more posts function
+  const loadMorePosts = async () => {
+    if (!hasMore || loadingMore || !lastVisible) return;
+    
+    try {
+      setLoadingMore(true);
+      const result = await getPaginatedPosts(lastVisible, 5);
+      
+      const postsWithSavedStatus = result.posts.map(post => ({
+        ...post,
+        isSaved: userData?.savedPosts?.includes(post.id) || false
+      }));
+      
+      setPosts(prev => [...prev, ...postsWithSavedStatus]);
+      setLastVisible(result.lastVisible);
+      setHasMore(result.hasMore);
+    } catch (error) {
+      console.error('Error loading more posts:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // NEW: Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMorePosts();
+        }
+      },
+      { threshold: 0.1 }
     );
-  
+
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
+    };
+  }, [hasMore, loadingMore, lastVisible]);
+
+  // Events and Popular Users listeners (keep as is)
+  useEffect(() => {
     const unsubscribeEvents = onSnapshot(
       query(collection(db, 'events'), orderBy('startTime', 'asc')),
       (snapshot) => {
@@ -690,12 +718,12 @@ const Feed = () => {
     );
   
     return () => {
-      unsubscribePosts();
       unsubscribeEvents();
       unsubscribeUsers();
     };
-  }, [userData]);
+  }, []);
 
+  // All your existing handler functions remain the same
   const handleLike = async (postId: string) => {
     if (!user?.uid) return;
     
@@ -813,7 +841,6 @@ const Feed = () => {
         createdAt: new Date()
       });
       
-      // Optimistic update
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { 
@@ -826,7 +853,6 @@ const Feed = () => {
           : post
       ));
 
-      // Verify actual count from Firestore
       const postRef = firestoreDoc(db, 'posts', postId);
       const postDoc = await getDoc(postRef);
       if (postDoc.exists()) {
@@ -845,7 +871,6 @@ const Feed = () => {
       }
     } catch (error) {
       console.error('Error adding comment:', error);
-      // Revert optimistic update on error
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { 
@@ -1094,18 +1119,43 @@ const Feed = () => {
 
         <section className="w-[680px] max-md:w-full">
           {user && <CreatePost onPostCreated={() => {}} />}
-            
-          {posts.map((post) => (
-            <DesktopPost key={post.id} post={post} />
-          ))}
-
-          {posts.length === 0 && (
+          
+          {initialLoading ? (
             <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
-              <h3 className="text-lg font-medium mb-2 text-white">No posts yet</h3>
-              <p className="text-gray-400">
-                {user ? "Be the first to share your travel experience!" : "Sign in to see posts"}
-              </p>
+              <div className="text-gray-400">Loading posts...</div>
             </div>
+          ) : (
+            <>
+              {posts.map((post) => (
+                <DesktopPost key={post.id} post={post} />
+              ))}
+
+              {/* NEW: Infinite scroll sentinel */}
+              {hasMore && (
+                <div id="scroll-sentinel" className="py-4">
+                  {loadingMore && (
+                    <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
+                      <div className="text-gray-400">Loading more posts...</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!hasMore && posts.length > 0 && (
+                <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
+                  <p className="text-gray-400">You've reached the end!</p>
+                </div>
+              )}
+
+              {posts.length === 0 && (
+                <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
+                  <h3 className="text-lg font-medium mb-2 text-white">No posts yet</h3>
+                  <p className="text-gray-400">
+                    {user ? "Be the first to share your travel experience!" : "Sign in to see posts"}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -1460,6 +1510,8 @@ const MobilePostCard = ({
   );
 };
 
+// Replace the MobileFeedPage component with this updated version:
+
 const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1468,6 +1520,11 @@ const MobileFeedPage = () => {
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  
+  // NEW: Pagination state
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
@@ -1494,58 +1551,104 @@ const MobileFeedPage = () => {
     return () => unsubscribeAuth();
   }, []);
 
+  // NEW: Load initial posts
   useEffect(() => {
-    if (!user) return;
+    const loadInitialPosts = async () => {
+      if (!user) return;
 
-    const unsubscribePosts = onSnapshot(
-      query(collection(db, 'posts'), orderBy('createdAt', 'desc')),
-      async (snapshot) => {
-        const postsData = [];
+      try {
+        setLoading(true);
+        const result = await getPaginatedPosts(null, 5);
         
-        for (const docc of snapshot.docs) {
-          const data = docc.data();
-          let authorName = 'Anonymous';
-          let authorAvatar = '/default-avatar.png';
-          
-          if (data.uid) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', data.uid));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                authorName = userData.displayName || authorName;
-                authorAvatar = userData.photoURL || authorAvatar;
-              }
-            } catch (error) {
-              console.error("Error fetching user data:", error);
-            }
-          }
-    
-          postsData.push({
-            id: docc.id,
-            authorId: data.uid,
-            uid: data.uid,
-            userName: authorName,
-            userProfilePic: authorAvatar,
-            text: data.text || '',
-            photoUrl: data.photoUrl || '',
-            location: data.location || '',
-            createdAt: data.createdAt,
-            likeCount: data.likeCount || 0,
-            commentCount: data.commentCount || 0,
-            shareCount: data.shareCount || 0,
-            likedBy: data.likedBy || [],
-            isSaved: userData?.savedPosts?.includes(docc.id) || false,
-            postType: data.postType || 'regular'
-          });
-        }
+        const postsData = result.posts.map(post => ({
+          id: post.id,
+          authorId: post.author.id,
+          uid: post.author.id,
+          userName: post.author.name,
+          userProfilePic: post.author.avatar,
+          text: post.content.text || '',
+          photoUrl: post.content.images?.[0] || '',
+          location: post.metadata.location || '',
+          createdAt: post.metadata.createdAt,
+          likeCount: post.stats.likes || 0,
+          commentCount: post.stats.comments || 0,
+          shareCount: post.stats.shares || 0,
+          likedBy: post.stats.likedBy || [],
+          isSaved: userData?.savedPosts?.includes(post.id) || false,
+          postType: post.postType || 'regular'
+        }));
         
         setPosts(postsData);
+        setLastVisible(result.lastVisible);
+        setHasMore(result.hasMore);
+      } catch (error) {
+        console.error('Error loading initial posts:', error);
+      } finally {
         setLoading(false);
       }
+    };
+
+    loadInitialPosts();
+  }, [user, userData]);
+
+  // NEW: Load more posts
+  const loadMorePosts = async () => {
+    if (!hasMore || loadingMore || !lastVisible || !user) return;
+    
+    try {
+      setLoadingMore(true);
+      const result = await getPaginatedPosts(lastVisible, 5);
+      
+      const postsData = result.posts.map(post => ({
+        id: post.id,
+        authorId: post.author.id,
+        uid: post.author.id,
+        userName: post.author.name,
+        userProfilePic: post.author.avatar,
+        text: post.content.text || '',
+        photoUrl: post.content.images?.[0] || '',
+        location: post.metadata.location || '',
+        createdAt: post.metadata.createdAt,
+        likeCount: post.stats.likes || 0,
+        commentCount: post.stats.comments || 0,
+        shareCount: post.stats.shares || 0,
+        likedBy: post.stats.likedBy || [],
+        isSaved: userData?.savedPosts?.includes(post.id) || false,
+        postType: post.postType || 'regular'
+      }));
+      
+      setPosts(prev => [...prev, ...postsData]);
+      setLastVisible(result.lastVisible);
+      setHasMore(result.hasMore);
+    } catch (error) {
+      console.error('Error loading more posts:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // NEW: Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMorePosts();
+        }
+      },
+      { threshold: 0.1 }
     );
 
-    return () => unsubscribePosts();
-  }, [user, userData]);
+    const sentinel = document.getElementById('mobile-scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
+    };
+  }, [hasMore, loadingMore, lastVisible]);
 
   const handleLikePost = async (postId: string) => {
     if (!user?.uid) return;
@@ -1653,14 +1756,12 @@ const MobileFeedPage = () => {
         text: commentText.trim()
       });
       
-      // Optimistic update
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, commentCount: (post.commentCount || 0) + 1 }
           : post
       ));
 
-      // Verify from Firestore
       const postRef = firestoreDoc(db, 'posts', postId);
       const postDoc = await getDoc(postRef);
       if (postDoc.exists()) {
@@ -1673,7 +1774,6 @@ const MobileFeedPage = () => {
       }
     } catch (error) {
       console.error('Error adding comment:', error);
-      // Revert on error
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, commentCount: Math.max(0, (post.commentCount || 1) - 1) }
@@ -1737,18 +1837,37 @@ const MobileFeedPage = () => {
             <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
           </div>
         ) : (
-          posts.map((post) => (
-            <MobilePostCard
-              key={post.id}
-              post={post}
-              currentUser={user!}
-              onLike={() => handleLikePost(post.id)}
-              onComment={(text) => handleAddComment(post.id, text)}
-              onSave={() => handleSavePost(post.id)}
-              onShare={() => handleSharePost(post.id)}
-              onMenuClick={() => setSelectedPostForMenu(post)}
-            />
-          ))
+          <>
+            {posts.map((post) => (
+              <MobilePostCard
+                key={post.id}
+                post={post}
+                currentUser={user!}
+                onLike={() => handleLikePost(post.id)}
+                onComment={(text) => handleAddComment(post.id, text)}
+                onSave={() => handleSavePost(post.id)}
+                onShare={() => handleSharePost(post.id)}
+                onMenuClick={() => setSelectedPostForMenu(post)}
+              />
+            ))}
+
+            {/* NEW: Infinite scroll sentinel for mobile */}
+            {hasMore && (
+              <div id="mobile-scroll-sentinel" className="py-4">
+                {loadingMore && (
+                  <div className="text-center py-4">
+                    <div className="text-gray-400">Loading more posts...</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-400">You've reached the end!</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -6,24 +6,28 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const polylineRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
 
-  // Filter cards that have location data
-  const locatedCards = flowCards.filter(card => 
+  // Filter cards that have location data and exclude first and last
+  const locatedCards = flowCards.filter((card, index) => 
     card.location && 
     card.location.coordinates && 
     card.location.coordinates.lat && 
-    card.location.coordinates.lng
+    card.location.coordinates.lng &&
+    index !== 0 && // Exclude first card (source)
+    index !== flowCards.length - 1 // Exclude last card (destination)
   );
 
   useEffect(() => {
-    // Initialize map when component mounts
     initializeMap();
     
     return () => {
-      // Cleanup map instance
+      if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current = null;
       }
@@ -31,18 +35,16 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   }, []);
 
   useEffect(() => {
-    // Update markers when flowCards change
     if (mapInstanceRef.current && mapLoaded) {
       updateMarkers();
     }
   }, [flowCards, mapLoaded]);
 
   useEffect(() => {
-    // Highlight active marker
     if (mapInstanceRef.current && markersRef.current.length > 0) {
       markersRef.current.forEach((marker, index) => {
         if (marker && marker.setIcon) {
-          const isActive = index === activeIndex;
+          const isActive = index === activeIndex - 1; // Adjust for removed first card
           marker.setIcon({
             url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, isActive))}`,
             scaledSize: new window.google.maps.Size(40, 40),
@@ -54,14 +56,20 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   }, [activeIndex]);
 
   const createMarkerSVG = (number, isActive = false) => {
-    const color = isActive ? '#3B82F6' : '#6B7280';
-    const bgColor = isActive ? '#EFF6FF' : '#F9FAFB';
+    const color = isActive ? '#EF4444' : '#3B82F6';
+    const bgColor = '#FFFFFF';
+    const textColor = isActive ? '#EF4444' : '#3B82F6';
     
     return `
-      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="20" cy="20" r="12" fill="${bgColor}"/>
-        <text x="20" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="${color}">
+      <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow${number}" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.4"/>
+          </filter>
+        </defs>
+        <circle cx="24" cy="24" r="22" fill="${color}" stroke="${bgColor}" stroke-width="4" filter="url(#shadow${number})"/>
+        <circle cx="24" cy="24" r="16" fill="${bgColor}"/>
+        <text x="24" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="${textColor}">
           ${number}
         </text>
       </svg>
@@ -70,27 +78,24 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
   const initializeMap = async () => {
     try {
-      // Check if Google Maps is available
       if (!window.google || !window.google.maps) {
-        // Load Google Maps API dynamically
         await loadGoogleMapsAPI();
       }
 
       if (!mapRef.current) return;
 
-      // Default center (will be adjusted based on markers)
-      const defaultCenter = { lat: 40.7128, lng: -74.0060 }; // New York
+      const defaultCenter = { lat: 40.7128, lng: -74.0060 };
 
-      // Initialize map
       const map = new window.google.maps.Map(mapRef.current, {
         zoom: 10,
         center: defaultCenter,
         mapTypeControl: true,
         streetViewControl: false,
         fullscreenControl: false,
+        zoomControl: true,
         styles: [
           {
-            featureType: 'poi',
+            featureType: 'poi.business',
             elementType: 'labels',
             stylers: [{ visibility: 'off' }]
           }
@@ -100,7 +105,6 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       mapInstanceRef.current = map;
       setMapLoaded(true);
       
-      // Add markers after map is loaded
       setTimeout(() => updateMarkers(), 100);
       
     } catch (error) {
@@ -111,13 +115,11 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
   const loadGoogleMapsAPI = () => {
     return new Promise((resolve, reject) => {
-      // Check if already loaded
       if (window.google && window.google.maps) {
         resolve();
         return;
       }
 
-      // Create script element
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
       script.async = true;
@@ -133,13 +135,18 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   const updateMarkers = () => {
     if (!mapInstanceRef.current || !window.google) return;
 
-    // Clear existing markers
+    // Clear existing markers and polyline
     markersRef.current.forEach(marker => {
       if (marker && marker.setMap) {
         marker.setMap(null);
       }
     });
     markersRef.current = [];
+
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
 
     if (locatedCards.length === 0) return;
 
@@ -158,32 +165,39 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         map: mapInstanceRef.current,
         title: card.title || `Stop ${index + 1}`,
         icon: {
-          url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, index === activeIndex))}`,
-          scaledSize: new window.google.maps.Size(40, 40),
-          anchor: new window.google.maps.Point(20, 40)
-        }
+          url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, index === activeIndex - 1))}`,
+          scaledSize: new window.google.maps.Size(48, 48),
+          anchor: new window.google.maps.Point(24, 48)
+        },
+        animation: window.google.maps.Animation.DROP
       });
 
-      // Add click listener
+      // Add click listener - adjust index to account for removed first card
       marker.addListener('click', () => {
-        onPinClick(flowCards.findIndex(fc => fc === card));
+        const originalIndex = flowCards.findIndex(fc => fc === card);
+        onPinClick(originalIndex);
       });
 
-      // Create info window
+      // Create styled info window
       const infoWindow = new window.google.maps.InfoWindow({
         content: `
-          <div class="p-2">
-            <h3 class="font-medium text-gray-900 mb-1">${card.title || `Stop ${index + 1}`}</h3>
-            <p class="text-sm text-gray-600 mb-2">${card.location.name || 'Unknown location'}</p>
+          <div class="p-3 rounded-lg" style="min-width: 220px; max-width: 280px;">
+            <h3 class="font-bold text-gray-900 mb-1 text-base">${card.title || `Stop ${index + 1}`}</h3>
+            <p class="text-sm text-gray-600 mb-2 flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              ${card.location.name || 'Unknown location'}
+            </p>
             ${card.media && card.media[0] ? 
-              `<img src="${card.media[0].url}" alt="${card.title}" class="w-full h-24 object-cover rounded"/>` : 
+              `<img src="${card.media[0].url}" alt="${card.title}" class="w-full h-32 object-cover rounded-lg shadow-sm"/>` : 
               ''
             }
           </div>
         `
       });
 
-      // Show info window on hover
       marker.addListener('mouseover', () => {
         infoWindow.open(mapInstanceRef.current, marker);
       });
@@ -197,17 +211,30 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       path.push(position);
     });
 
-    // Draw path between markers
+    // Draw smooth curved path between markers
     if (path.length > 1) {
-      const polyline = new window.google.maps.Polyline({
+      polylineRef.current = new window.google.maps.Polyline({
         path,
-        geodesic: true,
+        geodesic: false,
         strokeColor: '#3B82F6',
-        strokeOpacity: 1.0,
-        strokeWeight: 3
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+        icons: [
+          {
+            icon: {
+              path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+              strokeColor: '#3B82F6',
+              fillColor: '#3B82F6',
+              fillOpacity: 1,
+              scale: 3
+            },
+            offset: '100%',
+            repeat: '150px'
+          }
+        ]
       });
 
-      polyline.setMap(mapInstanceRef.current);
+      polylineRef.current.setMap(mapInstanceRef.current);
     }
 
     // Fit map to show all markers
@@ -215,7 +242,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       mapInstanceRef.current.setCenter(bounds.getCenter());
       mapInstanceRef.current.setZoom(12);
     } else if (locatedCards.length > 1) {
-      mapInstanceRef.current.fitBounds(bounds, { padding: 20 });
+      mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
     }
   };
 
@@ -224,10 +251,11 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   };
 
   const centerOnActiveMarker = () => {
-    if (mapInstanceRef.current && locatedCards[activeIndex]) {
+    const adjustedIndex = activeIndex - 1; // Adjust for removed first card
+    if (mapInstanceRef.current && locatedCards[adjustedIndex]) {
       const position = {
-        lat: locatedCards[activeIndex].location.coordinates.lat,
-        lng: locatedCards[activeIndex].location.coordinates.lng
+        lat: locatedCards[adjustedIndex].location.coordinates.lat,
+        lng: locatedCards[adjustedIndex].location.coordinates.lng
       };
       mapInstanceRef.current.panTo(position);
       mapInstanceRef.current.setZoom(14);
@@ -237,14 +265,14 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   if (mapError) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-        <div className="text-red-400 mb-4">
+        <div className="text-red-500 mb-4">
           <MapPin className="w-16 h-16 mx-auto" />
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">Map unavailable</h3>
         <p className="text-gray-600 mb-4">Unable to load the map. Please try again later.</p>
         <button 
           onClick={initializeMap}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
         >
           Retry
         </button>
@@ -265,36 +293,36 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${
+    <div className={`bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden ${
       isFullscreen ? 'fixed inset-4 z-50' : ''
     }`}>
       {/* Map Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
         <div>
-          <h3 className="font-medium text-gray-900">Journey Map</h3>
-          <p className="text-sm text-gray-600">
-            {locatedCards.length} location{locatedCards.length !== 1 ? 's' : ''}
+          <h3 className="font-bold text-gray-900 text-lg">Journey Map</h3>
+          <p className="text-sm text-gray-600 mt-0.5">
+            {locatedCards.length} stop{locatedCards.length !== 1 ? 's' : ''} on your quest
           </p>
         </div>
         
         <div className="flex items-center gap-2">
           <button
             onClick={centerOnActiveMarker}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
             title="Center on active location"
           >
-            <Navigation className="w-4 h-4" />
+            <Navigation className="w-5 h-5" />
           </button>
           
           <button
             onClick={toggleFullscreen}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? (
-              <Minimize2 className="w-4 h-4" />
+              <Minimize2 className="w-5 h-5" />
             ) : (
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-5 h-5" />
             )}
           </button>
         </div>
@@ -309,10 +337,10 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         />
         
         {!mapLoaded && !mapError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Loading map...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-3"></div>
+              <p className="text-sm text-gray-600 font-medium">Loading your journey map...</p>
             </div>
           </div>
         )}
@@ -320,10 +348,22 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       
       {/* Map Legend */}
       {locatedCards.length > 0 && (
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <span>Click markers to jump to journey cards</span>
-            <span>Active: Stop {activeIndex + 1}</span>
+        <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
+                <span className="text-xs text-gray-600 font-medium">Your route</span>
+              </div>
+              <div className="h-4 w-px bg-gray-300"></div>
+              <span className="text-xs text-gray-500">Click markers to jump to details</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-200">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-semibold text-gray-700">
+                Stop {Math.max(1, activeIndex)} of {locatedCards.length}
+              </span>
+            </div>
           </div>
         </div>
       )}
