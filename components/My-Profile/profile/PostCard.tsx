@@ -2,7 +2,7 @@ import React from "react";
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase.js';
 
-interface PostCardProps {
+export interface PostCardProps {
   postId: string;
   avatar: string;
   username: string;
