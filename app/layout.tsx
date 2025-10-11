@@ -7,6 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
   title: 'OnQuest - AI Trip Planner',
   description: 'Plan your perfect trip with AI assistance',
+  icon: '/FAVICON.svg',
 }
 
 export default function RootLayout({

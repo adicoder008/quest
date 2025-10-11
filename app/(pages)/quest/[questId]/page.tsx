@@ -9,7 +9,8 @@ import { createPost } from '@/lib/postService';
 import { Map, Calendar, ArrowLeft, Clock, MapPin as MapPinIcon, Filter, Edit3, Save, Copy, Globe, Lock, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Share2, Send, X, Plane, Train, Bus, Car, Ship } from 'lucide-react';
 import InteractiveMap from '../../../../components/quest/InteractiveMap';
 import { CreateGroupFromQuest } from '@/components/quest/CreateGroupFromQuest';
-
+import { useToast, ToastContainer } from '@/hooks/use-toast';
+import { PostVisibilityModal } from '@/components/QuestPopups';
 
 interface ActivityLocation {
   name: string;
@@ -46,6 +47,7 @@ export interface Quest {
   id: string;
   destination: string;
   title: string;
+  coverImageUrl?: string;
   startDate: string;
   endDate: string;
   members: { [key: string]: 'owner' | 'editor' | 'viewer' };
@@ -131,6 +133,8 @@ const QuestViewPage = () => {
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
   const [isConfirmingPublish, setIsConfirmingPublish] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const { toasts, showToast, removeToast } = useToast();
 
   const params = useParams();
   const router = useRouter();
@@ -177,21 +181,53 @@ const QuestViewPage = () => {
   const isPublic = quest?.isPublic || false;
 
   const handleSave = async () => {
-    if (!user?.uid || !editedQuest) return;
-    setSaving(true);
-    try {
-      await questService.updateQuest(questId, user.uid, {
-        itinerary: editedQuest.itinerary,
-        updatedAt: new Date().toISOString()
-      });
-      setQuest(editedQuest);
-      setIsEditMode(false);
-    } catch (error) {
-      console.error('Error saving quest:', error);
-      alert('Failed to save changes');
+  if (!user?.uid || !editedQuest) return;
+  setSaving(true);
+  try {
+    await questService.updateQuest(questId, user.uid, {
+      itinerary: editedQuest.itinerary,
+      updatedAt: new Date().toISOString()
+    });
+    setQuest(editedQuest);
+    setIsEditMode(false);
+    showToast('Quest saved successfully! ✓', 'success');
+  } catch (error) {
+    console.error('Error saving quest:', error);
+    showToast('Failed to save quest', 'error');
+  }
+  setSaving(false);
+};
+
+const handlePostQuest = async (visibility: 'public' | 'private', coverImage: File | null) => {
+  if (!user?.uid || !quest) return;
+  
+  try {
+    const result = await questService.postQuestToFeed(
+      questId,
+      user.uid,
+      visibility,
+      coverImage
+    );
+
+    if (result.success) {
+      if (visibility === 'public') {
+        showToast('Quest posted to feed successfully! 🎉', 'success');
+      } else {
+        showToast('Quest saved privately ✓', 'success');
+      }
+      
+      // Refresh quest data
+      await loadQuest();
+    } else {
+      showToast(result.error || 'Failed to post quest', 'error');
     }
-    setSaving(false);
-  };
+  } catch (error) {
+    console.error('Error posting quest:', error);
+    showToast('Failed to post quest', 'error');
+  } finally {
+    setShowPostModal(false);
+  }
+};
 
   const confirmPublish = async () => {
     if (!user?.uid || !quest) return;
@@ -304,13 +340,14 @@ const QuestViewPage = () => {
   };
 
   const moveActivity = (dayIndex: number, fromIndex: number, toIndex: number) => {
-    if (!editedQuest) return;
-    const updated = { ...editedQuest };
-    const activities = updated.itinerary.days[dayIndex].activities;
-    const [movedItem] = activities.splice(fromIndex, 1);
-    activities.splice(toIndex, 0, movedItem);
-    setEditedQuest(updated);
-  };
+  if (!editedQuest) return;
+  const updated = { ...editedQuest };
+  const activities = updated.itinerary.days[dayIndex].activities;
+  const [movedItem] = activities.splice(fromIndex, 1);
+  activities.splice(toIndex, 0, movedItem);
+  setEditedQuest(updated);
+  showToast('Activity reordered', 'info');
+};
 
   const handleDragStart = (e: React.DragEvent, dayIndex: number, activityIndex: number) => {
     setDraggedItem({ dayIndex, activityIndex });
@@ -399,10 +436,13 @@ const QuestViewPage = () => {
                 </button>
               )}
 
-              {isOwner && (
-                <button onClick={() => setIsConfirmingPublish(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm">
-                  {isPublic ? <Lock size={16} className="text-green-400" /> : <Globe size={16} />}
-                  <span className="hidden md:inline">{isPublic ? 'Public' : 'Private'}</span>
+              {isOwner && !isEditMode && (
+                <button 
+                  onClick={() => setShowPostModal(true)} 
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"
+                >
+                  <Send size={16} />
+                  <span className="hidden md:inline">Post Quest</span>
                 </button>
               )}
 
@@ -513,11 +553,19 @@ const QuestViewPage = () => {
                             <TravelActivityCard activity={activity} isEditMode={isEditMode} />
                           ) : (
                             <GoogleFormActivityCard
-                              activity={activity} isEditMode={isEditMode} dayIndex={dayIndex} activityIndex={activityIndex}
+                              activity={activity} 
+                              isEditMode={isEditMode} 
+                              dayIndex={dayIndex} 
+                              activityIndex={activityIndex}
+                              totalActivities={day.activities.length}
                               onDelete={() => deleteActivity(dayIndex, activityIndex)}
                               onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
                               onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                              onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
+                              onDragStart={handleDragStart} 
+                              onDragOver={handleDragOver} 
+                              onDrop={handleDrop}
+                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
                             />
                           )}
                           {isEditMode && (
@@ -554,16 +602,24 @@ const QuestViewPage = () => {
                     {day.activities?.map((activity: any, activityIndex: number) => (
                       <React.Fragment key={activityIndex}>
                         {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                        ) : (
-                          <GoogleFormActivityCard
-                            activity={activity} isEditMode={isEditMode} dayIndex={dayIndex} activityIndex={activityIndex}
-                            onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                            onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
-                          />
-                        )}
+                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                          ) : (
+                            <GoogleFormActivityCard
+                              activity={activity} 
+                              isEditMode={isEditMode} 
+                              dayIndex={dayIndex} 
+                              activityIndex={activityIndex}
+                              totalActivities={day.activities.length}
+                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                              onDragStart={handleDragStart} 
+                              onDragOver={handleDragOver} 
+                              onDrop={handleDrop}
+                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                            />
+                          )}
                         {isEditMode && (
                           <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
                             <button onClick={() => addActivityBetween(dayIndex, activityIndex)} className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" title="Add activity">
@@ -606,6 +662,16 @@ const QuestViewPage = () => {
           </div>
         )}
       </div>
+
+            <PostVisibilityModal
+        isOpen={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        onPost={handlePostQuest}
+        questTitle={quest.destination}
+        hasCoverImage={!!quest.coverImageUrl}
+      />
+
+      <ToastContainer toasts={toasts} onClose={removeToast} />
 
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -681,28 +747,97 @@ const HorizontalActivityCard = ({ activity }: { activity: any }) => {
   );
 };
 
-const GoogleFormActivityCard = ({ activity, isEditMode, dayIndex, activityIndex, onDelete, onUpdate, onToggleCollapse, onDragStart, onDragOver, onDrop }: any) => {
+const GoogleFormActivityCard = ({ 
+  activity, 
+  isEditMode, 
+  dayIndex, 
+  activityIndex,
+  totalActivities, 
+  onDelete, 
+  onUpdate, 
+  onToggleCollapse, 
+  onDragStart, 
+  onDragOver, 
+  onDrop,
+  onMoveUp,
+  onMoveDown
+}: any) => {
   const isCollapsed = activity.collapsed;
 
   return (
-    <div draggable={isEditMode} onDragStart={(e) => onDragStart(e, dayIndex, activityIndex)} onDragOver={onDragOver} onDrop={(e) => onDrop(e, dayIndex, activityIndex)}
-      className={`relative mb-4 bg-gray-900 rounded-xl border-2 transition-all ${isEditMode ? 'border-gray-700 hover:border-orange-500 focus-within:border-orange-500' : 'border-transparent'}`}>
+    <div 
+      draggable={isEditMode} 
+      onDragStart={(e) => onDragStart(e, dayIndex, activityIndex)} 
+      onDragOver={onDragOver} 
+      onDrop={(e) => onDrop(e, dayIndex, activityIndex)}
+      className={`relative mb-4 bg-gray-900 rounded-xl border-2 transition-all ${
+        isEditMode ? 'border-gray-700 hover:border-orange-500 focus-within:border-orange-500' : 'border-transparent'
+      }`}
+    >
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         <div className="flex items-center gap-3 flex-1">
-          {isEditMode && <button className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-800 rounded"><GripVertical size={20} className="text-gray-500" /></button>}
+          {isEditMode && (
+            <button className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-800 rounded">
+              <GripVertical size={20} className="text-gray-500" />
+            </button>
+          )}
           {isCollapsed ? (
-            <div className="flex-1"><h3 className="font-semibold text-white">{activity.title}</h3><p className="text-xs text-gray-400 mt-1">{activity.time}</p></div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-white">{activity.title}</h3>
+              <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+            </div>
           ) : (
-            <div className="flex items-center gap-2"><Clock size={16} className="text-orange-400" /><span className="text-sm text-gray-400 font-medium">{activity.time}</span></div>
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-orange-400" />
+              <span className="text-sm text-gray-400 font-medium">{activity.time}</span>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Up/Down arrows - Google Forms style */}
+          {isEditMode && (
+            <div className="flex flex-col gap-0.5 mr-2">
+              <button
+                onClick={onMoveUp}
+                disabled={activityIndex === 0}
+                className={`p-1.5 rounded transition-colors ${
+                  activityIndex === 0
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+                title="Move up"
+              >
+                <ChevronUp size={18} />
+              </button>
+              <button
+                onClick={onMoveDown}
+                disabled={activityIndex === totalActivities - 1}
+                className={`p-1.5 rounded transition-colors ${
+                  activityIndex === totalActivities - 1
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+                title="Move down"
+              >
+                <ChevronDown size={18} />
+              </button>
+            </div>
+          )}
+          
           {isEditMode && (
             <>
-              <button onClick={onToggleCollapse} className="p-2 hover:bg-gray-800 rounded-lg transition-colors" title={isCollapsed ? "Expand" : "Collapse"}>
+              <button 
+                onClick={onToggleCollapse} 
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors" 
+                title={isCollapsed ? "Expand" : "Collapse"}
+              >
                 {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
               </button>
-              <button onClick={onDelete} className="p-2 hover:bg-red-900/30 rounded-lg transition-colors" title="Delete activity">
+              <button 
+                onClick={onDelete} 
+                className="p-2 hover:bg-red-900/30 rounded-lg transition-colors" 
+                title="Delete activity"
+              >
                 <Trash2 size={20} className="text-red-400" />
               </button>
             </>
@@ -713,40 +848,87 @@ const GoogleFormActivityCard = ({ activity, isEditMode, dayIndex, activityIndex,
         <div className="p-4 space-y-4">
           {activity.media?.[0]?.url && (
             <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
-              <img src={activity.media[0].url} alt={activity.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.parentElement?.remove(); }} />
+              <img 
+                src={activity.media[0].url} 
+                alt={activity.title} 
+                className="w-full h-full object-cover" 
+                onError={(e) => { e.currentTarget.parentElement?.remove(); }} 
+              />
             </div>
           )}
           {isEditMode ? (
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Title</label>
-                <input type="text" value={activity.title} onChange={(e) => onUpdate('title', e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="Activity title" />
+                <input 
+                  type="text" 
+                  value={activity.title} 
+                  onChange={(e) => onUpdate('title', e.target.value)} 
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" 
+                  placeholder="Activity title" 
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Time</label>
-                <input type="text" value={activity.time || ''} onChange={(e) => onUpdate('time', e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="e.g., Morning, 9:00 AM" />
+                <input 
+                  type="text" 
+                  value={activity.time || ''} 
+                  onChange={(e) => onUpdate('time', e.target.value)} 
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" 
+                  placeholder="e.g., Morning, 9:00 AM" 
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Description</label>
-                <textarea value={activity.description} onChange={(e) => onUpdate('description', e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="Describe the activity" rows={4} />
+                <textarea 
+                  value={activity.description} 
+                  onChange={(e) => onUpdate('description', e.target.value)} 
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" 
+                  placeholder="Describe the activity" 
+                  rows={4} 
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Location</label>
-                <input type="text" value={activity.location?.name || ''} onChange={(e) => onUpdate('location', { ...activity.location, name: e.target.value })} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="Location name" />
+                <input 
+                  type="text" 
+                  value={activity.location?.name || ''} 
+                  onChange={(e) => onUpdate('location', { ...activity.location, name: e.target.value })} 
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" 
+                  placeholder="Location name" 
+                />
               </div>
             </div>
           ) : (
             <>
               <div>
                 <h3 className="text-xl font-bold text-white mb-2">{activity.title}</h3>
-                {activity.location?.name && (<div className="flex items-center gap-2 text-gray-400 mb-3"><MapPinIcon size={16} className="text-orange-400" /><span className="text-sm">{activity.location.name}</span></div>)}
+                {activity.location?.name && (
+                  <div className="flex items-center gap-2 text-gray-400 mb-3">
+                    <MapPinIcon size={16} className="text-orange-400" />
+                    <span className="text-sm">{activity.location.name}</span>
+                  </div>
+                )}
               </div>
-              {activity.description && (<p className="text-gray-300 leading-relaxed">{activity.description}</p>)}
-              {activity.tags && activity.tags.length > 0 && (<div className="flex flex-wrap gap-2">{activity.tags.map((tag: string, i: number) => (<span key={i} className="px-3 py-1 bg-gray-800 text-xs text-gray-300 rounded-full border border-gray-700">{tag}</span>))}</div>)}
+              {activity.description && (
+                <p className="text-gray-300 leading-relaxed">{activity.description}</p>
+              )}
+              {activity.tags && activity.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {activity.tags.map((tag: string, i: number) => (
+                    <span key={i} className="px-3 py-1 bg-gray-800 text-xs text-gray-300 rounded-full border border-gray-700">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </>
           )}
+          
         </div>
       )}
+
+      
     </div>
   );
 };

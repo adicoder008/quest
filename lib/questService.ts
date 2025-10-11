@@ -19,6 +19,7 @@ import {
 import { db } from './firebase';
 import { Quest } from '@/app/types'; // <-- FIX: Import your Quest type
 import { compressAndUploadImage } from '@/lib/imageService';
+import { createPost } from './postService';
 
 // Define types for clarity
 type QuestRole = 'owner' | 'editor' | 'viewer';
@@ -262,6 +263,132 @@ const questService = {
       throw error;
     }
   },
+
+  // Add this function to your existing questService.ts file
+
+/**
+ * Posts a quest to the public feed
+ */
+async postQuestToFeed(
+  questId: string, 
+  uid: string, 
+  visibility: 'public' | 'private',
+  coverImageFile?: File | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const questRef = doc(db, 'quest', questId);
+    const questSnap = await getDoc(questRef);
+
+    if (!questSnap.exists()) {
+      throw new Error('Quest not found');
+    }
+
+    const questData = questSnap.data();
+    const userRole = questData.members?.[uid];
+
+    if (userRole !== 'owner') {
+      throw new Error('Only the quest owner can post to feed');
+    }
+
+    // Upload cover image if provided
+    let coverImageUrl = questData.coverImageUrl;
+    if (coverImageFile) {
+      coverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
+      
+      // Update quest with cover image
+      await updateDoc(questRef, {
+        coverImageUrl: coverImageUrl,
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // If posting publicly, create a post in the feed
+    if (visibility === 'public') {
+      const firstImage = questData.itinerary?.days
+        ?.flatMap((d: any) => d.activities)
+        .find((a: any) => a.media?.[0]?.url)?.media[0].url || coverImageUrl;
+
+      // Create post using postService
+      await createPost({
+        uid: uid,
+        text: `Check out my Quest to ${questData.destination}! 🗺️`,
+        photoUrl: firstImage || '',
+        postType: 'quest_completion',
+        questContext: {
+          questId: questId,
+          questTitle: questData.destination,
+          description: questData.title,
+          category: 'travel'
+        }
+      });
+    }
+
+    // Update quest visibility
+    await updateDoc(questRef, {
+      isPublic: visibility === 'public',
+      updatedAt: serverTimestamp()
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error posting quest to feed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to post quest' 
+    };
+  }
+},
+
+/**
+ * Get public quests for feed
+ */
+async getPublicQuests(limit: number = 12): Promise<Quest[]> {
+  try {
+    const questsRef = collection(db, 'quest');
+    const q = query(
+      questsRef,
+      where('isPublic', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(limit)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const quests: Quest[] = [];
+    
+    for (const docSnap of querySnapshot.docs) {
+      const data = docSnap.data();
+      
+      // Fetch owner details
+      let ownerName = 'Anonymous';
+      let ownerPhoto = '';
+      
+      if (data.owner) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', data.owner));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            ownerName = userData.displayName || 'Anonymous';
+            ownerPhoto = userData.photoURL || '';
+          }
+        } catch (error) {
+          console.error('Error fetching owner data:', error);
+        }
+      }
+      
+      quests.push({
+        id: docSnap.id,
+        ...data,
+        ownerName,
+        ownerPhoto
+      } as unknown as Quest);
+    }
+    
+    return quests;
+  } catch (error) {
+    console.error('Error fetching public quests:', error);
+    throw error;
+  }
+},
   
 
   /**

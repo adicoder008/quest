@@ -18,6 +18,9 @@ import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc,
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
+import questService from '@/lib/questService';
+
 
 const ResponsiveFeedPage = () => {
   const isDesktop = useResponsive(768);
@@ -578,6 +581,8 @@ const Feed = () => {
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const router = useRouter();
+  const [publicQuests, setPublicQuests] = useState<any[]>([]);
+  const [loadingQuests, setLoadingQuests] = useState(true);
   
   // NEW: Pagination state
   const [lastVisible, setLastVisible] = useState<any>(null);
@@ -612,6 +617,22 @@ const Feed = () => {
     
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+  const fetchPublicQuests = async () => {
+    try {
+      setLoadingQuests(true);
+      const quests = await questService.getPublicQuests(8);
+      setPublicQuests(quests);
+    } catch (error) {
+      console.error('Error fetching public quests:', error);
+    } finally {
+      setLoadingQuests(false);
+    }
+  };
+
+  fetchPublicQuests();
+}, []);
 
   // NEW: Load initial posts
   useEffect(() => {
