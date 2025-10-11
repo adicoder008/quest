@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Quest } from '@/app/types'; // <-- FIX: Import your Quest type
+import { compressAndUploadImage } from '@/lib/imageService';
 
 // Define types for clarity
 type QuestRole = 'owner' | 'editor' | 'viewer';
@@ -128,7 +129,7 @@ const questService = {
   /**
    * Core quest creation with transaction
    */
-  async createQuest(uid: string, questData: any, coverImageFile?: File, flowCards?: FlowCardState[]) {
+  async createQuest(uid: string, questData: any, itineraryData?: any, coverImageFile?: File, flowCards?: FlowCardState[]) {
     console.log('createQuest called with:', { uid, questData });
     
     const questCollectionRef = collection(db, 'quest');
@@ -142,10 +143,27 @@ const questService = {
     const userRef = doc(db, 'users', uid);
 
     try {
+
+       // Upload cover image if provided
+    let coverImageUrl = null;
+    if (coverImageFile) {
+      try {
+        // You'll need to import your image upload service
+        // 
+        coverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
+        console.log('Cover image would be uploaded here');
+      } catch (error) {
+        console.error('Error uploading cover image:', error);
+      }
+    }
       await runTransaction(db, async (transaction) => {
         // 1. Create the Quest document
         const questDocument = {
           ...questData,
+          itinerary: itineraryData || null,
+          coverImageUrl: coverImageUrl || null,
+          flowCards: flowCards || [],
+          owner: uid,
           id: questId,
           chatId: chatId,
           members: {

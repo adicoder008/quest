@@ -102,7 +102,6 @@ export const chatService = {
       }
     });
     
-    // Now that the chat is guaranteed to exist, send the message.
     await this.sendMessage(chatId, {
       uid: currentUser.uid,
       text: messageText,

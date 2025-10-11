@@ -10,6 +10,7 @@ import questService from '../../../lib/questService';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/Nav';
+import PhotoBasedQuestCreation from '@/components/quest/PhotoBasedQuestCreation';
 
 interface PlaceData {
   coordinates: { lat: number; lng: number };
@@ -201,12 +202,13 @@ const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { 
   );
 };
 
-
 const QuestPage = () => {
   const [user, loading] = useAuthState(auth);
   const [currentStep, setCurrentStep] = useState(0);
   const [isAITrip, setIsAITrip] = useState<boolean | null>(null);
   const [questLoading, setQuestLoading] = useState(false);
+  const [showPhotoFlow, setShowPhotoFlow] = useState(false);
+
   const router = useRouter();
 
   const [tripData, setTripData] = useState<TripData>({
@@ -242,10 +244,10 @@ const QuestPage = () => {
   ];
 
   const scratchTripSteps = [
-    { title: "Where are you traveling from and to?", key: "locations" },
-    { title: "Got dates in mind?", key: "dates" },
+    { title: "Where are you going?", key: "destination" },
+    { title: "When are you traveling?", key: "dates" },
   ];
-  
+
   const steps = isAITrip ? aiTripSteps : scratchTripSteps;
 
   const transportOptions = [
@@ -326,40 +328,8 @@ const QuestPage = () => {
     }
   };
 
-  const createBlankItinerary = async () => {
-    if (!user) return;
-    setQuestLoading(true);
-    try {
-      const startDate = new Date(tripData.startDate);
-      const endDate = new Date(tripData.endDate);
-      const timeDiff = endDate.getTime() - startDate.getTime();
-      const dayCount = Math.max(1, Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1);
-    
-      const blankDays = Array.from({ length: dayCount }, (_, i) => {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-        return {
-          day: i + 1,
-          date: currentDate.toISOString().split('T')[0],
-          title: `Day ${i + 1} in ${tripData.destination}`,
-          activities: []
-        };
-      });
-
-      const questPayload = { ...tripData, itinerary: { days: blankDays } };
-
-
-      const result = await questService.createQuest(user.uid, questPayload , null as any , []);
-      if (result.success) {
-        router.push(`/quest/${result.questId}`);
-      } else {
-        throw new Error("Failed to save blank quest.");
-      }
-    } catch (error) {
-      console.error('Error creating blank itinerary:', error);
-      setQuestLoading(false);
-    }
-  };
+  // Remove the createBlankItinerary function since it's no longer needed
+  // The scratch flow now goes to PhotoBasedQuestCreation
 
   const handleNext = async () => {
     if (currentStep < steps.length - 1) {
@@ -368,7 +338,8 @@ const QuestPage = () => {
       if (isAITrip) {
         await handleAIGuestGeneration();
       } else {
-        await createBlankItinerary();
+        // For scratch trip, move to photo upload flow
+        setShowPhotoFlow(true);
       }
     }
   };
@@ -376,6 +347,22 @@ const QuestPage = () => {
   const handleBack = () => {
     if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
+
+  // Add this before the main return to handle photo flow
+  if (showPhotoFlow && !isAITrip) {
+    return (
+      <PhotoBasedQuestCreation
+        userId={user.uid}
+        destination={tripData.destination}
+        startDate={tripData.startDate}
+        endDate={tripData.endDate}
+        onBack={() => {
+          setShowPhotoFlow(false);
+          setCurrentStep(steps.length - 1);
+        }}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -563,6 +550,17 @@ const QuestPage = () => {
               </div>
             )}
 
+            {currentStepData.key === 'destination' && (
+              <div className="max-w-2xl">
+                <LocationSearch
+                  value={tripData.destination}
+                  onChange={handleDestinationChange}
+                  onLocationSelected={handleDestinationSelected}
+                  placeholder="Where are you going?"
+                />
+              </div>
+            )}
+
             {currentStepData.key === 'dates' && (
               <div className="grid grid-cols-2 gap-6 max-w-2xl">
                 <div>
@@ -708,15 +706,16 @@ const QuestPage = () => {
             <button
               onClick={handleNext}
               disabled={
-                (currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
+                (currentStepData.key === 'destination' && !tripData.destination) ||
                 (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
+                (isAITrip && currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
                 (isAITrip && currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
                 (isAITrip && currentStepData.key === 'tripType' && !tripData.tripType) ||
                 loadingpreferences
               }
               className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
             >
-              {currentStep === steps.length - 1 ? (isAITrip ? 'Generate Quest' : 'Create Quest') : 'Next'}
+              {currentStep === steps.length - 1 ? (isAITrip ? 'Generate Quest' : 'Upload Photos') : 'Next'}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -752,6 +751,17 @@ const QuestPage = () => {
                   onChange={handleSourceChange}
                   placeholder="Where are you starting from?"
                 />
+                <LocationSearch
+                  value={tripData.destination}
+                  onChange={handleDestinationChange}
+                  onLocationSelected={handleDestinationSelected}
+                  placeholder="Where are you going?"
+                />
+              </div>
+            )}
+
+            {currentStepData.key === 'destination' && (
+              <div className="max-w-2xl">
                 <LocationSearch
                   value={tripData.destination}
                   onChange={handleDestinationChange}
@@ -908,12 +918,14 @@ const QuestPage = () => {
               disabled={
                 (currentStepData.key === 'destination' && !tripData.destination) ||
                 (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
-                (currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
-                (currentStepData.key === 'companion' && !tripData.tripType)
+                (isAITrip && currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
+                (isAITrip && currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
+                (isAITrip && currentStepData.key === 'tripType' && !tripData.tripType) ||
+                loadingpreferences
               }
               className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >
-              {currentStep === steps.length - 1 ? 'Generate Quest' : 'Next'}
+              {currentStep === steps.length - 1 ? (isAITrip ? 'Generate Quest' : 'Upload Photos') : 'Next'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
