@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect, Key } from 'react';
+import React, { useState, useEffect, Key } from 'react';
 import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck } from 'lucide-react';
-import { subscribeToPosts, addComment, followUser, unfollowUser, savePost, unsavePost, sharePost, reportPost, deletePost } from '../../../lib/postService';
-import { getCurrentUserData } from '../../../lib/authService';
-import { auth, db } from '../../../lib/firebase';
+import { subscribeToPosts, addComment, followUser, unfollowUser, savePost, unsavePost, sharePost, reportPost, deletePost } from '@/lib/postService';
+import { getCurrentUserData } from '@/lib/authService';
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import CreatePostModal from '../../../components/Home/CreatePostModal';
-import PostCard from '../../../components/Home/PostCard';
-import { User, Post } from '../../types/index';
+import CreatePostModal from '@/components/Home/CreatePostModal';
+import PostCard from '@/components/Home/PostCard';
+import { User, Post } from '@/app/types/index';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
-import useResponsive from '../../../hooks/useResponsive';
+import useResponsive from '@/hooks/useResponsive';
 import CreatePost from '@/components/Feed_old/CreatePost';
 import Navbar from '@/components/Nav';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icon
 import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
+import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 
 
 const ResponsiveFeedPage = () => {
@@ -55,7 +56,7 @@ interface PostMenuProps {
 }
 
 const PostMenu = ({ post, user, onClose, onDelete, onReport }: PostMenuProps) => {
-  const isOwnPost = user?.uid === post.author.id;
+  const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
@@ -149,7 +150,7 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: PostMenuProps) =>
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-20 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div className="bg-gray-900 rounded-lg w-full max-w-sm border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Post Options</h3>
@@ -218,7 +219,7 @@ const ShareModal = ({ post, onClose }: ShareModalProps) => {
 
   const handleShare = async (platform: string) => {
     let shareUrl = '';
-    const text = encodeURIComponent(post.content.text || 'Check out this post!');
+    const text = encodeURIComponent(post.content?.text || post.text || 'Check out this post!');
     
     switch (platform) {
       case 'twitter':
@@ -724,7 +725,7 @@ const Feed = () => {
         setEvents(eventsData.slice(0, 5));
       }
     );
-  
+    
     const unsubscribeUsers = onSnapshot(
       query(collection(db, 'users'), orderBy('followers', 'desc')),
       (snapshot) => {
@@ -737,7 +738,7 @@ const Feed = () => {
         setPopularUsers(usersData.slice(0, 4));
       }
     );
-  
+    
     return () => {
       unsubscribeEvents();
       unsubscribeUsers();
@@ -836,7 +837,7 @@ const Feed = () => {
           await sharePost(postId, user.uid);
           setPosts(prev => prev.map(p => 
             p.id === postId 
-              ? { ...p, stats: { ...p.stats, shares: p.stats.shares + 1 } }
+              ? { ...p, stats: { ...p.stats, shares: (p.stats.shares || 0) + 1 } }
               : p
           ));
         } catch (error) {
@@ -868,7 +869,7 @@ const Feed = () => {
               ...post, 
               stats: { 
                 ...post.stats, 
-                comments: post.stats.comments + 1 
+                comments: (post.stats.comments || 0) + 1 
               } 
             }
           : post
@@ -898,7 +899,7 @@ const Feed = () => {
               ...post, 
               stats: { 
                 ...post.stats, 
-                comments: Math.max(0, post.stats.comments - 1) 
+                comments: Math.max(0, (post.stats.comments || 1) - 1) 
               } 
             }
           : post
@@ -995,9 +996,142 @@ const Feed = () => {
     );
   };
 
-  const DesktopPost = ({ post }: { post: any }) => {
+  const DesktopPost = ({ post, user }: { post: any, user: User | null }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
     const isSaved = post.isSaved;
+
+    const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
+    const questData = post.questData || post.questContext;
+    const initialPostImage = post.content?.images?.[0] || post.photoUrl;
+    const postText = post.content?.text || post.text;
+    
+    const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
+
+    useEffect(() => {
+        const resolveQuestImage = async () => {
+            if (isQuestPost && !finalPostImage && questData?.questId && user?.uid) {
+                try {
+                    const questDoc = await questService.getQuest(user.uid, questData.questId);
+                    if (questDoc && questDoc.coverImageUrl) {
+                        setFinalPostImage(questDoc.coverImageUrl);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch fallback quest cover image:", error);
+                }
+            }
+        };
+        resolveQuestImage();
+    }, [post.id, isQuestPost, finalPostImage, questData?.questId, user?.uid]);
+
+      if (post.postType === 'quest_completion' || post.questContext) {
+    return (
+      <QuestPostCard
+        post={{
+          id: post.id,
+          uid: post.author.id,
+          userName: post.author.name,
+          userProfilePic: post.author.avatar,
+          text: post.content.text || '',
+          photoUrl: post.content.images?.[0] || '',
+          createdAt: post.metadata.createdAt,
+          likeCount: post.stats.likes || 0,
+          commentCount: post.stats.comments || 0,
+          shareCount: post.stats.shares || 0,
+          likedBy: post.stats.likedBy || [],
+          questContext: post.questContext
+        }}
+        currentUser={user}
+        onLike={() => handleLike(post.id)}
+        onComment={() => handleComment(post)}
+        onShare={() => handleShare(post.id)}
+        onSave={() => handleSave(post.id)}
+        onMenu={() => setSelectedPostForMenu(post)}
+        isSaved={isSaved}
+      />
+    );
+  }
+
+
+    if (isQuestPost) {
+      return (
+        <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <img src={post.author.avatar} alt={post.author.name} className="w-12 h-12 rounded-full object-cover" />
+              <div>
+                <h3 className="text-base font-medium text-white">{post.author.name}</h3>
+                <p className="text-sm text-gray-400">Shared a Quest · {formatTime(post.metadata.createdAt)}</p>
+              </div>
+            </div>
+            <button onClick={() => setSelectedPostForMenu(post)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors">
+              <MoreHorizontal className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+
+          {postText && (
+            <p className="px-4 pb-3 text-white">{postText}</p>
+          )}
+
+          {finalPostImage && (
+            <div className="px-4 pb-3">
+              <div className="relative rounded-lg overflow-hidden">
+                <img
+                  src={finalPostImage}
+                  alt={`Quest to ${questData?.destination || questData?.questTitle}`}
+                  className="w-full h-auto object-cover"
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-2/5 bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
+                  <h2 className="text-xl font-bold text-white drop-shadow-lg pr-2">{questData?.title || questData?.questTitle}</h2>
+                  <button onClick={() => setSelectedPostForMenu(post)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 transition-colors">
+                    <MoreHorizontal className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-gray-700 px-4 py-3">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => handleLike(post.id)}
+                className={`flex items-center gap-2 transition-colors ${
+                  isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                }`}
+              >
+                <FaHeartbeat className="w-6 h-6" />
+                <span className="text-sm">{post.stats.likes}</span>
+              </button>
+              
+              <button 
+                onClick={() => handleComment(post)}
+                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+              >
+                <FaRegCommentDots className="w-6 h-6" />
+                <span className="text-sm">{post.stats.comments}</span>
+              </button>
+              
+              <button 
+                onClick={() => handleShare(post.id)}
+                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+              >
+                <Share2 className="w-6 h-6" />
+                <span className="text-sm">{post.stats.shares || 0}</span>
+              </button>
+
+              <button 
+                onClick={() => handleSave(post.id)}
+                className={`ml-auto transition-colors ${
+                  isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+                }`}
+              >
+                {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
+        </article>
+      );
+    }
 
     return (
       <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
@@ -1023,20 +1157,19 @@ const Feed = () => {
           </button>
         </div>
 
-        {post.content.text && (
-          <p className="px-4 pb-3 text-white">{post.content.text}</p>
+        {postText && (
+          <p className="px-4 pb-3 text-white">{postText}</p>
         )}
 
-        {post.content.images && post.content.images.length > 0 && (
+        {finalPostImage && (
           <div className="px-4 pb-3">
-            {post.content.images.map((image: string, index: Key | null | undefined) => (
+            
               <img
-                key={index}
-                src={image}
-                alt={`Post content ${index}`}
+                src={finalPostImage}
+                alt={`Post content`}
                 className="w-full rounded-lg object-cover"
               />
-            ))}
+            
           </div>
         )}
 
@@ -1148,7 +1281,7 @@ const Feed = () => {
           ) : (
             <>
               {posts.map((post) => (
-                <DesktopPost key={post.id} post={post} />
+                <DesktopPost key={post.id} post={post} user={user} />
               ))}
 
               {/* NEW: Infinite scroll sentinel */}
@@ -1302,6 +1435,28 @@ const MobilePostCard = ({
   const isLiked = post.likedBy?.includes(currentUser.uid);
   const isSaved = post.isSaved;
 
+  const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
+  const questData = post.questData || post.questContext;
+  const initialPostImage = post.photoUrl;
+  const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
+  
+  useEffect(() => {
+    const resolveQuestImage = async () => {
+        if (isQuestPost && !finalPostImage && questData?.questId && currentUser?.uid) {
+            try {
+                const questDoc = await questService.getQuest(currentUser.uid, questData.questId);
+                if (questDoc && questDoc.coverImageUrl) {
+                    setFinalPostImage(questDoc.coverImageUrl);
+                }
+            } catch (error) {
+                console.error("Failed to fetch fallback quest cover image:", error);
+            }
+        }
+    };
+    resolveQuestImage();
+  }, [post.id, isQuestPost, finalPostImage, questData?.questId, currentUser?.uid]);
+
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
@@ -1378,6 +1533,118 @@ const MobilePostCard = ({
     setCommentText('');
     loadComments();
   };
+  
+  if (isQuestPost) {
+    return (
+      <article className="border-b border-gray-800 bg-black p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <img 
+              src={post.userProfilePic || '/default-avatar.png'} 
+              alt={post.userName}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <div>
+              <h3 className="text-sm font-medium text-white">{post.userName}</h3>
+              <p className="text-xs text-gray-400">
+                Shared a Quest · {formatTime(post.createdAt)}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={onMenuClick}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+          >
+            <MoreHorizontal className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {post.text && (
+          <p className="text-white text-sm mb-3">{post.text}</p>
+        )}
+
+        {finalPostImage && (
+          <div className="mb-3">
+            <div className="relative rounded-lg overflow-hidden">
+              <img src={finalPostImage} alt="Post content" className="w-full h-auto object-cover" />
+              <div className="absolute bottom-0 left-0 right-0 h-2/5 bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 p-3 flex justify-between items-end">
+                <h2 className="text-lg font-bold text-white drop-shadow-lg pr-2">{questData?.title || questData?.questTitle}</h2>
+                <button onClick={onMenuClick} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 transition-colors">
+                  <MoreHorizontal className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+          <button 
+            onClick={onLike}
+            className={`flex items-center gap-2 transition-colors ${
+              isLiked ? 'text-red-500' : 'text-gray-400'
+            }`}
+          >
+            <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span className="text-xs">{post.likeCount || 0}</span>
+          </button>
+          
+          <button 
+            onClick={handleToggleComments}
+            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-xs">{post.commentCount || 0}</span>
+          </button>
+          
+          <button 
+            onClick={onShare}
+            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          >
+            <Share2 className="w-5 h-5" />
+            <span className="text-xs">{post.shareCount || 0}</span>
+          </button>
+
+          <button 
+            onClick={onSave}
+            className={`transition-colors ${
+              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+            }`}
+          >
+            {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+          </button>
+        </div>
+      </article>
+    );
+  }
+
+  if (post.postType === 'quest_completion' || post.questContext) {
+    return (
+      <MobileQuestPostCard
+        post={{
+          id: post.id,
+          uid: post.uid,
+          userName: post.userName,
+          userProfilePic: post.userProfilePic,
+          text: post.text || '',
+          photoUrl: post.photoUrl || '',
+          createdAt: post.createdAt,
+          likeCount: post.likeCount || 0,
+          commentCount: post.commentCount || 0,
+          shareCount: post.shareCount || 0,
+          likedBy: post.likedBy || [],
+          questContext: post.questContext
+        }}
+        currentUser={currentUser}
+        onLike={onLike}
+        onComment={(text: string) => onComment(text)}
+        onShare={onShare}
+        onSave={onSave}
+        onMenu={onMenuClick}
+        isSaved={post.isSaved}
+      />
+    );
+  }
 
   return (
     <article className="border-b border-gray-800 bg-black p-4">
@@ -1410,10 +1677,10 @@ const MobilePostCard = ({
       )}
 
       {/* Post Image */}
-      {post.photoUrl && (
+      {finalPostImage && (
         <div className="mb-3">
           <img
-            src={post.photoUrl}
+            src={finalPostImage}
             alt="Post content"
             className="w-full rounded-lg object-cover"
           />
@@ -1584,19 +1851,20 @@ const MobileFeedPage = () => {
         const postsData = result.posts.map(post => ({
           id: post.id,
           authorId: post.author.id,
-          uid: post.author.id,
-          userName: post.author.name,
-          userProfilePic: post.author.avatar,
-          text: post.content.text || '',
-          photoUrl: post.content.images?.[0] || '',
-          location: post.metadata.location || '',
-          createdAt: post.metadata.createdAt,
-          likeCount: post.stats.likes || 0,
-          commentCount: post.stats.comments || 0,
-          shareCount: post.stats.shares || 0,
-          likedBy: post.stats.likedBy || [],
+          uid: post.uid,
+          userName: post.userName || post.author.name,
+          userProfilePic: post.userProfilePic || post.author.avatar,
+          text: post.text || post.content?.text || '',
+          photoUrl: post.photoUrl || post.content?.images?.[0] || '',
+          location: post.location || post.metadata?.location || '',
+          createdAt: post.createdAt || post.metadata?.createdAt,
+          likeCount: post.likeCount ?? post.stats?.likes ?? 0,
+          commentCount: post.commentCount ?? post.stats?.comments ?? 0,
+          shareCount: post.shareCount ?? post.stats?.shares ?? 0,
+          likedBy: post.likedBy || post.stats?.likedBy || [],
           isSaved: userData?.savedPosts?.includes(post.id) || false,
-          postType: post.postType || 'regular'
+          postType: post.postType || 'regular',
+          questData: post.questData || post.questContext || null,
         }));
         
         setPosts(postsData);
@@ -1623,19 +1891,20 @@ const MobileFeedPage = () => {
       const postsData = result.posts.map(post => ({
         id: post.id,
         authorId: post.author.id,
-        uid: post.author.id,
-        userName: post.author.name,
-        userProfilePic: post.author.avatar,
-        text: post.content.text || '',
-        photoUrl: post.content.images?.[0] || '',
-        location: post.metadata.location || '',
-        createdAt: post.metadata.createdAt,
-        likeCount: post.stats.likes || 0,
-        commentCount: post.stats.comments || 0,
-        shareCount: post.stats.shares || 0,
-        likedBy: post.stats.likedBy || [],
+        uid: post.uid,
+        userName: post.userName || post.author.name,
+        userProfilePic: post.userProfilePic || post.author.avatar,
+        text: post.text || post.content?.text || '',
+        photoUrl: post.photoUrl || post.content?.images?.[0] || '',
+        location: post.location || post.metadata?.location || '',
+        createdAt: post.createdAt || post.metadata?.createdAt,
+        likeCount: post.likeCount ?? post.stats?.likes ?? 0,
+        commentCount: post.commentCount ?? post.stats?.comments ?? 0,
+        shareCount: post.shareCount ?? post.stats?.shares ?? 0,
+        likedBy: post.likedBy || post.stats?.likedBy || [],
         isSaved: userData?.savedPosts?.includes(post.id) || false,
-        postType: post.postType || 'regular'
+        postType: post.postType || 'regular',
+        questData: post.questData || post.questContext || null,
       }));
       
       setPosts(prev => [...prev, ...postsData]);
@@ -1924,3 +2193,4 @@ const MobileFeedPage = () => {
 };
 
 export default ResponsiveFeedPage;
+

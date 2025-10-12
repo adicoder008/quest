@@ -1,8 +1,8 @@
-import { 
-  doc, 
-  getDoc, 
+import {
+  doc,
+  getDoc,
   setDoc,
-  updateDoc, 
+  updateDoc,
   deleteDoc,
   collection,
   query,
@@ -14,10 +14,11 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  runTransaction
+  runTransaction,
+  limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Quest } from '@/app/types'; // <-- FIX: Import your Quest type
+import { Quest } from '@/app/types';
 import { compressAndUploadImage } from '@/lib/imageService';
 import { createPost } from './postService';
 
@@ -53,6 +54,7 @@ export interface FlowCardState {
   // Add other properties as needed
 }
 
+
 const questService = {
 
   /**
@@ -78,13 +80,14 @@ const questService = {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate itinerary');
+        const errorBody = await response.text();
+        throw new Error(`Failed to generate itinerary. Status: ${response.status}. Body: ${errorBody}`);
       }
 
       const result = await response.json();
       
       if (!result.success) {
-        throw new Error(result.message || 'Failed to generate itinerary');
+        throw new Error(result.message || 'Failed to generate itinerary from API');
       }
 
       return {
@@ -149,12 +152,11 @@ const questService = {
     let coverImageUrl = null;
     if (coverImageFile) {
       try {
-        // You'll need to import your image upload service
-        // 
         coverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
-        console.log('Cover image would be uploaded here');
+        console.log('Cover image uploaded:', coverImageUrl);
       } catch (error) {
         console.error('Error uploading cover image:', error);
+        // Decide if you want to fail the whole quest creation or just proceed without an image
       }
     }
       await runTransaction(db, async (transaction) => {
@@ -170,6 +172,8 @@ const questService = {
           members: {
             [uid]: 'owner'
           },
+          isPublic: false, // Quests are private by default
+          isPostedToFeed: false, // Not posted to feed by default
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
@@ -203,9 +207,9 @@ const questService = {
   },
 
   /**
-   * Fetches a single quest document if the user is a member
+   * Fetches a single quest document for a user (permission-based)
    */
-  async getQuest(uid: string, questId: string): Promise<Quest> { // <-- FIX: Added explicit return type
+  async getQuest(uid: string, questId: string): Promise<Quest> {
     try {
       const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
@@ -215,21 +219,41 @@ const questService = {
       }
       
       const questData = questSnap.data();
-      if (!questData.members || !questData.members[uid]) {
+      // Allow access if public or the user is a member
+      if (!questData.isPublic && (!questData.members || !questData.members[uid])) {
         throw new Error('You do not have permission to view this quest.');
       }
 
-      return { id: questSnap.id, ...questData } as Quest; // <-- FIX: Cast the returned data to the Quest type
+      return { id: questSnap.id, ...questData } as Quest;
     } catch (error) {
       console.error('Error fetching quest:', error);
       throw error;
     }
   },
+    
+  /**
+   * Fetches a single quest document by its ID, without user permission checks.
+   * To be used internally by services where permissions are already established.
+   */
+  async getQuestById(questId: string): Promise<Quest | null> {
+    try {
+        const questRef = doc(db, 'quest', questId);
+        const questSnap = await getDoc(questRef);
+        if (questSnap.exists()) {
+            return { id: questSnap.id, ...questSnap.data() } as Quest;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching quest by ID:', error);
+        throw error;
+    }
+  },
+
 
   /**
    * Fetches all quests a user is a member of
    */
-  async getUserQuests(uid: string): Promise<Quest[]> { // <-- FIX: Added explicit return type
+  async getUserQuests(uid: string): Promise<Quest[]> {
     try {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
@@ -247,15 +271,17 @@ const questService = {
       const q = query(
         questsRef, 
         where('__name__', 'in', questsToFetch),
-        orderBy('createdAt', 'desc')
       );
       
       const querySnapshot = await getDocs(q);
-      const quests: Quest[] = []; // <-- FIX: Use the Quest[] type here
+      let quests: Quest[] = [];
       
       querySnapshot.forEach((doc) => {
-        quests.push({ id: doc.id, ...doc.data() } as Quest); // <-- FIX: Cast each document's data
+        quests.push({ id: doc.id, ...doc.data() } as Quest);
       });
+      
+      // Sort in memory because Firestore doesn't allow __name__ and orderBy on a different field
+      quests.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       
       return quests;
     } catch (error) {
@@ -264,10 +290,8 @@ const questService = {
     }
   },
 
-  // Add this function to your existing questService.ts file
-
 /**
- * Posts a quest to the public feed
+ * Posts a quest to the public feed, ensuring it has an image and is only posted once.
  */
 async postQuestToFeed(
   questId: string, 
@@ -284,48 +308,55 @@ async postQuestToFeed(
     }
 
     const questData = questSnap.data();
-    const userRole = questData.members?.[uid];
 
-    if (userRole !== 'owner') {
-      throw new Error('Only the quest owner can post to feed');
+    // 1. Check permissions
+    if (questData.members?.[uid] !== 'owner') {
+      throw new Error('Only the quest owner can post to the feed.');
     }
 
-    // Upload cover image if provided
-    let coverImageUrl = questData.coverImageUrl;
+    // 2. Prevent duplicate posting for public quests
+    if (visibility === 'public' && questData.isPostedToFeed) {
+      return { 
+        success: false, 
+        error: 'This quest has already been posted to the feed.' 
+      };
+    }
+
+    let finalCoverImageUrl = questData.coverImageUrl;
+
+    // 3. Handle new cover image upload
     if (coverImageFile) {
-      coverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
-      
-      // Update quest with cover image
-      await updateDoc(questRef, {
-        coverImageUrl: coverImageUrl,
-        updatedAt: serverTimestamp()
-      });
+      finalCoverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
     }
 
-    // If posting publicly, create a post in the feed
-    if (visibility === 'public') {
-      const firstImage = questData.itinerary?.days
-        ?.flatMap((d: any) => d.activities)
-        .find((a: any) => a.media?.[0]?.url)?.media[0].url || coverImageUrl;
+    // 4. Enforce image for public posts
+    if (visibility === 'public' && !finalCoverImageUrl) {
+      return {
+        success: false,
+        error: 'A cover image is required to post a quest publicly.'
+      };
+    }
 
-      // Create post using postService
+    // 5. Create the feed post if public
+    if (visibility === 'public') {
       await createPost({
         uid: uid,
-        text: `Check out my Quest to ${questData.destination}! 🗺️`,
-        photoUrl: firstImage || '',
+        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${questData.itinerary?.days?.length || 0} days · ${questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0} activities`,
+        photoUrl: finalCoverImageUrl, // Use the guaranteed image URL
         postType: 'quest_completion',
         questContext: {
           questId: questId,
-          questTitle: questData.destination,
-          description: questData.title,
-          category: 'travel'
+          questTitle: questData.title || `Quest to ${questData.destination}`,
+          description: questData.description || '',
         }
       });
     }
 
-    // Update quest visibility
+    // 6. Update the quest document with new visibility and post status
     await updateDoc(questRef, {
+      coverImageUrl: finalCoverImageUrl, // Save new image URL if it was uploaded
       isPublic: visibility === 'public',
+      isPostedToFeed: visibility === 'public' ? true : questData.isPostedToFeed, // Only set to true if posted publicly
       updatedAt: serverTimestamp()
     });
 
@@ -339,17 +370,18 @@ async postQuestToFeed(
   }
 },
 
+
 /**
  * Get public quests for feed
  */
-async getPublicQuests(limit: number = 12): Promise<Quest[]> {
+async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
   try {
     const questsRef = collection(db, 'quest');
     const q = query(
       questsRef,
       where('isPublic', '==', true),
       orderBy('createdAt', 'desc'),
-      limit(limit)
+      limit(limitCount)
     );
     
     const querySnapshot = await getDocs(q);
@@ -358,7 +390,6 @@ async getPublicQuests(limit: number = 12): Promise<Quest[]> {
     for (const docSnap of querySnapshot.docs) {
       const data = docSnap.data();
       
-      // Fetch owner details
       let ownerName = 'Anonymous';
       let ownerPhoto = '';
       
@@ -371,7 +402,7 @@ async getPublicQuests(limit: number = 12): Promise<Quest[]> {
             ownerPhoto = userData.photoURL || '';
           }
         } catch (error) {
-          console.error('Error fetching owner data:', error);
+          console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
         }
       }
       
@@ -421,76 +452,12 @@ async getPublicQuests(limit: number = 12): Promise<Quest[]> {
   },
   
   /**
-   * AI Itinerary Generation
+   * AI Itinerary Generation (Placeholder)
    */
   async generateAItinerary(questData: TripData): Promise<any> {
+    // This is a placeholder. The actual implementation relies on the /api/generate-quest endpoint.
     console.log('Generating AI itinerary for:', questData);
-    
-    // Calculate number of days
-    const startDate = new Date(questData.startDate);
-    const endDate = new Date(questData.endDate);
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    // Create AI-generated days structure
-    const aiDays = [];
-    for (let i = 0; i < days; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
-      
-      aiDays.push({
-        day: i + 1,
-        date: currentDate.toISOString().split('T')[0],
-        title: `Day ${i + 1} in ${questData.destination}`,
-        activities: [
-          {
-            type: 'ai_generated',
-            time: 'Morning',
-            title: `Morning in ${questData.destination}`,
-            description: `AI-generated morning activity based on your preferences: ${questData.preferences.join(', ')}`,
-            location: questData.destination,
-            duration: '3 hours',
-            cost: Math.floor(questData.budget / days / 4 * 0.3)
-          },
-          {
-            type: 'ai_generated',
-            time: 'Afternoon',
-            title: `Afternoon Exploration`,
-            description: `AI-generated afternoon activity based on your interests`,
-            location: questData.destination,
-            duration: '4 hours',
-            cost: Math.floor(questData.budget / days / 4 * 0.4)
-          },
-          {
-            type: 'ai_generated',
-            time: 'Evening',
-            title: `Evening Experience`,
-            description: `AI-generated evening plans`,
-            location: questData.destination,
-            duration: '3 hours',
-            cost: Math.floor(questData.budget / days / 4 * 0.2)
-          },
-          {
-            type: 'ai_generated',
-            time: 'Night',
-            title: `Night Activities`,
-            description: `AI-generated night suggestions`,
-            location: questData.destination,
-            duration: '2 hours',
-            cost: Math.floor(questData.budget / days / 4 * 0.1)
-          }
-        ]
-      });
-    }
-    
-    return {
-      days: aiDays,
-      generated: true,
-      aiNotes: `AI-generated itinerary for ${questData.destination} focusing on: ${questData.preferences.join(', ')}`,
-      estimatedCost: questData.budget,
-      destination: questData.destination,
-      transportModes: questData.transportMode,
-      tripType: questData.tripType
-    };
+    return { days: [], generated: true };
   },
   
   /**
@@ -501,43 +468,16 @@ async getPublicQuests(limit: number = 12): Promise<Quest[]> {
     const endDate = new Date(questData.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    const blankDays = [];
-    for (let i = 0; i < days; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
-      
-      blankDays.push({
-        day: i + 1,
-        date: currentDate.toISOString().split('T')[0],
-        title: `Day ${i + 1}`,
-        activities: [
-          {
-            type: 'text',
-            time: 'Morning',
-            title: 'Morning Activity',
-            description: 'Add your morning plans here'
-          },
-          {
-            type: 'text',
-            time: 'Afternoon',
-            title: 'Afternoon Activity',
-            description: 'Add your afternoon plans here'
-          },
-          {
-            type: 'text',
-            time: 'Evening',
-            title: 'Evening Activity',
-            description: 'Add your evening plans here'
-          },
-          {
-            type: 'text',
-            time: 'Night',
-            title: 'Night Activity',
-            description: 'Add your night plans here'
-          }
-        ]
-      });
-    }
+    const blankDays = Array.from({ length: days }, (_, i) => {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        return {
+            day: i + 1,
+            date: currentDate.toISOString().split('T')[0],
+            title: `Day ${i + 1}`,
+            activities: []
+        };
+    });
     
     return {
       days: blankDays,

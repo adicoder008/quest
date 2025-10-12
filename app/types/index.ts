@@ -59,6 +59,7 @@ export interface QuestItinerary {
 }
 
 export interface Quest {
+  coverImageUrl: Quest;
   id: string;
   uid: string;
   title: string;

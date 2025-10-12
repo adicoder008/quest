@@ -1,10 +1,9 @@
 // File: components/QuestPopups/index.tsx
-'use client';
+// Add this UPDATED CoverImageModal with adjustable height
 
 import React, { useState } from 'react';
-import { X, Upload, Globe, Lock, AlertCircle } from 'lucide-react';
+import { X, Upload, Globe, Lock, AlertCircle, ZoomIn, ZoomOut } from 'lucide-react';
 
-// Cover Image Upload Modal
 interface CoverImageModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,6 +15,7 @@ export const CoverImageModal = ({ isOpen, onClose, onUpload, questTitle }: Cover
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [imageHeight, setImageHeight] = useState(60); // Default 60vh
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,8 +43,8 @@ export const CoverImageModal = ({ isOpen, onClose, onUpload, questTitle }: Cover
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-xl max-w-md w-full border border-gray-700">
+    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-xl max-w-2xl w-full border border-gray-700">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Add Cover Image</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -54,29 +54,93 @@ export const CoverImageModal = ({ isOpen, onClose, onUpload, questTitle }: Cover
 
         <div className="p-6">
           <p className="text-gray-300 text-sm mb-4">
-            Add a cover image for "{questTitle}" to make it stand out in the feed!
+            Add a stunning cover image for "{questTitle}"
           </p>
 
           {preview ? (
-            <div className="relative mb-4">
-              <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-              <button
-                onClick={() => {
-                  setPreview(null);
-                  setSelectedImage(null);
-                }}
-                className="absolute top-2 right-2 bg-black bg-opacity-75 p-2 rounded-full hover:bg-opacity-90"
+            <div className="mb-4">
+              {/* Adjustable Preview */}
+              <div 
+                className="relative rounded-lg overflow-hidden bg-gray-800 mb-4"
+                style={{ height: `${imageHeight}vh` }}
               >
-                <X size={16} className="text-white" />
-              </button>
+                <img 
+                  src={preview} 
+                  alt="Preview" 
+                  className="w-full h-full object-cover" 
+                />
+                
+                {/* Quest Title Overlay (YouTube Shorts Style) */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <h4 className="text-white font-bold text-xl drop-shadow-lg">
+                    {questTitle}
+                  </h4>
+                </div>
+
+                {/* Remove button */}
+                <button
+                  onClick={() => {
+                    setPreview(null);
+                    setSelectedImage(null);
+                  }}
+                  className="absolute top-3 right-3 bg-black bg-opacity-75 backdrop-blur-sm p-2 rounded-full hover:bg-opacity-90 transition-colors"
+                >
+                  <X size={16} className="text-white" />
+                </button>
+              </div>
+
+              {/* Height Adjuster */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-gray-300 font-medium">
+                    Adjust Image Height
+                  </label>
+                  <span className="text-sm text-orange-500 font-bold">
+                    {imageHeight}vh
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setImageHeight(Math.max(30, imageHeight - 5))}
+                    className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    <ZoomOut size={18} className="text-gray-300" />
+                  </button>
+                  
+                  <input
+                    type="range"
+                    min="30"
+                    max="90"
+                    step="5"
+                    value={imageHeight}
+                    onChange={(e) => setImageHeight(Number(e.target.value))}
+                    className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                  
+                  <button
+                    onClick={() => setImageHeight(Math.min(90, imageHeight + 5))}
+                    className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    <ZoomIn size={18} className="text-gray-300" />
+                  </button>
+                </div>
+                
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  This is how it will appear in the feed
+                </p>
+              </div>
             </div>
           ) : (
             <label className="block mb-4 cursor-pointer">
-              <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-orange-500 transition-colors">
-                <div className="flex flex-col items-center gap-2 text-gray-400">
-                  <Upload size={32} />
-                  <span className="text-sm">Click to upload image</span>
-                  <span className="text-xs">PNG, JPG up to 5MB</span>
+              <div className="border-2 border-dashed border-gray-600 rounded-lg p-12 hover:border-orange-500 transition-colors">
+                <div className="flex flex-col items-center gap-3 text-gray-400">
+                  <Upload size={48} className="text-orange-500" />
+                  <div className="text-center">
+                    <span className="text-base font-medium">Click to upload cover image</span>
+                    <p className="text-xs mt-1">PNG, JPG up to 5MB • Best: 1080x1920 (9:16)</p>
+                  </div>
                 </div>
               </div>
               <input
@@ -109,22 +173,14 @@ export const CoverImageModal = ({ isOpen, onClose, onUpload, questTitle }: Cover
   );
 };
 
-// Post Visibility Modal
-interface PostVisibilityModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onPost: (visibility: 'public' | 'private', coverImage: File | null) => Promise<void>;
-  questTitle: string;
-  hasCoverImage: boolean;
-}
-
+// Keep the PostVisibilityModal as is - it already works correctly
 export const PostVisibilityModal = ({ 
   isOpen, 
   onClose, 
   onPost, 
   questTitle, 
   hasCoverImage 
-}: PostVisibilityModalProps) => {
+}: any) => {
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [showCoverModal, setShowCoverModal] = useState(false);
 

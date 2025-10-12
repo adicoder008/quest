@@ -880,7 +880,7 @@ const QuestPage = () => {
             {currentStepData.key === 'budget' && (
               <div>
                 <div className="mb-4">
-                  <label className="block text-sm text-gray-400 mb-2">per person per night</label>
+                  <label className="block text-sm text-gray-400 mb-2 ">per person per night</label>
                   <div className="text-center">
                     <span className="text-3xl font-bold">₹ {tripData.budget.toLocaleString()}</span>
                   </div>
@@ -888,11 +888,11 @@ const QuestPage = () => {
                 <input
                   type="range"
                   min="1000"
-                  max="100000"
-                  step="1000"
+                  max="20000"
+                  step="500"
                   value={tripData.budget}
                   onChange={(e) => updateTripData('budget', parseInt(e.target.value))}
-                  className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+                  className="w-80 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
                   <span>₹ 1,000</span>
