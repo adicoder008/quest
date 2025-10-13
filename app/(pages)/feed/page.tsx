@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, Key } from 'react';
-import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck } from 'lucide-react';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck, Home, Calendar, User, Bell, Mail, Settings, LogOut } from 'lucide-react';
 import { subscribeToPosts, addComment, followUser, unfollowUser, savePost, unsavePost, sharePost, reportPost, deletePost } from '@/lib/postService';
 import { getCurrentUserData } from '@/lib/authService';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import CreatePostModal from '@/components/Home/CreatePostModal';
 import PostCard from '@/components/Home/PostCard';
-import { User, Post } from '@/app/types/index';
+import { User as UserType, Post } from '@/app/types/index';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '@/hooks/useResponsive';
@@ -21,8 +21,10 @@ import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
+import { getPaginatedPosts } from '../../../lib/postService';
+import { getUserBadges, getLevelInfo } from '../../../lib/firebaseSerive';
 
-
+// Responsive wrapper
 const ResponsiveFeedPage = () => {
   const isDesktop = useResponsive(768);
 
@@ -33,23 +35,303 @@ const ResponsiveFeedPage = () => {
   return <MobileFeedPage />;
 };
 
-interface Comment {
-  id: string;
-  text: string;
-  createdAt: any;
-  author: {
-    name: string;
-    avatar: string;
+// =================================================================
+// LEFT SIDEBAR NAVIGATION
+// =================================================================
+const LeftSidebar = ({ user, onNavigate, onSignOut }: any) => {
+  const router = useRouter();
+  const [activeRoute, setActiveRoute] = useState('feed');
+
+  const navItems = [
+    { icon: Home, label: 'Feed', route: 'feed' },
+    { icon: Search, label: 'Explore', route: 'explore' },
+    { icon: Calendar, label: 'Quest', route: 'quest' },
+    { icon: Bell, label: 'Notifications', route: 'notifications' },
+    { icon: Mail, label: 'Messages', route: 'chats' },
+    { icon: User, label: 'Profile', route: 'profile' },
+    { icon: Settings, label: 'Settings', route: 'settings' },
+  ];
+
+  const handleNavClick = (route: string) => {
+    setActiveRoute(route);
+    if (route === 'explore') {
+      router.push('/explore');
+    } else if (route === 'profile') {
+      router.push(`/profile/${user?.uid}`);
+    } else if (route === 'quest') {
+      router.push('/quest');
+    } else if (route === 'settings') {
+      router.push('/settings');
+    }
   };
-  [key: string]: any;
-}
+
+  return (
+    <div className="fixed left-0 top-0 h-screen w-[280px] border-r border-gray-700 bg-black p-4 flex flex-col">
+      {/* Logo */}
+      <div className="mb-8">
+        <img src='/FullLogo.svg' className="w-[130px]" alt="OnQuest" />
+      </div>
+
+      {/* Navigation Items */}
+      <nav className="flex-1 space-y-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeRoute === item.route;
+          
+          return (
+            <button
+              key={item.route}
+              onClick={() => handleNavClick(item.route)}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-full transition-colors ${
+                isActive 
+                  ? 'bg-[#F7CEB0] text-black font-medium' 
+                  : 'text-white hover:bg-gray-900'
+              }`}
+            >
+              <Icon className="w-6 h-6" />
+              <span className="text-lg">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* User Profile at Bottom */}
+      <div className="border-t border-gray-700 pt-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img 
+              src={user?.photoURL || '/default-avatar.png'} 
+              alt={user?.displayName}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <div className="flex-1 overflow-hidden">
+              <p className="text-white text-sm font-medium truncate">
+                {user?.displayName || 'User'}
+              </p>
+              <p className="text-gray-400 text-xs truncate">
+                @{user?.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onSignOut}
+            className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-900"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =================================================================
+// RIGHT SIDEBAR WITH PROFILE INFO
+// =================================================================
+const RightSidebar = ({ user, userData }: any) => {
+  const [badges, setBadges] = useState<any[]>([]);
+  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [popularUsers, setPopularUsers] = useState<any[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.uid) return;
+
+      try {
+        const userBadges = await getUserBadges(user.uid);
+        setBadges(userBadges.slice(0, 3));
+
+        const xp = userData?.totalXP || 0;
+        const level = getLevelInfo(xp);
+        setLevelInfo(level);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, [user, userData]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'users'), orderBy('followers', 'desc')),
+      (snapshot) => {
+        const usersData = snapshot.docs.map(docc => ({
+          id: docc.id,
+          ...docc.data(),
+          photoURL: docc.data().photoURL || '/default-avatar.png',
+          followers: docc.data().followers || []
+        }));
+        setPopularUsers(usersData.slice(0, 4));
+      }
+    );
+    
+    return () => unsubscribe();
+  }, []);
+
+  const handleFollow = async (uid: string) => {
+    if (!user?.uid || uid === user.uid) return;
+    
+    try {
+      const userToFollow = popularUsers.find(u => u.id === uid);
+      const isFollowing = userToFollow?.followers?.includes(user.uid);
+      
+      if (isFollowing) {
+        await unfollowUser(user.uid, uid);
+      } else {
+        await followUser(user.uid, uid);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    }
+  };
+
+  return (
+    <div className="fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
+      {/* User Profile Card */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
+        {/* Cover Image */}
+        <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
+        
+        {/* Profile Info */}
+        <div className="px-4 pb-4">
+          <img 
+            src={user?.photoURL || '/default-avatar.png'} 
+            alt={user?.displayName}
+            className="w-20 h-20 rounded-full border-4 border-gray-900 -mt-10 mb-3 object-cover"
+          />
+          
+          <h3 className="text-white text-lg font-bold mb-1">
+            {user?.displayName || 'User'}
+          </h3>
+          <p className="text-gray-400 text-sm mb-3">
+            @{user?.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}
+          </p>
+          
+          {userData?.bio && (
+            <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+              {userData.bio}
+            </p>
+          )}
+
+          {/* Stats */}
+          <div className="flex gap-4 mb-4">
+            <div>
+              <span className="text-white font-bold">{userData?.followingCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Following</span>
+            </div>
+            <div>
+              <span className="text-white font-bold">{userData?.followersCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Followers</span>
+            </div>
+          </div>
+
+          {/* Level Progress */}
+          {levelInfo && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[#F7CEB0] font-medium text-sm">
+                  {levelInfo.currentLevel.name}
+                </span>
+                {levelInfo.nextLevel && (
+                  <span className="text-gray-400 text-xs">
+                    {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2 rounded-full transition-all"
+                  style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {badges.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white font-medium text-sm">Earned Badges</h4>
+                <button 
+                  onClick={() => router.push(`/profile/${user?.uid}#badges`)}
+                  className="text-[#F7CEB0] text-xs hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {badges.map(badge => (
+                  <div 
+                    key={badge.id}
+                    className="bg-[#F8EBE2] rounded-lg p-2 flex flex-col items-center min-w-[70px]"
+                    title={badge.description}
+                  >
+                    <img 
+                      src={badge.iconUrl} 
+                      alt={badge.name}
+                      className="w-10 h-10 object-contain mb-1"
+                    />
+                    <span className="text-[#402B09] text-[10px] font-semibold text-center">
+                      {badge.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Popular Travelers */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+        <h4 className="text-white font-medium text-base mb-4">Popular Travelers</h4>
+        <div className="space-y-3">
+          {popularUsers.map((traveler) => (
+            <div key={traveler.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img 
+                  src={traveler.photoURL} 
+                  alt={traveler.displayName}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div>
+                  <h5 className="text-white text-sm font-medium">
+                    {traveler.displayName}
+                  </h5>
+                  <p className="text-gray-400 text-xs">
+                    {traveler.title || 'Travel Enthusiast'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleFollow(traveler.id)}
+                className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                  traveler.followers?.includes(user?.uid)
+                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                }`}
+              >
+                {traveler.followers?.includes(user?.uid) ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline">
+          Explore more
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // =================================================================
 // POST MENU MODAL
 // =================================================================
 interface PostMenuProps {
   post: any;
-  user: User | null;
+  user: UserType | null;
   onClose: () => void;
   onDelete?: () => void;
   onReport?: () => void;
@@ -327,14 +609,14 @@ const ShareModal = ({ post, onClose }: ShareModalProps) => {
 // =================================================================
 interface CommentModalProps {
   post: any;
-  user: User;
+  user: UserType;
   onClose: () => void;
   onCommentSubmit: (postId: string, commentText: string) => void;
 }
 
 const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProps) => {
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -346,7 +628,7 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
         const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
         const commentsSnapshot = await getDocs(commentsQuery);
         
-        const commentsData: Comment[] = [];
+        const commentsData: any[] = [];
         for (const commentDoc of commentsSnapshot.docs) {
           const commentData = commentDoc.data();
           let commentAuthor = {
@@ -440,7 +722,7 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
     }
   };
 
-  const formatCommentTime = (timestamp: { toDate: () => any; seconds: number; }) => {
+  const formatCommentTime = (timestamp: any) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
@@ -566,13 +848,11 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: CommentModalProp
   );
 };
 
-// Add this import at the top of your Feed component
-import { getPaginatedPosts } from '../../../lib/postService';
-
-// Replace the Feed component's state and useEffect with this:
-
+// =================================================================
+// DESKTOP FEED COMPONENT
+// =================================================================
 const Feed = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<any[]>([]);
@@ -585,12 +865,12 @@ const Feed = () => {
   const [publicQuests, setPublicQuests] = useState<any[]>([]);
   const [loadingQuests, setLoadingQuests] = useState(true);
   
-  // NEW: Pagination state
+  // Pagination state
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
- 
+
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -620,22 +900,22 @@ const Feed = () => {
   }, []);
 
   useEffect(() => {
-  const fetchPublicQuests = async () => {
-    try {
-      setLoadingQuests(true);
-      const quests = await questService.getPublicQuests(8);
-      setPublicQuests(quests);
-    } catch (error) {
-      console.error('Error fetching public quests:', error);
-    } finally {
-      setLoadingQuests(false);
-    }
-  };
+    const fetchPublicQuests = async () => {
+      try {
+        setLoadingQuests(true);
+        const quests = await questService.getPublicQuests(8);
+        setPublicQuests(quests);
+      } catch (error) {
+        console.error('Error fetching public quests:', error);
+      } finally {
+        setLoadingQuests(false);
+      }
+    };
 
-  fetchPublicQuests();
-}, []);
+    fetchPublicQuests();
+  }, []);
 
-  // NEW: Load initial posts
+  // Load initial posts
   useEffect(() => {
     const loadInitialPosts = async () => {
       if (!userData) return;
@@ -663,7 +943,7 @@ const Feed = () => {
     loadInitialPosts();
   }, [userData]);
 
-  // NEW: Load more posts function
+  // Load more posts function
   const loadMorePosts = async () => {
     if (!hasMore || loadingMore || !lastVisible) return;
     
@@ -686,7 +966,7 @@ const Feed = () => {
     }
   };
 
-  // NEW: Infinite scroll observer
+  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -709,7 +989,7 @@ const Feed = () => {
     };
   }, [hasMore, loadingMore, lastVisible]);
 
-  // Events and Popular Users listeners (keep as is)
+  // Events and Popular Users listeners
   useEffect(() => {
     const unsubscribeEvents = onSnapshot(
       query(collection(db, 'events'), orderBy('startTime', 'asc')),
@@ -745,7 +1025,7 @@ const Feed = () => {
     };
   }, []);
 
-  // All your existing handler functions remain the same
+  // Handler functions
   const handleLike = async (postId: string) => {
     if (!user?.uid) return;
     
@@ -924,7 +1204,7 @@ const Feed = () => {
     }
   };
 
-  const formatTime = (timestamp: { seconds: number; }) => {
+  const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
     const date = new Date(timestamp.seconds * 1000);
     const now = new Date();
@@ -936,34 +1216,13 @@ const Feed = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const EventCard = ({ date, title, location, type = "other" }: {
-    date: { day: string; month: string };
-    title: string;
-    location: string;
-    type?: string;
-  }) => {
-    const getTypeColor = () => {
-      switch (type) {
-        case "music": return "bg-blue-500";
-        case "workshop": return "bg-green-500";
-        case "meetup": return "bg-purple-500";
-        case "festival": return "bg-yellow-500";
-        default: return "bg-[#EA6100]";
-      }
-    };
-
-    return (
-      <div className="flex items-center gap-3">
-        <div className={`flex flex-col items-center justify-center min-w-[48px] h-12 ${getTypeColor()} rounded-lg text-white`}>
-          <span className="text-sm font-medium">{date.month}</span>
-          <span className="text-base font-bold">{date.day}</span>
-        </div>
-        <div className="flex-1">
-          <h3 className="text-sm font-medium text-white">{title}</h3>
-          <p className="text-xs text-gray-400">{location}</p>
-        </div>
-      </div>
-    );
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      router.push('/');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   const TravelerCard = ({ name, title, avatar, onFollow, isFollowing }: {
@@ -996,7 +1255,7 @@ const Feed = () => {
     );
   };
 
-  const DesktopPost = ({ post, user }: { post: any, user: User | null }) => {
+  const DesktopPost = ({ post, user }: { post: any, user: UserType | null }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
     const isSaved = post.isSaved;
 
@@ -1221,57 +1480,20 @@ const Feed = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
+      {/* Left Sidebar */}
+      <LeftSidebar 
+        user={user} 
+        onNavigate={(route: string) => console.log('Navigate to:', route)}
+        onSignOut={handleSignOut}
+      />
 
-      <main className="box-border flex gap-4 max-w-[1800px] mx-auto px-[67px] py-5 max-md:flex-col max-md:p-5 max-sm:p-2.5">
-        <aside className="w-[332px] max-md:w-full">
-          <div className="border bg-gray-900 mb-3 rounded-lg border-gray-700">
-            <div className="h-[76px] overflow-hidden bg-gradient-to-r from-gray-800 to-gray-900 rounded-t-lg">
-              <img
-                src="https://cdn.builder.io/api/v1/image/assets/TEMP/9e602cf47f7f87365e5624f662b21dd3f5655dcf"
-                alt="Cover"
-                className="w-full h-full object-cover opacity-50"
-              />
-            </div>
-            <div className="p-5">
-              {user ? (
-                <>
-                  <img
-                    src={user.photoURL || '/default-avatar.png'}
-                    alt="Profile"
-                    className="-mt-10 mb-2.5 w-16 h-16 rounded-full object-cover border-2 border-[#F7CEB0]"
-                  />
-                  <h2 className="text-xl mb-1 text-white">{user.displayName || 'User'}</h2>
-                  <p className="text-sm text-gray-400">
-                    {userData?.title || 'Travel Enthusiast'}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="-mt-10 mb-2.5 w-16 h-16 bg-gray-700 rounded-full"></div>
-                  <h2 className="text-xl mb-1 text-white">Guest</h2>
-                  <p className="text-sm text-gray-400">Sign in to post</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          <nav className="border bg-gray-900 p-3 rounded-lg border-gray-700">
-            <div className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
-              <Search className="w-5 h-5" />
-              <span>Events</span>
-            </div>
-            <div 
-              onClick={() => router.push('/saved')}
-              className="flex items-center gap-3 text-base p-2 text-gray-300 hover:text-[#F7CEB0] hover:bg-gray-800 rounded-lg cursor-pointer transition-colors"
-            >
-              <Bookmark className="w-5 h-5" />
-              <span>Saved</span>
-            </div>
-          </nav>
-        </aside>
-
-        <section className="w-[680px] max-md:w-full">
+      {/* Main Feed Area */}
+      <main className="ml-[280px] mr-[380px] min-h-screen border-x border-gray-700">
+        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-gray-700 p-4 z-10">
+          <h2 className="text-xl font-bold text-white">Feed</h2>
+        </div>
+        
+        <div className="p-4">
           {user && <CreatePost onPostCreated={() => {}} />}
           
           {initialLoading ? (
@@ -1284,7 +1506,7 @@ const Feed = () => {
                 <DesktopPost key={post.id} post={post} user={user} />
               ))}
 
-              {/* NEW: Infinite scroll sentinel */}
+              {/* Infinite scroll sentinel */}
               {hasMore && (
                 <div id="scroll-sentinel" className="py-4">
                   {loadingMore && (
@@ -1311,69 +1533,26 @@ const Feed = () => {
               )}
             </>
           )}
-        </section>
-
-        <aside className="w-[332px] max-md:w-full">
-          <div className="border bg-gray-900 p-4 rounded-lg border-gray-700">
-            <h2 className="text-base font-medium mb-4 text-white">Upcoming Events</h2>
-            <div className="flex flex-col gap-3">
-              {events.map((event) => (
-                <EventCard
-                  key={event.id}
-                  date={{
-                    day: new Date(event.startTime).getDate().toString(),
-                    month: new Date(event.startTime).toLocaleString('default', { month: 'short' })
-                  }}
-                  title={event.title}
-                  location={event.location}
-                  type={event.type || 'other'}
-                />
-              ))}
-              {events.length === 0 && (
-                <p className="text-sm text-gray-400">No upcoming events</p>
-              )}
-              <button className="text-[#F7CEB0] text-sm font-medium mt-2 hover:underline">
-                Explore more
-              </button>
-            </div>
-          </div>
-
-          <div className="border bg-gray-900 mt-4 p-4 rounded-lg border-gray-700">
-            <h2 className="text-base font-medium mb-4 text-white">Popular Travelers</h2>
-            <div className="flex flex-col gap-3">
-              {popularUsers.map((traveler) => (
-                <TravelerCard
-                  key={traveler.id}
-                  name={traveler.displayName}
-                  title={traveler.title || 'Travel Enthusiast'}
-                  avatar={traveler.photoURL || '/default-avatar.png'}
-                  onFollow={() => handleFollow(traveler.id)}
-                  isFollowing={traveler.followers?.includes(user?.uid)}
-                />
-              ))}
-              {popularUsers.length === 0 && (
-                <p className="text-sm text-gray-400">No popular travelers yet</p>
-              )}
-              <button className="text-[#F7CEB0] text-sm font-medium mt-2 hover:underline">
-                Explore more
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        {user && (
-          <div className="fixed bottom-6 right-6 z-50">
-            <button
-              onClick={() => router.push('/create-quest')}
-              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F7CEB0] focus:ring-opacity-50"
-              aria-label="Create new quest"
-            >
-              <FaPlus className="text-xl" />
-            </button>
-          </div>
-        )}
+        </div>
       </main>
 
+      {/* Right Sidebar */}
+      <RightSidebar user={user} userData={userData} />
+
+      {/* Floating Create Quest Button */}
+      {user && (
+        <div className="fixed bottom-6 left-[calc(280px+50%)] transform -translate-x-1/2 z-50">
+          <button
+            onClick={() => router.push('/create-quest')}
+            className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
+            aria-label="Create new quest"
+          >
+            <FaPlus className="text-xl" />
+          </button>
+        </div>
+      )}
+
+      {/* Modals */}
       {selectedPostForComment && user && (
         <CommentModal
           post={selectedPostForComment}
@@ -1410,7 +1589,7 @@ const Feed = () => {
 // =================================================================
 interface MobilePostCardProps {
   post: any;
-  currentUser: User;
+  currentUser: UserType;
   onLike: () => void;
   onComment: (text: string) => void;
   onSave: () => void;
@@ -1429,7 +1608,7 @@ const MobilePostCard = ({
 }: MobilePostCardProps) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
 
   const isLiked = post.likedBy?.includes(currentUser.uid);
@@ -1478,7 +1657,7 @@ const MobilePostCard = ({
       const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
       const commentsSnapshot = await getDocs(commentsQuery);
       
-      const commentsData: Comment[] = [];
+      const commentsData: any[] = [];
       for (const commentDoc of commentsSnapshot.docs) {
         const commentData = commentDoc.data();
         let commentAuthor = {
@@ -1798,18 +1977,19 @@ const MobilePostCard = ({
   );
 };
 
-// Replace the MobileFeedPage component with this updated version:
-
+// =================================================================
+// MOBILE FEED PAGE
+// =================================================================
 const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   
-  // NEW: Pagination state
+  // Pagination state
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1839,7 +2019,7 @@ const MobileFeedPage = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  // NEW: Load initial posts
+  // Load initial posts
   useEffect(() => {
     const loadInitialPosts = async () => {
       if (!user) return;
@@ -1880,7 +2060,7 @@ const MobileFeedPage = () => {
     loadInitialPosts();
   }, [user, userData]);
 
-  // NEW: Load more posts
+  // Load more posts
   const loadMorePosts = async () => {
     if (!hasMore || loadingMore || !lastVisible || !user) return;
     
@@ -1917,7 +2097,7 @@ const MobileFeedPage = () => {
     }
   };
 
-  // NEW: Infinite scroll observer
+  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -2141,7 +2321,7 @@ const MobileFeedPage = () => {
               />
             ))}
 
-            {/* NEW: Infinite scroll sentinel for mobile */}
+            {/* Infinite scroll sentinel for mobile */}
             {hasMore && (
               <div id="mobile-scroll-sentinel" className="py-4">
                 {loadingMore && (
@@ -2193,4 +2373,3 @@ const MobileFeedPage = () => {
 };
 
 export default ResponsiveFeedPage;
-

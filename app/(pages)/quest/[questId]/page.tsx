@@ -1,5 +1,5 @@
 // PASTE THIS ENTIRE FILE AS: app/quest/[questId]/page.tsx
-// This is the COMPLETE working version with all features
+// Complete working version with all features fixed
 
 'use client'
 import React, { useState, useEffect } from 'react';
@@ -12,6 +12,7 @@ import { Map, Calendar, ArrowLeft, Clock, MapPin as MapPinIcon, Filter, Edit3, S
 import InteractiveMap from '../../../../components/quest/InteractiveMap';
 import { useToast, ToastContainer } from '@/hooks/use-toast';
 import { PostVisibilityModal } from '@/components/QuestPopups';
+import { LocationInput } from '@/components/common/LocationInput';
 
 interface ActivityLocation {
   name: string;
@@ -53,6 +54,178 @@ export interface Quest {
   copiedFrom?: string;
   itinerary: { days: Day[]; };
 }
+
+const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
+  const [title, setTitle] = useState('');
+  const [time, setTime] = useState('Morning');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState<{ name: string; coordinates?: { lat: number; lng: number } }>({ name: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      setTime('Morning');
+      setDescription('');
+      setLocation({ name: '' });
+      setImageFile(null);
+      setImagePreview('');
+    }
+  }, [isOpen]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  const handleSubmit = () => {
+    if (!title.trim()) {
+      alert('Please enter a title');
+      return;
+    }
+
+    const newActivity = {
+      time: time,
+      title: title.trim(),
+      description: description.trim(),
+      location: location,
+      tags: [],
+      collapsed: false,
+      media: imagePreview ? [{ url: imagePreview, type: 'image' as const }] : []
+    };
+
+    onAdd(newActivity);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-900 rounded-xl max-w-md w-full border border-gray-700 my-8">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 className="text-lg font-bold text-white">Add New Activity</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Activity Title *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+              placeholder="e.g., Visit Temple, Lunch at Restaurant"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Time of Day *</label>
+            <select
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none cursor-pointer"
+            >
+              <option value="Morning">Morning</option>
+              <option value="Afternoon">Afternoon</option>
+              <option value="Evening">Evening</option>
+              <option value="Night">Night</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Location</label>
+            <LocationInput
+              value={location.name}
+              onChange={(locationData) => setLocation(locationData)}
+              placeholder="Search for a location..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Start typing to search with Google Places
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+              placeholder="Add details about this activity..."
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Add Image</label>
+            {!imagePreview ? (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Plus size={32} className="text-gray-500 mb-2" />
+                  <p className="text-sm text-gray-400">Click to upload image</p>
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+                <button
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 rounded-full transition-colors"
+                  title="Remove image"
+                >
+                  <X size={16} className="text-white" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim()}
+              className="flex-1 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Activity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EditTitleModal = ({ isOpen, onClose, currentTitle, currentDestination, onSave }: any) => {
   const [title, setTitle] = useState(currentTitle);
@@ -141,6 +314,8 @@ const QuestViewPage = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditTitleModal, setShowEditTitleModal] = useState(false);
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
+  const [addActivityContext, setAddActivityContext] = useState<{ dayIndex: number; afterIndex: number } | null>(null);
   const { toasts, showToast, removeToast } = useToast();
 
   const params = useParams();
@@ -273,34 +448,42 @@ const QuestViewPage = () => {
   };
 
   const handleShareToFeed = async () => {
-  if (!user || !quest) return;
-  try {
-    await createPost({
-      uid: user.uid,
-      text: `Check out my Quest to ${quest.destination}! 🗺️`,
-      photoUrl: quest.coverImageUrl || '',
-      postType: 'quest_completion', // IMPORTANT!
-      questContext: {
-        questId: questId,
-        questTitle: quest.title ||  `An amazing journey to ${quest.destination}`,
-        description: quest.destination ,
-        category: 'travel'
-      }
-    });
-    showToast('Quest shared to feed!', 'success');
-    setIsShareModalOpen(false);
-  } catch (error) {
-    console.error('Failed to share quest to feed', error);
-    showToast('Failed to share quest', 'error');
-  }
-};
+    if (!user || !quest) return;
+    try {
+      await createPost({
+        uid: user.uid,
+        text: `Check out my Quest to ${quest.destination}! 🗺️`,
+        photoUrl: quest.coverImageUrl || '',
+        postType: 'quest_completion',
+        questContext: {
+          questId: questId,
+          questTitle: quest.title || `An amazing journey to ${quest.destination}`,
+          description: quest.destination,
+          category: 'travel'
+        }
+      });
+      showToast('Quest shared to feed!', 'success');
+      setIsShareModalOpen(false);
+    } catch (error) {
+      console.error('Failed to share quest to feed', error);
+      showToast('Failed to share quest', 'error');
+    }
+  };
 
-  const addActivityBetween = (dayIndex: number, afterIndex: number) => {
-    if (!editedQuest) return;
-    const newActivity: Activity = { time: 'Morning', title: 'New Activity', description: 'Add description here', location: { name: '' }, tags: [], collapsed: false };
+  const openAddActivityModal = (dayIndex: number, afterIndex: number) => {
+    setAddActivityContext({ dayIndex, afterIndex });
+    setShowAddActivityModal(true);
+  };
+
+  const handleAddActivity = (activity: any) => {
+    if (!editedQuest || !addActivityContext) return;
+    const { dayIndex, afterIndex } = addActivityContext;
     const updated = { ...editedQuest };
-    updated.itinerary.days[dayIndex].activities.splice(afterIndex + 1, 0, newActivity);
+    updated.itinerary.days[dayIndex].activities.splice(afterIndex + 1, 0, activity);
     setEditedQuest(updated);
+    setShowAddActivityModal(false);
+    setAddActivityContext(null);
+    showToast('Activity added successfully!', 'success');
   };
 
   const deleteActivity = (dayIndex: number, activityIndex: number) => {
@@ -379,7 +562,15 @@ const QuestViewPage = () => {
   const dayActivitiesWithCoords = (mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]?.activities?.filter((a: any) => a.location?.coordinates)) || [];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white pb-20 lg:pb-0">
+      <AddActivityModal 
+        isOpen={showAddActivityModal} 
+        onClose={() => {
+          setShowAddActivityModal(false);
+          setAddActivityContext(null);
+        }}
+        onAdd={handleAddActivity}
+      />
       <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
       <ShareQuestModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} onShareToFeed={handleShareToFeed} />
 
@@ -399,7 +590,6 @@ const QuestViewPage = () => {
             <div className="flex items-center gap-2">
               <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"><Share2 size={16} /><span className="hidden md:inline">Share</span></button>
               {!canEdit && (<button onClick={handleCopyQuest} className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"><Copy size={16} /><span className="hidden md:inline">Copy</span></button>)}
-              {isOwner && !isEditMode && (<button onClick={() => setShowPostModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"><Send size={16} /><span className="hidden md:inline">Post Quest</span></button>)}
               {canEdit && !isEditMode && (<button onClick={() => setIsEditMode(true)} className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"><Edit3 size={16} /><span className="hidden md:inline">Edit</span></button>)}
               {isEditMode && (<><button onClick={() => { setIsEditMode(false); setEditedQuest(JSON.parse(JSON.stringify(quest))); }} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm">Cancel</button><button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm disabled:opacity-50"><Save size={16} />{saving ? 'Saving...' : 'Save'}</button></>)}
             </div>
@@ -407,21 +597,225 @@ const QuestViewPage = () => {
         </div>
       </header>
 
-      {!isEditMode && (<div className="md:hidden sticky top-[65px] z-10 bg-gray-950 border-b border-gray-800 px-4 py-3"><button onClick={() => setShowMap(!showMap)} className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg transition-all font-medium ${showMap ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}><Map size={20} /><span>{showMap ? 'Hide Map' : 'Show Map View'}</span></button></div>)}
+      {!isEditMode && (<div className="lg:hidden sticky top-[65px] z-10 bg-gray-950 border-b border-gray-800 px-4 py-3"><button onClick={() => setShowMap(!showMap)} className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg transition-all font-medium ${showMap ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}><Map size={20} /><span>{showMap ? 'Hide Map' : 'Show Map View'}</span></button></div>)}
 
-      <div className="md:hidden">
-        {showMap && !isEditMode && (<div className="border-b-2 border-orange-500"><div className="p-3 bg-gray-900 border-b border-gray-800"><div className="flex items-center gap-2 overflow-x-auto scrollbar-hide"><Filter size={16} className="text-gray-400 flex-shrink-0" /><button onClick={() => { setMapFilter('all'); setSelectedDay(0); }} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}>All Days</button>{displayQuest.itinerary?.days?.map((day: any, index: number) => (<button key={index} onClick={() => { setMapFilter(index); setSelectedDay(index); }} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}>Day {day.day}</button>))}</div></div><div className="h-[40vh]"><InteractiveMap flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} activeIndex={activeCardIndex} onPinClick={(index: number) => setActiveCardIndex(index)} /></div></div>)}
-        <div className="pt-4"><div className="p-4">{displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (<div key={dayIndex} className="mb-8"><button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-4 w-full text-left hover:bg-gray-900 p-2 rounded-lg transition-colors"><div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-sm shadow-lg">{day.day}</div><div className="flex-1"><h2 className="text-lg font-bold">{day.title}</h2><p className="text-xs text-gray-400">{new Date(day.date).toDateString()}</p></div>{collapsedDays.has(dayIndex) ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronUp size={20} className="text-gray-400" />}</button>{!collapsedDays.has(dayIndex) && (<div className="space-y-0 pl-2">{day.activities?.map((activity: any, activityIndex: number) => (<React.Fragment key={activityIndex}>{(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (<TravelActivityCard activity={activity} isEditMode={isEditMode} />) : (<GoogleFormActivityCard activity={activity} isEditMode={isEditMode} dayIndex={dayIndex} activityIndex={activityIndex} totalActivities={day.activities.length} onDelete={() => deleteActivity(dayIndex, activityIndex)} onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} />)}{isEditMode && (<div className="flex justify-center items-center gap-2 -my-2 relative z-10"><button onClick={() => addActivityBetween(dayIndex, activityIndex)} className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" title="Add activity"><Plus size={20} className="text-gray-400 group-hover:text-white" /></button></div>)}</React.Fragment>))}</div>)}</div>))}</div></div>
+      <div className="lg:hidden">
+        {showMap && !isEditMode && (
+          <div className="border-b-2 border-orange-500">
+            <div className="p-3 bg-gray-900 border-b border-gray-800">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <Filter size={16} className="text-gray-400 flex-shrink-0" />
+                <button 
+                  onClick={() => { setMapFilter('all'); setSelectedDay(0); }} 
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                >
+                  All Days
+                </button>
+                {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+                  <button 
+                    key={index} 
+                    onClick={() => { setMapFilter(index); setSelectedDay(index); }} 
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    Day {day.day}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="h-[40vh]">
+              <InteractiveMap 
+                flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
+                activeIndex={activeCardIndex} 
+                onPinClick={(index: number) => setActiveCardIndex(index)} 
+              />
+            </div>
+          </div>
+        )}
+        <div className="pt-4">
+          <div className="p-4">
+            {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
+              <div key={dayIndex} className="mb-8">
+                <button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-4 w-full text-left hover:bg-gray-900 p-2 rounded-lg transition-colors">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-sm shadow-lg">{day.day}</div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-bold">{day.title}</h2>
+                    <p className="text-xs text-gray-400">{new Date(day.date).toDateString()}</p>
+                  </div>
+                  {collapsedDays.has(dayIndex) ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronUp size={20} className="text-gray-400" />}
+                </button>
+                {!collapsedDays.has(dayIndex) && (
+                  <div className="space-y-0 pl-2">
+                    {day.activities?.map((activity: any, activityIndex: number) => (
+                      <React.Fragment key={activityIndex}>
+                        {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                        ) : (
+                          <GoogleFormActivityCard 
+                            activity={activity} 
+                            isEditMode={isEditMode} 
+                            dayIndex={dayIndex} 
+                            activityIndex={activityIndex} 
+                            totalActivities={day.activities.length} 
+                            onDelete={() => deleteActivity(dayIndex, activityIndex)} 
+                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} 
+                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} 
+                            onDragStart={handleDragStart} 
+                            onDragOver={handleDragOver} 
+                            onDrop={handleDrop} 
+                            onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} 
+                            onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} 
+                          />
+                        )}
+                        {isEditMode && (
+                          <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                            <button 
+                              onClick={() => openAddActivityModal(dayIndex, activityIndex)} 
+                              className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" 
+                              title="Add activity"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                            </button>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {isOwner && !isEditMode && (<button onClick={() => setShowPostModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg translate x-140"><Send size={16} /><span className="hidden md:inline">Post Quest</span></button>)}
+      <div className="hidden lg:flex max-w-7xl mx-auto">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 md:p-6 pr-16 md:pr-20">
+            {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
+              <div key={dayIndex} className="mb-8">
+                <button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-6 w-full text-left hover:bg-gray-900 p-3 rounded-lg transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold shadow-lg">{day.day}</div>
+                  <div className="flex-1">
+                    <h2 className="text-xl font-bold">{day.title}</h2>
+                    <p className="text-sm text-gray-400">{new Date(day.date).toDateString()}</p>
+                  </div>
+                  {collapsedDays.has(dayIndex) ? <ChevronDown size={24} className="text-gray-400" /> : <ChevronUp size={24} className="text-gray-400" />}
+                </button>
+                {!collapsedDays.has(dayIndex) && (
+                  <div className="space-y-0">
+                    {day.activities?.map((activity: any, activityIndex: number) => (
+                      <React.Fragment key={activityIndex}>
+                        {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                        ) : (
+                          <GoogleFormActivityCard 
+                            activity={activity} 
+                            isEditMode={isEditMode} 
+                            dayIndex={dayIndex} 
+                            activityIndex={activityIndex} 
+                            totalActivities={day.activities.length} 
+                            onDelete={() => deleteActivity(dayIndex, activityIndex)} 
+                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} 
+                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} 
+                            onDragStart={handleDragStart} 
+                            onDragOver={handleDragOver} 
+                            onDrop={handleDrop} 
+                            onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} 
+                            onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} 
+                          />
+                        )}
+                        {isEditMode && (
+                          <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                            <button 
+                              onClick={() => openAddActivityModal(dayIndex, activityIndex)} 
+                              className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" 
+                              title="Add activity"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                            </button>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        {!isEditMode && (
+          <div className="hidden lg:block w-2/5 border-l border-gray-800 sticky top-[65px] h-[calc(100vh-65px)] flex flex-col">
+            <div className="p-4 border-b border-gray-800">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                <Filter size={16} className="text-gray-400 flex-shrink-0" />
+                <button 
+                  onClick={() => setMapFilter('all')} 
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                >
+                  All Days
+                </button>
+                {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+                  <button 
+                    key={index} 
+                    onClick={() => setMapFilter(index)} 
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    Day {day.day}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-grow h-0">
+              <InteractiveMap 
+                flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
+                activeIndex={activeCardIndex} 
+                onPinClick={(index: number) => setActiveCardIndex(index)} 
+              />
+            </div>
+            {isOwner && (
+              <div className="p-4 border-t border-gray-800">
+                <button
+                  onClick={() => setShowPostModal(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"
+                >
+                  <Send size={16} />
+                  <span>Post Quest</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-
-      <div className="hidden md:flex max-w-7xl mx-auto"><div className="flex-1 overflow-y-auto"><div className="max-w-4xl mx-auto p-4 md:p-6">{displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (<div key={dayIndex} className="mb-8"><button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-6 w-full text-left hover:bg-gray-900 p-3 rounded-lg transition-colors"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold shadow-lg">{day.day}</div><div className="flex-1"><h2 className="text-xl font-bold">{day.title}</h2><p className="text-sm text-gray-400">{new Date(day.date).toDateString()}</p></div>{collapsedDays.has(dayIndex) ? <ChevronDown size={24} className="text-gray-400" /> : <ChevronUp size={24} className="text-gray-400" />}</button>{!collapsedDays.has(dayIndex) && (<div className="space-y-0">{day.activities?.map((activity: any, activityIndex: number) => (<React.Fragment key={activityIndex}>{(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (<TravelActivityCard activity={activity} isEditMode={isEditMode} />) : (<GoogleFormActivityCard activity={activity} isEditMode={isEditMode} dayIndex={dayIndex} activityIndex={activityIndex} totalActivities={day.activities.length} onDelete={() => deleteActivity(dayIndex, activityIndex)} onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} />)}{isEditMode && (<div className="flex justify-center items-center gap-2 -my-2 relative z-10"><button onClick={() => addActivityBetween(dayIndex, activityIndex)} className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" title="Add activity"><Plus size={20} className="text-gray-400 group-hover:text-white" /></button></div>)}</React.Fragment>))}</div>)}</div>))}</div></div>{!isEditMode && (<div className="hidden lg:block w-2/5 border-l border-gray-800 sticky top-[65px] h-[calc(100vh-65px)]"><div className="p-4 border-b border-gray-800"><div className="flex items-center gap-2 overflow-x-auto scrollbar-hide"><Filter size={16} className="text-gray-400 flex-shrink-0" /><button onClick={() => setMapFilter('all')} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}>All Days</button>{displayQuest.itinerary?.days?.map((day: any, index: number) => (<button key={index} onClick={() => setMapFilter(index)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}>Day {day.day}</button>))}</div></div><div className="h-[calc(100%-4rem)]"><InteractiveMap flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} activeIndex={activeCardIndex} onPinClick={(index: number) => setActiveCardIndex(index)} /></div></div>)}</div>
+      {/* Floating Action Button for Mobile & Tablet */}
+      {isOwner && !isEditMode && (
+        <div className="lg:hidden fixed bottom-6 right-6 z-30">
+          <button
+            onClick={() => setShowPostModal(true)}
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-full transition-all shadow-2xl"
+          >
+            <Send size={20} className="text-white" />
+            <span className="font-semibold text-white">Post Quest</span>
+          </button>
+        </div>
+      )}
       
-      <PostVisibilityModal isOpen={showPostModal} onClose={() => setShowPostModal(false)} onPost={handlePostQuest} questTitle={quest.destination} hasCoverImage={!!quest.coverImageUrl} />
+      <PostVisibilityModal 
+        isOpen={showPostModal} 
+        onClose={() => setShowPostModal(false)} 
+        onPost={handlePostQuest} 
+        questTitle={quest.destination} 
+        hasCoverImage={!!quest.coverImageUrl} 
+      />
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      <style jsx>{`.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar { 
+          display: none; 
+        } 
+        .scrollbar-hide { 
+          -ms-overflow-style: none; 
+          scrollbar-width: none; 
+        }
+      `}</style>
     </div>
   );
 };
@@ -436,11 +830,17 @@ const TravelActivityCard = ({ activity, isEditMode }: any) => {
     if (title.includes('ferry') || title.includes('ship')) return <Ship size={24} className="text-orange-400" />;
     return <Plane size={24} className="text-orange-400" />;
   };
-  return <div className={`relative mb-4 bg-gray-900 rounded-xl border-2 p-4 flex items-center gap-4 ${isEditMode ? 'border-gray-700' : 'border-transparent'}`}><div className="bg-orange-500/10 p-3 rounded-full">{getIcon()}</div><div className="flex-1"><h3 className="font-semibold text-white">{activity.title}</h3>{activity.description && <p className="text-sm text-gray-400">{activity.description}</p>}</div></div>;
+  
+  return (
+    <div className={`relative mb-4 bg-gray-900 rounded-xl border-2 p-4 flex items-center gap-4 ${isEditMode ? 'border-gray-700' : 'border-transparent'}`}>
+      <div className="bg-orange-500/10 p-3 rounded-full">{getIcon()}</div>
+      <div className="flex-1">
+        <h3 className="font-semibold text-white">{activity.title}</h3>
+        {activity.description && <p className="text-sm text-gray-400">{activity.description}</p>}
+      </div>
+    </div>
+  );
 };
-
-// Replace the GoogleFormActivityCard component with this version
-// Arrows on RIGHT side, visible on mobile too, with 6-dot handle
 
 const GoogleFormActivityCard = ({ 
   activity, 
@@ -473,8 +873,8 @@ const GoogleFormActivityCard = ({
         isEditMode ? 'border-gray-700 hover:border-orange-500 focus-within:border-orange-500' : 'border-transparent'
       }`}
     >
-      {/* RIGHT SIDE CONTROLS - Visible on hover (desktop) and always on mobile */}
-      {isEditMode && (isHovered || window.innerWidth < 768) && (
+      {/* RIGHT SIDE CONTROLS - Visible on hover (desktop) and always on mobile/tablet */}
+      {isEditMode && (isHovered || (typeof window !== 'undefined' && window.innerWidth < 1024)) && (
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full flex items-center gap-2 pl-2 z-10">
           {/* 6-Dot Drag Handle */}
           <button 
@@ -487,11 +887,10 @@ const GoogleFormActivityCard = ({
                 clientY: touch.clientY,
                 bubbles: true
               });
-              e.currentTarget.dispatchEvent(dragEvent);
+              (e.currentTarget as HTMLElement).dispatchEvent(dragEvent);
             }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="text-gray-500">
-              {/* 6 dots in 2 columns */}
               <circle cx="7" cy="5" r="1.5" />
               <circle cx="13" cy="5" r="1.5" />
               <circle cx="7" cy="10" r="1.5" />
@@ -577,7 +976,7 @@ const GoogleFormActivityCard = ({
                 src={activity.media[0].url} 
                 alt={activity.title} 
                 className="w-full h-full object-cover" 
-                onError={(e) => { e.currentTarget.parentElement?.remove(); }} 
+                onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }} 
               />
             </div>
           )}
@@ -597,13 +996,16 @@ const GoogleFormActivityCard = ({
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Time</label>
-                <input 
-                  type="text" 
-                  value={activity.time || ''} 
-                  onChange={(e) => onUpdate('time', e.target.value)} 
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none font-bold" 
-                  placeholder="e.g., Morning, 9:00 AM" 
-                />
+                <select
+                  value={activity.time || 'Morning'}
+                  onChange={(e) => onUpdate('time', e.target.value)}
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none font-bold cursor-pointer"
+                >
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Evening">Evening</option>
+                  <option value="Night">Night</option>
+                </select>
               </div>
 
               <div>
@@ -619,13 +1021,14 @@ const GoogleFormActivityCard = ({
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Location</label>
-                <input 
-                  type="text" 
-                  value={activity.location?.name || ''} 
-                  onChange={(e) => onUpdate('location', { ...activity.location, name: e.target.value })} 
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" 
-                  placeholder="Location name" 
+                <LocationInput
+                  value={activity.location?.name || ''}
+                  onChange={(locationData) => onUpdate('location', locationData)}
+                  placeholder="Search for a location..."
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Start typing to search with Google Places
+                </p>
               </div>
             </div>
           ) : (
@@ -658,11 +1061,5 @@ const GoogleFormActivityCard = ({
     </div>
   );
 };
-
-// Also add this to the parent container in your main component to add right padding for the arrows
-// Wrap your activities list with this:
-// <div className="pr-16 md:pr-20">
-//   {/* Your activity cards here */}
-// </div>
 
 export default QuestViewPage;
