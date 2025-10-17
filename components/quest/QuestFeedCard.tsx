@@ -4,6 +4,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Heart, MapPin, User } from 'lucide-react';
+import { FaHeartbeat } from 'react-icons/fa';
 
 interface QuestFeedCardProps {
   quest: {
@@ -72,7 +73,7 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
         {/* Like Badge */}
         {quest.likeCount && quest.likeCount > 0 && (
           <div className="absolute top-4 left-4 bg-black bg-opacity-60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
-            <Heart size={14} className="text-red-500 fill-red-500" />
+            <FaHeartbeat size={14} className="text-red-500 fill-red-500" />
             <span className="text-white text-xs font-medium">{quest.likeCount}</span>
           </div>
         )}

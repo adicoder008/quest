@@ -71,7 +71,9 @@ useEffect(() => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
-      <Navbar />
+      <Navbar user={null} onSignOut={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
       <div className="flex flex-1 px-12 gap-4 pt-4 max-w-[1440px] mx-auto w-full max-md:flex-col">
         <div className="flex-1">
           <ProfileHeader />

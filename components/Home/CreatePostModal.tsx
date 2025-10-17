@@ -1,407 +1,256 @@
 'use client';
-
-import { useState, useRef } from 'react';
-import { X, Image, Target, Type, MapPin, Tag, Users } from 'lucide-react';
-import { createPost, POST_TYPES } from '../../lib/postService';
+import { useState, useRef, useMemo } from 'react';
+import { X, Image, MapPin, Tag, Users } from 'lucide-react';
+import { createPost, POST_TYPES } from '@/lib/postService';
 
 interface CreatePostModalProps {
-  onClose: () => void;
-  user: {
-    uid: string;
-    displayName?: string;
-    photoURL?: string;
-    // Add other user properties if needed
-  };
+    onClose: () => void;
+    user: {
+        uid: string;
+        displayName?: string;
+        photoURL?: string;
+    };
 }
 
 const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
-  const [postType, setPostType] = useState('normal');
-  const [contentType, setContentType] = useState('text'); // 'text', 'photo', 'photo_text'
-  const [text, setText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [location, setLocation] = useState('');
-  const [tags, setTags] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showLocationInput, setShowLocationInput] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
-  
-  // Quest-specific fields
-  const [questTitle, setQuestTitle] = useState('');
-  const [questDescription, setQuestDescription] = useState('');
-  
-  // Event-specific fields
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventSubtitle, setEventSubtitle] = useState('');
-  const [eventPrice, setEventPrice] = useState('');
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (typeof event.target?.result === 'string') {
-          setImagePreview(event.target.result);
-        }
-      };
-      reader.readAsDataURL(file);
-      
-      if (contentType === 'text') {
-        setContentType('photo');
-      }
-    }
-  };
-
-  const removeImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    if (contentType === 'photo') {
-      setContentType('text');
-    } else if (contentType === 'photo_text') {
-      setContentType('text');
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!user?.uid) {
-      alert('Please log in to create a post');
-      return;
-    }
-
-    // Validation
-    if (contentType === 'text' && !text.trim()) {
-      alert('Please add some text');
-      return;
-    }
-    if (contentType === 'photo' && !selectedImage) {
-      alert('Please select an image');
-      return;
-    }
-    if (contentType === 'photo_text' && (!text.trim() || !selectedImage)) {
-      alert('Please add both text and image');
-      return;
-    }
-
-    if (postType === 'quest' && !questTitle.trim()) {
-      alert('Please add a quest title');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      interface PostData {
-        uid: string;
-        userName: string;
-        userProfilePic: string;
-        text: string;
-        postType: string;
-        location: string | null;
-        topics: string[];
-        imageFile: File | null;
-        caption: string;
-        questContext?: {
-          questTitle: string;
-          description: string;
-          questId: string;
-        };
-        eventTitle?: string;
-        eventSubtitle?: string;
-        eventPrice?: string;
-      }
-
-      const postData: PostData = {
-        uid: user.uid,
-        userName: user.displayName || 'Anonymous',
-        userProfilePic: user.photoURL || '',
-        text: text.trim(),
-        postType: postType === 'normal' ? POST_TYPES.REGULAR : 
-                 postType === 'quest' ? POST_TYPES.QUEST_COMPLETION : POST_TYPES.EVENT,
-        location: location.trim() || null,
-        topics: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        imageFile: selectedImage,
-        caption: text.trim()
-      };
-
-      // Add quest-specific data
-      if (postType === 'quest') {
-        postData.questContext = {
-          questTitle: questTitle.trim(),
-          description: questDescription.trim(),
-          questId: `quest_${Date.now()}` // You might want to generate this differently
-        };
-      }
-
-      // Add event-specific data
-      if (postType === 'event') {
-        postData.eventTitle = eventTitle.trim();
-        postData.eventSubtitle = eventSubtitle.trim();
-        postData.eventPrice = eventPrice.trim();
-        postData.postType = POST_TYPES.EVENT;
-      }
-
-      await createPost(postData);
-      onClose();
-    } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const canPost = () => {
-    if (loading) return false;
+    const [text, setText] = useState(''); // This serves as the caption
+    const [selectedImages, setSelectedImages] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [location, setLocation] = useState(''); // Location is now mandatory
+    const [tags, setTags] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showTagInput, setShowTagInput] = useState(false);
     
-    switch (contentType) {
-      case 'text':
-        return text.trim().length > 0;
-      case 'photo':
-        return selectedImage !== null;
-      case 'photo_text':
-        return text.trim().length > 0 && selectedImage !== null;
-      default:
-        return false;
-    }
-  };
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex">
-      <div className="w-full bg-gray-900 text-white flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <button onClick={onClose} className="text-white">
-            <X className="w-6 h-6" />
-          </button>
-          <h2 className="text-lg font-semibold">
-            {postType === 'normal' ? 'Add Post' : 
-             postType === 'quest' ? 'Quest Complete' : 'New Event'}
-          </h2>
-          <button
-            onClick={handleSubmit}
-            disabled={!canPost()}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              canPost() 
-                ? 'bg-peach-200 text-gray-900 hover:bg-peach-300' 
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {loading ? 'Posting...' : 'Post'}
-          </button>
-        </div>
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
 
-        {/* Post Type Selector */}
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPostType('normal')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                postType === 'normal' ? 'bg-peach-200 text-gray-900' : 'bg-gray-800 text-white'
-              }`}
-            >
-              Normal
-            </button>
-            <button
-              onClick={() => setPostType('quest')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                postType === 'quest' ? 'bg-peach-200 text-gray-900' : 'bg-gray-800 text-white'
-              }`}
-            >
-              Quest
-            </button>
-            <button
-              onClick={() => setPostType('event')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                postType === 'event' ? 'bg-peach-200 text-gray-900' : 'bg-gray-800 text-white'
-              }`}
-            >
-              Event
-            </button>
-          </div>
-        </div>
-
-        {/* Content Type Selector */}
-        {postType === 'normal' && (
-          <div className="p-4 border-b border-gray-700">
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={() => {
-                  setContentType('photo');
-                  fileInputRef.current?.click();
-                }}
-                className={`flex flex-col items-center gap-2 px-6 py-4 rounded-lg transition-colors ${
-                  contentType === 'photo' ? 'bg-gray-700' : 'bg-gray-800'
-                }`}
-              >
-                <Image className="w-8 h-8" />
-                <span className="text-sm">Gallery</span>
-              </button>
-              <button
-                onClick={() => setContentType('text')}
-                className={`flex flex-col items-center gap-2 px-6 py-4 rounded-lg transition-colors ${
-                  contentType === 'text' ? 'bg-gray-700' : 'bg-gray-800'
-                }`}
-              >
-                <Type className="w-8 h-8" />
-                <span className="text-sm">Text</span>
-              </button>
-              <button
-                onClick={() => setContentType('quest')}
-                className={`flex flex-col items-center gap-2 px-6 py-4 rounded-lg transition-colors ${
-                  contentType === 'quest' ? 'bg-gray-700' : 'bg-gray-800'
-                }`}
-              >
-                <Target className="w-8 h-8" />
-                <span className="text-sm">Quest</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content Area */}
-        <div className="flex-1 p-4 space-y-4">
-          {/* Quest Fields */}
-          {postType === 'quest' && (
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Quest title..."
-                value={questTitle}
-                onChange={(e) => setQuestTitle(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-              <textarea
-                placeholder="Quest description..."
-                value={questDescription}
-                onChange={(e) => setQuestDescription(e.target.value)}
-                rows={2}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200 resize-none"
-              />
-            </div>
-          )}
-
-          {/* Event Fields */}
-          {postType === 'event' && (
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Event title..."
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-              <input
-                type="text"
-                placeholder="Event subtitle..."
-                value={eventSubtitle}
-                onChange={(e) => setEventSubtitle(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-              <input
-                type="text"
-                placeholder="Price (optional)..."
-                value={eventPrice}
-                onChange={(e) => setEventPrice(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-            </div>
-          )}
-
-          {/* Image Preview */}
-          {imagePreview && (
-            <div className="relative">
-              <img 
-                src={imagePreview} 
-                alt="Preview" 
-                className="w-full h-64 object-cover rounded-lg"
-              />
-              <button
-                onClick={removeImage}
-                className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          {/* Text Input */}
-          {(contentType === 'text' || contentType === 'photo_text' || postType !== 'normal') && (
-            <textarea
-              placeholder={
-                postType === 'quest' ? 'Share your quest completion...' :
-                postType === 'event' ? 'Tell people about this event...' :
-                'What\'s on your mind?'
-              }
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={4}
-              className="w-full bg-transparent text-white placeholder-gray-400 focus:outline-none resize-none text-lg"
-            />
-          )}
-
-          {/* Additional Options */}
-          <div className="space-y-3">
-            {/* Location */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowLocationInput(!showLocationInput)}
-                className="flex items-center gap-2 text-peach-200"
-              >
-                <MapPin className="w-5 h-5" />
-                <span>Add Location</span>
-              </button>
-            </div>
+        if (files.length > 0) {
+            const newFiles = files.filter(file => 
+                !selectedImages.some(existingFile => existingFile.name === file.name && existingFile.size === file.size)
+            );
             
-            {showLocationInput && (
-              <input
-                type="text"
-                placeholder="Add location..."
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-            )}
+            setSelectedImages((prev) => [...prev, ...newFiles]);
 
-            {/* Tags */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowTagInput(!showTagInput)}
-                className="flex items-center gap-2 text-peach-200"
-              >
-                <Tag className="w-5 h-5" />
-                <span>Add Tags</span>
-              </button>
-            </div>
+            const newPreviews: string[] = [];
+            newFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    if (typeof event.target?.result === 'string') {
+                        newPreviews.push(event.target.result);
+                        if (newPreviews.length === newFiles.length) {
+                            setImagePreviews((prev) => [...prev, ...newPreviews]);
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
             
-            {showTagInput && (
-              <input
-                type="text"
-                placeholder="Add tags (comma separated)..."
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
-              />
-            )}
-          </div>
-        </div>
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
 
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageSelect}
-          className="hidden"
-        />
-      </div>
-    </div>
-  );
+    const removeImage = (indexToRemove: number) => {
+        const newImages = selectedImages.filter((_, index) => index !== indexToRemove);
+        const newPreviews = imagePreviews.filter((_, index) => index !== indexToRemove);
+        
+        setSelectedImages(newImages);
+        setImagePreviews(newPreviews);
+        
+        if (fileInputRef.current) {
+             fileInputRef.current.value = '';
+        }
+    };
+    
+    const canPost = useMemo(() => {
+        if (loading || !user?.uid) return false;
+        
+        const hasContent = text.trim().length > 0 || selectedImages.length > 0;
+        const hasLocation = location.trim().length > 0;
+
+        return hasContent && hasLocation;
+    }, [loading, user?.uid, text, selectedImages, location]);
+
+    const handleSubmit = async () => {
+        if (!canPost) {
+            alert('A location and either an image or a caption is required to post.');
+            return;
+        }
+
+        if (!user || !user.uid) {
+            console.error("Post submission blocked: User UID is missing.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // This interface defines the shape of data sent to the createPost function.
+            interface PostData {
+                uid: string;
+                userName: string;
+                userProfilePic: string;
+                text: string;
+                postType: string;
+                location: string;
+                topics: string[];
+                imageFiles: File[]; // Use plural to send the whole array
+            }
+
+            const postData: PostData = {
+                uid: user.uid,
+                userName: user.displayName || 'Anonymous',
+                userProfilePic: user.photoURL || '',
+                text: text.trim(), 
+                postType: POST_TYPES.REGULAR,
+                location: location.trim(),
+                topics: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+                imageFiles: selectedImages, // Pass the whole array of files
+            };
+
+            await createPost(postData);
+            onClose();
+        } catch (error) {
+            console.error('Error creating post:', error);
+            alert('Failed to create post. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-start">
+            <div className="w-full max-w-lg md:mt-10 bg-gray-900 text-white flex flex-col h-full md:h-auto md:rounded-xl">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                    <button onClick={onClose} className="text-white">
+                        <X className="w-6 h-6" />
+                    </button>
+                    <h2 className="text-lg font-semibold">Add Post</h2>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={!canPost}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            canPost 
+                                ? 'bg-orange-400 text-black hover:bg-orange-300' 
+                                : 'bg-gray-600 cursor-not-allowed'
+                        }`}
+                    >
+                        {loading ? 'Posting...' : 'Post'}
+                    </button>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                    {/* Image Previews */}
+                    {imagePreviews.length > 0 && (
+                        <div className={`grid ${imagePreviews.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                            {imagePreviews.map((preview, index) => (
+                                <div key={index} className="relative">
+                                    <img 
+                                        src={preview} 
+                                        alt={`Preview ${index + 1}`} 
+                                        className={`w-full h-40 object-cover rounded-lg ${imagePreviews.length === 1 ? 'h-64' : 'h-40'}`}
+                                    />
+                                    <button
+                                        onClick={() => removeImage(index)}
+                                        className="absolute top-2 right-2 w-7 h-7 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Caption/Text Input */}
+                    <textarea
+                        placeholder="your words go here..."
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        rows={4}
+                        className="w-full bg-transparent text-white placeholder-gray-400 focus:outline-none resize-none text-lg"
+                    />
+                    
+                    {/* Add Image Button (now part of the footer options) */}
+                    <div className="border-t border-gray-700 pt-4">
+                        <h3 className="text-sm font-semibold text-gray-400 mb-3">ADD TO YOUR POST</h3>
+                         <div className="space-y-3">
+                            {/* Add Image */}
+                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors"
+                                >
+                                    <Image className="w-5 h-5" />
+                                    <span>Add Photos</span>
+                                </button>
+                            </div>
+                            
+                            {/* Location (Now always visible) */}
+                            <div className="flex items-center gap-3">
+                                 <MapPin className="w-5 h-5 text-orange-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Add location (Required)..."
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-orange-400"
+                                />
+                            </div>
+
+                            {/* Tags */}
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setShowTagInput(!showTagInput)}
+                                    className="flex items-center gap-2 text-orange-400 hover:text-orange-300 transition-colors"
+                                >
+                                    <Tag className="w-5 h-5" />
+                                    <span>{showTagInput || tags ? 'Edit Tags' : 'Add Tags'}</span>
+                                </button>
+                            </div>
+                            
+                            {showTagInput && (
+                                <input
+                                    type="text"
+                                    placeholder="Add tags (comma separated)..."
+                                    value={tags}
+                                    onChange={(e) => setTags(e.target.value)}
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-orange-400"
+                                />
+                            )}
+
+                             <div className="flex items-center gap-3">
+                                <button
+                                    className="flex items-center gap-2 text-orange-400/50 cursor-not-allowed"
+                                    disabled
+                                >
+                                    <Users className="w-5 h-5" />
+                                    <span>Tag Friends (Coming Soon)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Hidden File Input */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple 
+                    onChange={handleImageSelect}
+                    className="hidden"
+                />
+            </div>
+        </div>
+    );
 };
 
+
 export default CreatePostModal;
+

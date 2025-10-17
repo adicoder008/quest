@@ -1,3 +1,4 @@
+'use client'
 import React, { useState } from 'react';
 import Navbar from '@components/Nav';
 import { FaCalendarDay } from "react-icons/fa6";
@@ -26,7 +27,9 @@ const Events2 = () => {
 
   return (
     <>
-      <Navbar />
+      <Navbar user={null} onSignOut={function () {
+        throw new Error('Function not implemented.')
+      } } />
       <div className='px-8'>
         <div className='py-2'>Home {'>'} Goa</div>
 

@@ -281,7 +281,17 @@ const questService = {
       });
       
       // Sort in memory because Firestore doesn't allow __name__ and orderBy on a different field
-      quests.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      quests.sort((a, b) => {
+        const aTimestamp =
+          a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
+            ? (a.createdAt as { seconds: number }).seconds
+            : (typeof a.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
+        const bTimestamp =
+          b.createdAt && typeof b.createdAt === 'object' && 'seconds' in b.createdAt
+            ? (b.createdAt as { seconds: number }).seconds
+            : (typeof b.createdAt === 'string' ? Date.parse(b.createdAt) / 1000 : 0);
+        return bTimestamp - aTimestamp;
+      });
       
       return quests;
     } catch (error) {

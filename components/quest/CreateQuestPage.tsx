@@ -77,7 +77,7 @@ const CreateQuestPage = () => {
         }
       }));
       
-      const result = await questService.createQuest(user.uid, questData, coverImageFile, flowCardsData);
+      const result = await questService.createQuest(user.uid, questData, undefined, coverImageFile, flowCardsData);
       
       alert('Quest created successfully!');
       router.push(`/quest/${result.questId}`);

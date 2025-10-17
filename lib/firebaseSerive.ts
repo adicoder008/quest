@@ -14,6 +14,19 @@ export const getUserPosts = async (uid: string) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const getUserComments = async (uid: string) => {
+  const commentsRef = collection(db, 'comments');
+  const q = query(commentsRef, where('uid', '==', uid));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getUserquests = async (uid: string) => {
+  const questsRef = collection(db, 'quests');
+  const q = query(questsRef, where('uid', '==', uid));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
 // In firebaseSerive.js - update getUserBadges to return complete badge data
 export const getUserBadges = async (userId: string) => {
   try {

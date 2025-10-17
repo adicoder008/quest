@@ -13,7 +13,9 @@ import Footer from '@/components/Footer'
 const LandingPage = () => {
   return (
     <>
-    <Navbar />
+    <Navbar user={null} onSignOut={function (): void {
+        throw new Error('Function not implemented.')
+      } } />
     <Hero />
     <HowItWorks />
     <Mid/>

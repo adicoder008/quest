@@ -558,8 +558,18 @@ const QuestViewPage = () => {
   const displayQuest = isEditMode ? editedQuest : quest;
   if (!displayQuest) return null;
 
-  const allActivitiesWithCoords = displayQuest.itinerary?.days?.flatMap((d: any) => d.activities || []).filter((a: any) => a.location?.coordinates) || [];
-  const dayActivitiesWithCoords = (mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]?.activities?.filter((a: any) => a.location?.coordinates)) || [];
+  // Fix: Properly extract activities with coordinates and add date
+  const allActivitiesWithCoords = displayQuest.itinerary?.days?.flatMap((day: any) => 
+    (day.activities || [])
+      .filter((a: any) => a.location?.coordinates?.lat && a.location?.coordinates?.lng)
+      .map((a: any) => ({ ...a, date: day.date })) // Add day date to each activity
+  ) || [];
+  
+  const dayActivitiesWithCoords = mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]
+    ? (displayQuest.itinerary.days[mapFilter].activities || [])
+        .filter((a: any) => a.location?.coordinates?.lat && a.location?.coordinates?.lng)
+        .map((a: any) => ({ ...a, date: displayQuest.itinerary.days[mapFilter].date }))
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-20 lg:pb-0">
@@ -622,12 +632,33 @@ const QuestViewPage = () => {
                 ))}
               </div>
             </div>
-            <div className="h-[40vh]">
-              <InteractiveMap 
-                flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
-                activeIndex={activeCardIndex} 
-                onPinClick={(index: number) => setActiveCardIndex(index)} 
-              />
+            
+            {/* Horizontal Scrolling Activity Cards for Mobile Map */}
+            <div className="relative">
+              <div className="h-[50vh] overflow-hidden">
+                <InteractiveMap 
+                  flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
+                  activeIndex={activeCardIndex} 
+                  onPinClick={(index: number) => setActiveCardIndex(index)} 
+                />
+              </div>
+              
+              {/* Horizontal Scrolling Activity Preview Cards */}
+              {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).length > 0 && (
+                <div className="absolute bottom-4 left-0 right-0 px-4">
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                    {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).map((activity: any, index: number) => (
+                      <div 
+                        key={index}
+                        onClick={() => setActiveCardIndex(index)}
+                        className={`flex-shrink-0 w-72 snap-center transition-all ${activeCardIndex === index ? 'scale-105' : 'scale-95 opacity-75'}`}
+                      >
+                        <MapActivityCard activity={activity} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -816,6 +847,44 @@ const QuestViewPage = () => {
           scrollbar-width: none; 
         }
       `}</style>
+    </div>
+  );
+};
+
+// Map Activity Card for horizontal scroll
+const MapActivityCard = ({ activity }: any) => {
+  return (
+    <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl overflow-hidden shadow-xl border border-gray-700 h-full cursor-pointer hover:scale-105 transition-transform">
+      {activity.media?.[0]?.url && (
+        <div className="relative h-32 overflow-hidden">
+          <img src={activity.media[0].url} alt={activity.title} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          {activity.time && (
+            <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+              <Clock size={12} className="text-orange-400" />
+              <span className="text-xs font-medium text-white">{activity.time}</span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="p-3 space-y-2">
+        {!activity.media?.[0]?.url && activity.time && (
+          <div className="inline-flex items-center gap-1 bg-gray-800 px-2 py-1 rounded-full">
+            <Clock size={12} className="text-orange-400" />
+            <span className="text-xs font-medium text-gray-300">{activity.time}</span>
+          </div>
+        )}
+        <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">{activity.title}</h3>
+        {activity.location?.name && (
+          <div className="flex items-start gap-1.5 text-gray-400">
+            <MapPinIcon size={13} className="flex-shrink-0 mt-0.5 text-orange-400" />
+            <span className="text-xs leading-relaxed line-clamp-1">{activity.location.name}</span>
+          </div>
+        )}
+        {activity.description && (
+          <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">{activity.description}</p>
+        )}
+      </div>
     </div>
   );
 };

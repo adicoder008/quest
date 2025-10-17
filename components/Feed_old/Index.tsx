@@ -24,7 +24,9 @@ const Index: React.FC = () => {
   return (
     <div className="bg-[rgba(248,249,250,1)] flex flex-col overflow-hidden items-stretch pb-[106px] max-md:pb-[100px]">
       {/* <Navbar /> */}
-      <Nav/>
+      <Nav user={null} onSignOut={function (): void {
+        throw new Error("Function not implemented.");
+      } }/>
         
         <div className="px-10  ">        
       <MainLayout

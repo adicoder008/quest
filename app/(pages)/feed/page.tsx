@@ -13,7 +13,6 @@ import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '@/hooks/useResponsive';
 import CreatePost from '@/components/Feed_old/CreatePost';
-import Navbar from '@/components/Nav';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
 import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
@@ -23,6 +22,38 @@ import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
 import { getUserBadges, getLevelInfo } from '../../../lib/firebaseSerive';
+
+// Import the new NavBar component
+import NavBar from '@/components/Nav'; // Assuming path is /components/NavBar.tsx
+
+// New component for the post creation button and modal logic
+const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
+    if (!user) return null;
+
+    return (
+        <>
+            <div className="px-4 py-4">
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
+                >
+                    <Plus className="text-[#F7CEB0] w-5 h-5" />
+                    <span className="text-gray-300">What's on your mind?</span>
+                </button>
+            </div>
+
+            {showCreateModal && user && (
+                <CreatePostModal
+                    onClose={() => setShowCreateModal(false)}
+                    user={user}
+                />
+            )}
+        </>
+    );
+};
+
 
 // Responsive wrapper
 const ResponsiveFeedPage = () => {
@@ -36,94 +67,9 @@ const ResponsiveFeedPage = () => {
 };
 
 // =================================================================
-// LEFT SIDEBAR NAVIGATION
+// LEFT SIDEBAR IS NOW IN ITS OWN FILE.
+// THE CODE HAS BEEN MOVED TO /components/NavBar.tsx
 // =================================================================
-const LeftSidebar = ({ user, onNavigate, onSignOut }: any) => {
-  const router = useRouter();
-  const [activeRoute, setActiveRoute] = useState('feed');
-
-  const navItems = [
-    { icon: Home, label: 'Feed', route: 'feed' },
-    { icon: Search, label: 'Explore', route: 'explore' },
-    { icon: Calendar, label: 'Quest', route: 'quest' },
-    { icon: Bell, label: 'Notifications', route: 'notifications' },
-    { icon: Mail, label: 'Messages', route: 'chats' },
-    { icon: User, label: 'Profile', route: 'profile' },
-    { icon: Settings, label: 'Settings', route: 'settings' },
-  ];
-
-  const handleNavClick = (route: string) => {
-    setActiveRoute(route);
-    if (route === 'explore') {
-      router.push('/explore');
-    } else if (route === 'profile') {
-      router.push(`/profile/${user?.uid}`);
-    } else if (route === 'quest') {
-      router.push('/quest');
-    } else if (route === 'settings') {
-      router.push('/settings');
-    }
-  };
-
-  return (
-    <div className="fixed left-0 top-0 h-screen w-[280px] border-r border-gray-700 bg-black p-4 flex flex-col">
-      {/* Logo */}
-      <div className="mb-8">
-        <img src='/FullLogo.svg' className="w-[130px]" alt="OnQuest" />
-      </div>
-
-      {/* Navigation Items */}
-      <nav className="flex-1 space-y-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeRoute === item.route;
-          
-          return (
-            <button
-              key={item.route}
-              onClick={() => handleNavClick(item.route)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-full transition-colors ${
-                isActive 
-                  ? 'bg-[#F7CEB0] text-black font-medium' 
-                  : 'text-white hover:bg-gray-900'
-              }`}
-            >
-              <Icon className="w-6 h-6" />
-              <span className="text-lg">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* User Profile at Bottom */}
-      <div className="border-t border-gray-700 pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img 
-              src={user?.photoURL || '/default-avatar.png'} 
-              alt={user?.displayName}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-            <div className="flex-1 overflow-hidden">
-              <p className="text-white text-sm font-medium truncate">
-                {user?.displayName || 'User'}
-              </p>
-              <p className="text-gray-400 text-xs truncate">
-                @{user?.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onSignOut}
-            className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-900"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // =================================================================
 // RIGHT SIDEBAR WITH PROFILE INFO
@@ -326,6 +272,8 @@ const RightSidebar = ({ user, userData }: any) => {
   );
 };
 
+
+// ... (The rest of your code for PostMenu, ShareModal, CommentModal, Feed, Mobile components remains the same)
 // =================================================================
 // POST MENU MODAL
 // =================================================================
@@ -1481,21 +1429,23 @@ const Feed = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Left Sidebar */}
-      <LeftSidebar 
+      <NavBar 
         user={user} 
-        onNavigate={(route: string) => console.log('Navigate to:', route)}
         onSignOut={handleSignOut}
       />
 
       {/* Main Feed Area */}
       <main className="ml-[280px] mr-[380px] min-h-screen border-x border-gray-700">
-        <div className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-gray-700 p-4 z-10">
-          <h2 className="text-xl font-bold text-white">Feed</h2>
-        </div>
+         <div className="border-b border-gray-700">
+           <div className="p-4">
+              <h1 className="text-2xl font-medium text-white">
+                New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
+              </h1>
+           </div>
+           <CreatePostTrigger user={user} />
+         </div>
         
         <div className="p-4">
-          {user && <CreatePost onPostCreated={() => {}} />}
-          
           {initialLoading ? (
             <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
               <div className="text-gray-400">Loading posts...</div>
@@ -1524,11 +1474,9 @@ const Feed = () => {
               )}
 
               {posts.length === 0 && (
-                <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
-                  <h3 className="text-lg font-medium mb-2 text-white">No posts yet</h3>
-                  <p className="text-gray-400">
-                    {user ? "Be the first to share your travel experience!" : "Sign in to see posts"}
-                  </p>
+                <div className="text-center py-12">
+                  <div className="text-gray-400 text-lg">No posts yet</div>
+                  <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
                 </div>
               )}
             </>
@@ -1543,7 +1491,7 @@ const Feed = () => {
       {user && (
         <div className="fixed bottom-6 left-[calc(280px+50%)] transform -translate-x-1/2 z-50">
           <button
-            onClick={() => router.push('/create-quest')}
+            onClick={() => router.push('/quests/create') }
             className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
             aria-label="Create new quest"
           >
@@ -1816,7 +1764,7 @@ const MobilePostCard = ({
         }}
         currentUser={currentUser}
         onLike={onLike}
-        onComment={(text: string) => onComment(text)}
+        onComment={() => onComment(post)}
         onShare={onShare}
         onSave={onSave}
         onMenu={onMenuClick}
@@ -1982,7 +1930,6 @@ const MobilePostCard = ({
 // =================================================================
 const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -2289,16 +2236,8 @@ const MobileFeedPage = () => {
           </h1>
         </div>
       </div>
-
-      <div className="px-4 py-4">
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
-        >
-          <Plus className="text-[#F7CEB0] w-5 h-5" />
-          <span className="text-gray-300">What's on your mind?</span>
-        </button>
-      </div>
+      
+      <CreatePostTrigger user={user} />
 
       <div className="pb-20">
         {posts.length === 0 ? (
@@ -2341,13 +2280,6 @@ const MobileFeedPage = () => {
         )}
       </div>
 
-      {showCreateModal && user && (
-        <CreatePostModal
-          onClose={() => setShowCreateModal(false)}
-          user={user}
-        />
-      )}
-
       {selectedPostForMenu && (
         <PostMenu
           post={selectedPostForMenu}
@@ -2373,3 +2305,4 @@ const MobileFeedPage = () => {
 };
 
 export default ResponsiveFeedPage;
+

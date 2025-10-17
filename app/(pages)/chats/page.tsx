@@ -38,6 +38,7 @@ import imageCompression from 'browser-image-compression';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { notifyNewMessage } from '@/lib/notificationService';
+import Footer from '@/components/Footer';
 
 
 interface Chat {
@@ -739,6 +740,8 @@ export default function ChatsPage() {
         {/* Header */}
         <div className="bg-gray-900 border-b border-gray-700 p-4">
           <h1 className="text-2xl font-bold text-white mb-4">Chats</h1>
+
+
           
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -1088,6 +1091,7 @@ export default function ChatsPage() {
           }}
         />
       )}
+     
     </div>
   );
 }
