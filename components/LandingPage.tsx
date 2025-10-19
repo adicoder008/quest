@@ -1,6 +1,5 @@
 'use client'
 import React from 'react'
-import Navbar from '@/components/Nav'
 import Hero from '@/components/Hero'
 import HowItWorks from '@/components/HowItWorks'
 import Mid from '@/components/Mid'
@@ -13,9 +12,7 @@ import Footer from '@/components/Footer'
 const LandingPage = () => {
   return (
     <>
-    <Navbar user={null} onSignOut={function (): void {
-        throw new Error('Function not implemented.')
-      } } />
+
     <Hero />
     <HowItWorks />
     <Mid/>

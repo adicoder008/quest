@@ -46,7 +46,7 @@ const Page = () => {
 
     return (
         <>
-            <p className='text-3xl h-[107/2px] w-full bg-black font-semibold p-5 text-[#F7CEB0] flex gap-2 items-center justify-between'>
+            <p className='text-3xl h-[107/2px] w-full bg-black font-semibold p-5 text-[#EA6100] flex gap-2 items-center justify-between'>
                 <ChevronLeft onClick={() => navigateTo('/account')} size={40} />
                 Upcoming Quests
                 <span>

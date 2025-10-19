@@ -37,9 +37,9 @@ function Page(props: Props) {
         <div className="min-h-screen bg-[#121212] flex flex-col">
             {/* Header */}
             <div className='flex justify-between items-center w-full bg-black px-5 py-4'>
-                <ChevronLeft onClick={() => navigateTo('/account')} className='text-[#F7CEB0]' size={28} />
-                <p className='text-2xl font-semibold text-[#F7CEB0]'>Edit Profile</p>
-                <Check className='text-[#F7CEB0]' size={28} />
+                <ChevronLeft onClick={() => navigateTo('/account')} className='text-[#EA6100]' size={28} />
+                <p className='text-2xl font-semibold text-[#EA6100]'>Edit Profile</p>
+                <Check className='text-[#EA6100]' size={28} />
             </div>
 
             {/* Main Content */}
@@ -65,7 +65,7 @@ function Page(props: Props) {
                                     <Camera size={20} />
                                 </button>
                             </div>
-                            <div className='absolute bg-[#F7CEB0] text-black p-3  rounded-full -bottom-6 right-0'>
+                            <div className='absolute bg-[#EA6100] text-black p-3  rounded-full -bottom-6 right-0'>
                                 <Pencil size={30}/>
                             </div>
                         </div>
@@ -81,7 +81,7 @@ function Page(props: Props) {
                                 placeholder="Name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                         </div>
 
@@ -93,7 +93,7 @@ function Page(props: Props) {
                                 placeholder="Username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                         </div>
 
@@ -105,7 +105,7 @@ function Page(props: Props) {
                                 placeholder="Bio"
                                 value={formData.bio}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                         </div>
 
@@ -117,7 +117,7 @@ function Page(props: Props) {
                                 placeholder="Email Address"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                         </div>
 
@@ -129,7 +129,7 @@ function Page(props: Props) {
                                 placeholder="Password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                             <button
                                 onClick={() => setShowPassword(!showPassword)}
@@ -147,7 +147,7 @@ function Page(props: Props) {
                                 placeholder="Phone number"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#F7CEB0] transition-colors"
+                                className="w-full bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#EA6100] transition-colors"
                             />
                         </div>
                     </div>

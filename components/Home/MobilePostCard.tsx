@@ -189,7 +189,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           
           <button 
             onClick={handleToggleComments}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
           >
             <MessageCircle className="w-5 h-5" />
             <span className="text-xs">{post.commentCount || 0}</span>
@@ -197,7 +197,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           
           <button 
             onClick={onShare}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
           >
             <Share2 className="w-5 h-5" />
             <span className="text-xs">{post.shareCount || 0}</span>
@@ -206,7 +206,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           <button 
             onClick={onSave}
             className={`transition-colors ${
-              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+              isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
             }`}
           >
             {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -229,14 +229,14 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Add a comment..."
-                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none text-sm"
                   />
                   <button
                     type="submit"
                     disabled={!commentText.trim()}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
                       commentText.trim() 
-                        ? 'text-[#F7CEB0]' 
+                        ? 'text-[#EA6100]' 
                         : 'text-gray-600'
                     }`}
                   >
@@ -312,11 +312,11 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
 
         {/* Quest Context Badge */}
         {questData && (
-          <div className="mb-3 bg-gradient-to-r from-[#F7CEB0]/20 to-[#EA6100]/20 border border-[#F7CEB0]/30 rounded-lg p-3">
+          <div className="mb-3 bg-gradient-to-r from-[#EA6100]/20 to-[#EA6100]/20 border border-[#EA6100]/30 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[#F7CEB0] text-xs font-semibold">🏆 Quest Completed</span>
+              <span className="text-[#EA6100] text-xs font-semibold">🏆 Quest Completed</span>
               {questData.xpEarned && (
-                <span className="text-[#F7CEB0] text-xs">+{questData.xpEarned} XP</span>
+                <span className="text-[#EA6100] text-xs">+{questData.xpEarned} XP</span>
               )}
             </div>
             <p className="text-white text-sm font-medium">{questData.questTitle}</p>
@@ -353,7 +353,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           
           <button 
             onClick={handleToggleComments}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
           >
             <MessageCircle className="w-5 h-5" />
             <span className="text-xs">{post.commentCount || 0}</span>
@@ -361,7 +361,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           
           <button 
             onClick={onShare}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
           >
             <Share2 className="w-5 h-5" />
             <span className="text-xs">{post.shareCount || 0}</span>
@@ -370,7 +370,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           <button 
             onClick={onSave}
             className={`transition-colors ${
-              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+              isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
             }`}
           >
             {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -392,13 +392,13 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Add a comment..."
-                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none text-sm"
                   />
                   <button
                     type="submit"
                     disabled={!commentText.trim()}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                      commentText.trim() ? 'text-[#F7CEB0]' : 'text-gray-600'
+                      commentText.trim() ? 'text-[#EA6100]' : 'text-gray-600'
                     }`}
                   >
                     <Send size={16} />
@@ -497,7 +497,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
         
         <button 
           onClick={handleToggleComments}
-          className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
         >
           <MessageCircle className="w-5 h-5" />
           <span className="text-xs">{post.commentCount || 0}</span>
@@ -505,7 +505,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
         
         <button 
           onClick={onShare}
-          className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
         >
           <Share2 className="w-5 h-5" />
           <span className="text-xs">{post.shareCount || 0}</span>
@@ -514,7 +514,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
         <button 
           onClick={onSave}
           className={`transition-colors ${
-            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+            isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
           }`}
         >
           {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -536,13 +536,13 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add a comment..."
-                  className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                  className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none text-sm"
                 />
                 <button
                   type="submit"
                   disabled={!commentText.trim()}
                   className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                    commentText.trim() ? 'text-[#F7CEB0]' : 'text-gray-600'
+                    commentText.trim() ? 'text-[#EA6100]' : 'text-gray-600'
                   }`}
                 >
                   <Send size={16} />

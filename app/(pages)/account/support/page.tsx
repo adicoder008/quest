@@ -21,61 +21,61 @@ const Page = () => {
 
   return (
     <>
-      <p className='text-3xl h-[107/2px] w-full bg-black font-semibold p-5 text-[#F7CEB0] flex gap-2 items-center'> <ChevronLeft onClick={() => navigateTo('/account')}  size={40}/> Support</p>
+      <p className='text-3xl h-[107/2px] w-full bg-black font-semibold p-5 text-[#EA6100] flex gap-2 items-center'> <ChevronLeft onClick={() => navigateTo('/account')}  size={40}/> Support</p>
         <div className='bg-[#121212] text-white min-h-[800px] sm:min-h-[650px] p-5'>
           <div 
             onClick={() => navigateTo('account/profile')}
-            className='w-full flex justify-between items-center h-23 border-b-1 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+            className='w-full flex justify-between items-center h-23 border-b-1 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
           >
             <div className='flex gap-4 items-center mt-4'>
-              <div><LifeBuoy className='text-[#F7CEB0]' size={28} /></div>
+              <div><LifeBuoy className='text-[#EA6100]' size={28} /></div>
               <div className='text-2xl font-extralight'>Help Centre</div>
             </div>
-            <div className='text-[#F7CEB0]'><IoChevronForward size={32} /></div>
+            <div className='text-[#EA6100]'><IoChevronForward size={32} /></div>
           </div>
 
           <div 
             onClick={() => navigateTo('account/saved-quests')}
-            className='w-full flex justify-between items-center h-23 border-b-1 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+            className='w-full flex justify-between items-center h-23 border-b-1 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
           >
             <div className='flex gap-4 items-center mt-4'>
-              <div><Shield className='text-[#F7CEB0]' size={28} /></div>
+              <div><Shield className='text-[#EA6100]' size={28} /></div>
               <div className='text-2xl font-extralight'>Privacy Policy</div>
             </div>
-            <div className='text-[#F7CEB0]'><IoChevronForward size={32} /></div>
+            <div className='text-[#EA6100]'><IoChevronForward size={32} /></div>
           </div>
 
           <div 
             onClick={() => navigateTo('account/completed-quests')}
-            className='w-full flex justify-between items-center h-23 border-b-1 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+            className='w-full flex justify-between items-center h-23 border-b-1 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
           >
             <div className='flex gap-4 items-center mt-4'>
-              <div><FileText className='text-[#F7CEB0]' size={28} /></div>
+              <div><FileText className='text-[#EA6100]' size={28} /></div>
               <div className='text-2xl font-extralight'>Terms of Use</div>
             </div>
-            <div className='text-[#F7CEB0]'><IoChevronForward size={32} /></div>
+            <div className='text-[#EA6100]'><IoChevronForward size={32} /></div>
           </div>
 
           <div 
             onClick={() => navigateTo('account/upcoming-quests')}
-            className='w-full flex justify-between items-center h-23 border-b-1 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+            className='w-full flex justify-between items-center h-23 border-b-1 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
           >
             <div className='flex gap-4 items-center mt-4'>
-              <div><Code className='text-[#F7CEB0]' size={28} /></div>
+              <div><Code className='text-[#EA6100]' size={28} /></div>
               <div className='text-2xl font-extralight'>Open Source Licenses</div>
             </div>
-            <div className='text-[#F7CEB0]'><IoChevronForward size={32} /></div>
+            <div className='text-[#EA6100]'><IoChevronForward size={32} /></div>
           </div>
 
           <div 
             onClick={() => navigateTo('account/preferences')}
-            className='w-full flex justify-between items-center h-23 border-b-1 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+            className='w-full flex justify-between items-center h-23 border-b-1 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
           >
             <div className='flex gap-4 items-center mt-4'>
-              <div><CiCircleQuestion className='text-[#F7CEB0]' size={28} /></div>
+              <div><CiCircleQuestion className='text-[#EA6100]' size={28} /></div>
               <div className='text-2xl font-extralight'>FAQs</div>
             </div>
-            <div className='text-[#F7CEB0]'><IoChevronForward size={32} /></div>
+            <div className='text-[#EA6100]'><IoChevronForward size={32} /></div>
           </div>
           <Footer />
         </div>

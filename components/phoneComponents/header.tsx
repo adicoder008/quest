@@ -23,12 +23,12 @@ const Header = () => { // Changed to uppercase to follow React component naming 
         </div>
         <div className="flex items-center gap-6">
           <Link href="/chats">
-            <MessageSquareMore className='text-[#F7CEB0] size-6 hover:text-white transition-colors' />
+            <MessageSquareMore className='text-[#EA6100] size-6 hover:text-white transition-colors' />
           </Link>
 
           {/* 3. The conditional check now works because 'user' is defined */}
           <Link href="/notifications" className="relative">
-            <Bell className='text-[#F7CEB0] size-6 hover:text-white transition-colors' />
+            <Bell className='text-[#EA6100] size-6 hover:text-white transition-colors' />
             {/* We only render the badge if loading is false and a user exists */}
             {!loading && user && <NotificationBadge userId={user.uid} />}
           </Link>

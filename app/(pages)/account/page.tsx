@@ -350,7 +350,7 @@ const AccountPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#F7CEB0] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -358,7 +358,7 @@ const AccountPage = () => {
   return (
     <div className="min-h-screen bg-[#121212]">
       <div className='h-[107px] w-full bg-black flex items-center px-5'>
-        <p className='text-3xl font-semibold text-[#F7CEB0]'>Account</p>
+        <p className='text-3xl font-semibold text-[#EA6100]'>Account</p>
       </div>
 
       {!isLoggedIn ? (
@@ -370,20 +370,20 @@ const AccountPage = () => {
             </div>
             <button 
               onClick={() => navigateTo('/auth/signin')} 
-              className='bg-[#F7CEB0] text-black py-3 px-8 text-xl rounded-3xl font-semibold hover:bg-[#f5c094] transition-colors'
+              className='bg-[#EA6100] text-black py-3 px-8 text-xl rounded-3xl font-semibold hover:bg-[#f5c094] transition-colors'
             >
               Sign In
             </button>
           </div>
 
-          <p className='text-3xl font-semibold text-[#F7CEB0] mb-4'>Settings</p>
+          <p className='text-3xl font-semibold text-[#EA6100] mb-4'>Settings</p>
           <MenuOption
-            icon={<SlidersHorizontal className='text-[#F7CEB0]' size={28} />}
+            icon={<SlidersHorizontal className='text-[#EA6100]' size={28} />}
             label="Preferences"
             onClick={() => navigateTo('/account/preferences')}
           />
           <MenuOption
-            icon={<HelpCircle className='text-[#F7CEB0]' size={28} />}
+            icon={<HelpCircle className='text-[#EA6100]' size={28} />}
             label="Support"
             onClick={() => navigateTo('/account/support')}
           />
@@ -436,7 +436,7 @@ const AccountPage = () => {
             </div>
             <p className='text-gray-400 text-sm'>@{userData?.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}</p>
             {userData?.title && (
-              <p className='text-[#F7CEB0] text-sm mt-1'>{userData.title}</p>
+              <p className='text-[#EA6100] text-sm mt-1'>{userData.title}</p>
             )}
             {userData?.bio && (
               <p className='text-gray-300 text-sm mt-2 leading-relaxed'>{userData.bio}</p>
@@ -462,7 +462,7 @@ const AccountPage = () => {
             {levelInfo && (
               <div className='mt-5 bg-[#292929] p-4 rounded-xl'>
                 <div className='flex items-center justify-between mb-2'>
-                  <span className='text-[#F7CEB0] font-semibold text-sm'>
+                  <span className='text-[#EA6100] font-semibold text-sm'>
                     {levelInfo.currentLevel?.name || 'Scout'}
                   </span>
                   {levelInfo.nextLevel && (
@@ -473,7 +473,7 @@ const AccountPage = () => {
                 </div>
                 <div className='w-full bg-gray-700 rounded-full h-2.5'>
                   <div 
-                    className='bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2.5 rounded-full transition-all duration-300'
+                    className='bg-gradient-to-r from-[#EA6100] to-[#EA6100] h-2.5 rounded-full transition-all duration-300'
                     style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
                   ></div>
                 </div>
@@ -490,7 +490,7 @@ const AccountPage = () => {
                   <h3 className='text-white font-semibold text-lg'>Earned Badges</h3>
                   <button 
                     onClick={() => navigateTo('/account/badges')}
-                    className='text-[#F7CEB0] text-sm hover:underline'
+                    className='text-[#EA6100] text-sm hover:underline'
                   >
                     View All
                   </button>
@@ -521,7 +521,7 @@ const AccountPage = () => {
                 <h3 className='text-white font-semibold text-lg'>Posts</h3>
                 <button 
                   onClick={() => navigateTo('/account/posts')}
-                  className='text-[#F7CEB0] text-sm hover:underline'
+                  className='text-[#EA6100] text-sm hover:underline'
                 >
                   View All
                 </button>
@@ -532,7 +532,7 @@ const AccountPage = () => {
                   onClick={() => setActivePostTab('your-posts')}
                   className={`py-2 px-4 rounded-lg font-medium transition-colors ${
                     activePostTab === 'your-posts'
-                      ? 'bg-[#F7CEB0] text-black'
+                      ? 'bg-[#EA6100] text-black'
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                   }`}
                 >
@@ -542,7 +542,7 @@ const AccountPage = () => {
                   onClick={() => setActivePostTab('saved-posts')}
                   className={`py-2 px-4 rounded-lg font-medium transition-colors ${
                     activePostTab === 'saved-posts'
-                      ? 'bg-[#F7CEB0] text-black'
+                      ? 'bg-[#EA6100] text-black'
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                   }`}
                 >
@@ -599,7 +599,7 @@ const AccountPage = () => {
                 <h3 className='text-white font-semibold text-lg'>Quests</h3>
                 <button 
                   onClick={() => navigateTo('/account/quests')}
-                  className='text-[#F7CEB0] text-sm hover:underline'
+                  className='text-[#EA6100] text-sm hover:underline'
                 >
                   View All
                 </button>
@@ -610,7 +610,7 @@ const AccountPage = () => {
                   onClick={() => setActiveQuestTab('public-quests')}
                   className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
                     activeQuestTab === 'public-quests'
-                      ? 'bg-[#F7CEB0] text-black'
+                      ? 'bg-[#EA6100] text-black'
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                   }`}
                 >
@@ -620,7 +620,7 @@ const AccountPage = () => {
                   onClick={() => setActiveQuestTab('private-quests')}
                   className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
                     activeQuestTab === 'private-quests'
-                      ? 'bg-[#F7CEB0] text-black'
+                      ? 'bg-[#EA6100] text-black'
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                   }`}
                 >
@@ -630,7 +630,7 @@ const AccountPage = () => {
                   onClick={() => setActiveQuestTab('saved-quests')}
                   className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
                     activeQuestTab === 'saved-quests'
-                      ? 'bg-[#F7CEB0] text-black'
+                      ? 'bg-[#EA6100] text-black'
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                   }`}
                 >
@@ -656,7 +656,7 @@ const AccountPage = () => {
                     <p className='text-gray-400'>No public quests</p>
                     <button
                       onClick={() => navigateTo('/quest/create')}
-                      className='mt-3 bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                      className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
                     >
                       Create Public Quest
                     </button>
@@ -676,7 +676,7 @@ const AccountPage = () => {
                     <p className='text-gray-400'>No private quests</p>
                     <button
                       onClick={() => navigateTo('/quest/create')}
-                      className='mt-3 bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                      className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
                     >
                       Create Private Quest
                     </button>
@@ -703,20 +703,20 @@ const AccountPage = () => {
 
           {/* Menu Options */}
           <div className='px-5 mt-6'>
-            <h3 className='text-xl font-semibold text-[#F7CEB0] mb-4'>Quick Actions</h3>
+            <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>Quick Actions</h3>
             
             <MenuOption
-              icon={<Calendar className='text-[#F7CEB0]' size={24} />}
+              icon={<Calendar className='text-[#EA6100]' size={24} />}
               label="Upcoming Quests"
               onClick={() => navigateTo('/account/upcoming-quests')}
             />
             <MenuOption
-              icon={<SlidersHorizontal className='text-[#F7CEB0]' size={24} />}
+              icon={<SlidersHorizontal className='text-[#EA6100]' size={24} />}
               label="Preferences"
               onClick={() => navigateTo('/account/preferences')}
             />
             <MenuOption
-              icon={<HelpCircle className='text-[#F7CEB0]' size={24} />}
+              icon={<HelpCircle className='text-[#EA6100]' size={24} />}
               label="Support"
               onClick={() => navigateTo('/account/support')}
             />
@@ -737,13 +737,13 @@ const MenuOption: React.FC<{
 }> = ({ icon, label, onClick }) => (
   <div 
     onClick={onClick}
-    className='w-full flex justify-between items-center py-4 border-b-2 border-[#F7CEB0] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+    className='w-full flex justify-between items-center py-4 border-b-2 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
   >
     <div className='flex gap-4 items-center'>
       <div>{icon}</div>
       <div className='text-xl text-white'>{label}</div>
     </div>
-    <div className='text-[#F7CEB0]'><IoChevronForward size={28} /></div>
+    <div className='text-[#EA6100]'><IoChevronForward size={28} /></div>
   </div>
 );
 
@@ -817,7 +817,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
           <span className='text-gray-400'>
             {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
           </span>
-          <span className='text-[#F7CEB0] font-medium'>
+          <span className='text-[#EA6100] font-medium'>
             {quest.isPublic ? 'Public' : 'Private'}
           </span>
         </div>

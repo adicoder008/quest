@@ -97,7 +97,7 @@ const Footer = () => {
             <span className="text-xs ">Quest</span>
           </div></Link>
 
-          <Link href={'/account'}><div className="flex flex-col items-center text-[#F7CEB0]">
+          <Link href={'/account'}><div className="flex flex-col items-center text-[#EA6100]">
             {/* <div className="w-6 h-6 mb-1">👤</div> */}
             <HiUser size={22} className="" />
             <span className="text-xs">Account</span>

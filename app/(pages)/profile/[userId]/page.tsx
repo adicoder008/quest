@@ -187,7 +187,7 @@ const PublicProfilePage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#F7CEB0] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -199,7 +199,7 @@ const PublicProfilePage = () => {
           <p className="text-white text-xl mb-4">User not found</p>
           <button 
             onClick={() => router.back()}
-            className="bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
+            className="bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
           >
             Go Back
           </button>
@@ -260,7 +260,7 @@ const PublicProfilePage = () => {
           <p className='text-gray-400 text-sm'>@{profileUser.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}</p>
           
           {profileUser.title && (
-            <p className='text-[#F7CEB0] text-sm mt-1'>{profileUser.title}</p>
+            <p className='text-[#EA6100] text-sm mt-1'>{profileUser.title}</p>
           )}
           
           {profileUser.bio && (
@@ -291,7 +291,7 @@ const PublicProfilePage = () => {
                 className={`flex-1 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
                   isFollowing
                     ? 'bg-[#292929] text-white border border-gray-600 hover:bg-[#3a3a3a]'
-                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                    : 'bg-[#EA6100] text-black hover:bg-[#f5c094]'
                 }`}
               >
                 {isFollowing ? (
@@ -321,7 +321,7 @@ const PublicProfilePage = () => {
           {isOwnProfile && (
             <button
               onClick={() => router.push('/account')}
-              className='w-full mt-4 py-2 rounded-lg font-medium bg-[#F7CEB0] text-black hover:bg-[#f5c094] transition-colors'
+              className='w-full mt-4 py-2 rounded-lg font-medium bg-[#EA6100] text-black hover:bg-[#f5c094] transition-colors'
             >
               Edit Profile
             </button>
@@ -331,7 +331,7 @@ const PublicProfilePage = () => {
           {levelInfo && (
             <div className='mt-5 bg-[#292929] p-4 rounded-xl'>
               <div className='flex items-center justify-between mb-2'>
-                <span className='text-[#F7CEB0] font-semibold text-sm'>
+                <span className='text-[#EA6100] font-semibold text-sm'>
                   {levelInfo.currentLevel?.name || 'Scout'}
                 </span>
                 {levelInfo.nextLevel && (
@@ -342,7 +342,7 @@ const PublicProfilePage = () => {
               </div>
               <div className='w-full bg-gray-700 rounded-full h-2.5'>
                 <div 
-                  className='bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2.5 rounded-full transition-all duration-300'
+                  className='bg-gradient-to-r from-[#EA6100] to-[#EA6100] h-2.5 rounded-full transition-all duration-300'
                   style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
                 ></div>
               </div>
@@ -384,7 +384,7 @@ const PublicProfilePage = () => {
                 {posts.length > 5 && (
                   <button 
                     onClick={() => router.push(`/profile/${profileUserId}/posts`)}
-                    className='text-[#F7CEB0] text-sm hover:underline'
+                    className='text-[#EA6100] text-sm hover:underline'
                   >
                     View All
                   </button>
@@ -411,7 +411,7 @@ const PublicProfilePage = () => {
                 {publicQuests.length > 5 && (
                   <button 
                     onClick={() => router.push(`/profile/${profileUserId}/quests`)}
-                    className='text-[#F7CEB0] text-sm hover:underline'
+                    className='text-[#EA6100] text-sm hover:underline'
                   >
                     View All
                   </button>
@@ -514,7 +514,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
           <span className='text-gray-400'>
             {new Date(quest.startDate).toLocaleDateString()}
           </span>
-          <span className='text-[#F7CEB0] font-medium'>Public</span>
+          <span className='text-[#EA6100] font-medium'>Public</span>
         </div>
       </div>
     </div>

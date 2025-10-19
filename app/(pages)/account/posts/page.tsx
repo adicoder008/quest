@@ -245,7 +245,7 @@ const AllPostsPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#F7CEB0] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -259,7 +259,7 @@ const AllPostsPage = () => {
         <div className='flex items-center gap-4 px-5 py-4'>
           <button 
             onClick={() => router.back()}
-            className='text-white hover:text-[#F7CEB0] transition-colors'
+            className='text-white hover:text-[#EA6100] transition-colors'
           >
             <ArrowLeft size={24} />
           </button>
@@ -272,7 +272,7 @@ const AllPostsPage = () => {
             onClick={() => setActiveTab('your-posts')}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
               activeTab === 'your-posts'
-                ? 'bg-[#F7CEB0] text-black'
+                ? 'bg-[#EA6100] text-black'
                 : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
             }`}
           >
@@ -282,7 +282,7 @@ const AllPostsPage = () => {
             onClick={() => setActiveTab('saved-posts')}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
               activeTab === 'saved-posts'
-                ? 'bg-[#F7CEB0] text-black'
+                ? 'bg-[#EA6100] text-black'
                 : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
             }`}
           >

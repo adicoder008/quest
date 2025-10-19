@@ -141,7 +141,7 @@ function Page(props: Props) {
                             </div>
 
 
-                            {/* <div className='absolute bg-[#F7CEB0] text-black p-3  rounded-full -bottom-6 right-0'>
+                            {/* <div className='absolute bg-[#EA6100] text-black p-3  rounded-full -bottom-6 right-0'>
                                 <Pencil size={30}/>
                                 </div> */}
                         </div>

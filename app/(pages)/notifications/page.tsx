@@ -110,7 +110,7 @@ export default function NotificationsPage() {
               {unreadCount > 0 && (
                 <button
                   onClick={() => markAllAsRead(user.uid)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#F7CEB0] text-black rounded-lg font-medium hover:bg-[#f5c094] transition-colors text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#EA6100] text-black rounded-lg font-medium hover:bg-[#f5c094] transition-colors text-sm"
                 >
                   <CheckCheck size={18} />
                   Mark All Read
@@ -139,7 +139,7 @@ export default function NotificationsPage() {
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filter === 'all'
-                  ? 'bg-[#F7CEB0] text-black'
+                  ? 'bg-[#EA6100] text-black'
                   : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
             >
@@ -149,7 +149,7 @@ export default function NotificationsPage() {
               onClick={() => setFilter('unread')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filter === 'unread'
-                  ? 'bg-[#F7CEB0] text-black'
+                  ? 'bg-[#EA6100] text-black'
                   : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
             >
@@ -218,7 +218,7 @@ export default function NotificationsPage() {
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-2 flex-shrink-0">
                   {!notif.read && (
-                    <div className="w-3 h-3 bg-[#F7CEB0] rounded-full"></div>
+                    <div className="w-3 h-3 bg-[#EA6100] rounded-full"></div>
                   )}
                   
                   <button

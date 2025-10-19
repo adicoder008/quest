@@ -153,7 +153,7 @@ export const NotificationBell = ({ userId }: NotificationBellProps) => {
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs text-[#F7CEB0] hover:text-[#f5c094] transition-colors flex items-center gap-1"
+                  className="text-xs text-[#EA6100] hover:text-[#f5c094] transition-colors flex items-center gap-1"
                   title="Mark all as read"
                 >
                   <CheckCheck size={16} />
@@ -220,7 +220,7 @@ export const NotificationBell = ({ userId }: NotificationBellProps) => {
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {!notif.read && (
-                      <div className="w-2 h-2 bg-[#F7CEB0] rounded-full"></div>
+                      <div className="w-2 h-2 bg-[#EA6100] rounded-full"></div>
                     )}
                     
                     <button
@@ -244,7 +244,7 @@ export const NotificationBell = ({ userId }: NotificationBellProps) => {
                   router.push('/notifications');
                   setShowDropdown(false);
                 }}
-                className="text-sm text-[#F7CEB0] hover:text-[#f5c094] font-medium"
+                className="text-sm text-[#EA6100] hover:text-[#f5c094] font-medium"
               >
                 View All Notifications
               </button>

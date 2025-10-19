@@ -13,12 +13,7 @@ interface User {
 }
 
 interface NavBarProps {
-  user: User | null;
-  onSignOut: () => void;
-}
-
-interface NavBarProps {
-  user: User | null;
+  user: import('firebase/auth').User | null;
   onSignOut: () => void;
 }
 
@@ -144,7 +139,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
               onClick={() => handleNavClick(item.route)}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-full transition-colors relative group ${
                 isActive 
-                  ? 'bg-[#F7CEB0] text-black font-medium' 
+                  ? 'bg-[#EA6100] text-black font-medium' 
                   : 'text-white hover:bg-gray-900'
               }`}
               title={!isExpanded ? item.label : ''}
@@ -171,7 +166,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <img 
                   src={user?.photoURL || '/default-avatar.png'} 
-                  alt={user?.displayName}
+                  alt={user?.displayName || 'User'}
                   className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                 />
                 <div className="flex-1 overflow-hidden">
@@ -195,12 +190,12 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
             <div className="relative group">
               <button
                 onClick={onSignOut}
-                className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-[#F7CEB0] transition-all"
+                className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-[#EA6100] transition-all"
                 aria-label="Sign out"
               >
                 <img 
                   src={user?.photoURL || '/default-avatar.png'} 
-                  alt={user?.displayName}
+                  alt={user?.displayName || 'User'}
                   className="w-full h-full object-cover"
                 />
               </button>

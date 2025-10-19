@@ -154,7 +154,7 @@ export const CreateGroupFromQuest = ({
     <>
       <button
         onClick={handleOpenModal}
-        className="flex items-center gap-2 bg-[#F7CEB0] text-black px-4 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
+        className="flex items-center gap-2 bg-[#EA6100] text-black px-4 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
       >
         <Users size={20} />
         Create Group Chat
@@ -188,7 +188,7 @@ export const CreateGroupFromQuest = ({
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder="Enter group name"
-                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none"
+                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#EA6100] focus:outline-none"
                   maxLength={50}
                 />
               </div>
@@ -208,7 +208,7 @@ export const CreateGroupFromQuest = ({
                         user.id === currentUserId
                           ? 'bg-gray-700 opacity-50 cursor-not-allowed'
                           : selectedMembers.includes(user.id)
-                          ? 'bg-[#F7CEB0]/20 border-2 border-[#F7CEB0]'
+                          ? 'bg-[#EA6100]/20 border-2 border-[#EA6100]'
                           : 'bg-gray-750 hover:bg-gray-700'
                       }`}
                     >
@@ -225,7 +225,7 @@ export const CreateGroupFromQuest = ({
                         <p className="text-gray-400 text-xs">{user.email}</p>
                       </div>
                       {selectedMembers.includes(user.id) && (
-                        <Check size={20} className="text-[#F7CEB0] flex-shrink-0" />
+                        <Check size={20} className="text-[#EA6100] flex-shrink-0" />
                       )}
                     </button>
                   ))}
@@ -246,7 +246,7 @@ export const CreateGroupFromQuest = ({
                   className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${
                     loading || !groupName.trim() || selectedMembers.length === 0
                       ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                      : 'bg-[#EA6100] text-black hover:bg-[#f5c094]'
                   }`}
                 >
                   {loading ? 'Creating...' : 'Create Group'}

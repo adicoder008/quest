@@ -48,7 +48,7 @@ const AllQuestsPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#F7CEB0] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -64,7 +64,7 @@ const AllQuestsPage = () => {
         <div className='flex items-center gap-4 px-5 py-4'>
           <button 
             onClick={() => router.back()}
-            className='text-white hover:text-[#F7CEB0] transition-colors'
+            className='text-white hover:text-[#EA6100] transition-colors'
           >
             <ArrowLeft size={24} />
           </button>
@@ -77,7 +77,7 @@ const AllQuestsPage = () => {
             onClick={() => setActiveTab('public')}
             className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'public'
-                ? 'bg-[#F7CEB0] text-black'
+                ? 'bg-[#EA6100] text-black'
                 : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
             }`}
           >
@@ -87,7 +87,7 @@ const AllQuestsPage = () => {
             onClick={() => setActiveTab('private')}
             className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'private'
-                ? 'bg-[#F7CEB0] text-black'
+                ? 'bg-[#EA6100] text-black'
                 : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
             }`}
           >
@@ -97,7 +97,7 @@ const AllQuestsPage = () => {
             onClick={() => setActiveTab('saved')}
             className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
               activeTab === 'saved'
-                ? 'bg-[#F7CEB0] text-black'
+                ? 'bg-[#EA6100] text-black'
                 : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
             }`}
           >
@@ -134,7 +134,7 @@ const AllQuestsPage = () => {
               {activeTab !== 'saved' && (
                 <button
                   onClick={() => router.push('/quest/create')}
-                  className='bg-[#F7CEB0] text-black px-6 py-3 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                  className='bg-[#EA6100] text-black px-6 py-3 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
                 >
                   Create Quest
                 </button>
@@ -171,7 +171,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
         <div className='absolute top-3 right-3'>
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
             quest.isPublic 
-              ? 'bg-[#F7CEB0] text-black' 
+              ? 'bg-[#EA6100] text-black' 
               : 'bg-gray-800 text-white'
           }`}>
             {quest.isPublic ? 'Public' : 'Private'}
