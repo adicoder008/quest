@@ -300,6 +300,39 @@ const questService = {
     }
   },
 
+  getUserSavedQuests: async function (uid: string): Promise<Quest[]> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return [];
+      }
+      const savedQuestIds = userSnap.data().savedQuestIds || [];
+
+      if (savedQuestIds.length === 0) {
+        return [];
+      }
+
+      const questsToFetch = savedQuestIds.slice(0, 30);
+      const questsRef = collection(db, 'quest');
+      const q = query(
+        questsRef, 
+        where('__name__', 'in', questsToFetch),
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let quests: Quest[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        quests.push({ id: doc.id, ...doc.data() } as Quest);
+      });
+      
+      return quests;
+    } catch (error) {
+      console.error('Error fetching user saved quests:', error);
+      throw error;
+    }
+  },
 /**
  * Posts a quest to the public feed, ensuring it has an image and is only posted once.
  */
