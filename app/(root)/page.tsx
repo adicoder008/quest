@@ -13,10 +13,7 @@ import Footer from '@/components/Footer'
 const page = () => {
   return (
     <>
-    
-    <Nav user={null} onSignOut={function (): void {
-        throw new Error('Function not implemented.')
-      } } />
+  
     <Hero />
     <HowItWorks />
     <Mid/>
