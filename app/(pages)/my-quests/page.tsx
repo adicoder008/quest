@@ -5,18 +5,19 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import questService from '@/lib/questService';
-import { ArrowLeft, MapPin, Calendar, PlusCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import InteractiveMap from '../../../components/quest/InteractiveMap'
+import { QuestGridCard } from '../../../components/quest/QuestGridCard'; // <-- Import the new GRID card
 
-// Define a type for your quest data for better type safety
+// Expanded the Quest type to include all data needed for the grid card
 interface Quest {
   id: string;
   destination: string;
+  description: string;
+  coverImageUrl: string;
   startDate: string;
   endDate: string;
-  
-  // Add other quest properties here
+  createdAt: any;
 }
 
 const MyQuestsPage = () => {
@@ -32,17 +33,9 @@ const MyQuestsPage = () => {
     } else {
       const fetchQuests = async () => {
         try {
-          // Use the new backend function
+          // IMPORTANT: Ensure this service fetches all needed fields for the cards
           const userQuests = await questService.getUserQuests(user.uid);
-          setQuests(
-            userQuests.map((q: any) => ({
-              id: q.id,
-              destination: q.destination,
-              startDate: q.startDate,
-              endDate: q.endDate,
-              // Map other properties if needed
-            }))
-          );
+          setQuests(userQuests as unknown as Quest[]);
         } catch (error) {
           console.error("Failed to fetch quests:", error);
         }
@@ -51,15 +44,6 @@ const MyQuestsPage = () => {
       fetchQuests();
     }
   }, [user, loading, router]);
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   if (loading || questsLoading) {
     return (
@@ -73,31 +57,23 @@ const MyQuestsPage = () => {
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-black bg-opacity-80 backdrop-blur-sm p-4 flex items-center gap-4 border-b border-gray-800">
-        <button onClick={() => router.push('/quest')} className="p-2">
+        <button onClick={() => router.push('/quest')} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-xl font-bold">My Quests</h1>
       </header>
 
       {/* Main Content */}
-      <main className="p-4">
+      <main className="p-4 md:p-6">
         {quests.length > 0 ? (
-          <div className="space-y-4">
+          // Responsive Grid Layout
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {quests.map((quest) => (
-              <Link href={`/quest/${quest.id}`} key={quest.id}>
-                <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-orange-500 transition-colors cursor-pointer">
-                  <h2 className="text-lg font-bold text-white mb-2">{quest.destination}</h2>
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={12} />
-                      <span>{formatDate(quest.startDate)} - {formatDate(quest.endDate)}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              <QuestGridCard key={quest.id} quest={quest} />
             ))}
           </div>
         ) : (
+          // "No Quests" message remains the same
           <div className="text-center py-20">
             <MapPin size={48} className="mx-auto text-gray-600 mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Quests Yet</h2>

@@ -90,6 +90,7 @@ export interface QuestContext {
 }
 
 export interface Post {
+  imageUrls: any;
   likedBy: any;
   id: string;
   authorId: string;

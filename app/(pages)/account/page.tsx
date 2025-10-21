@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
 import { calculateLevel } from '@/lib/xpService';
@@ -9,13 +9,14 @@ import { addComment } from '@/lib/postService';
 import { savePost, unsavePost, sharePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
 import MobilePostCard from '@/components/Home/MobilePostCard';
-import { Settings, Edit2, Calendar, SlidersHorizontal, HelpCircle, MapPin } from 'lucide-react';
+import { Settings, Edit2, Calendar, SlidersHorizontal, HelpCircle, MapPin, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from 'lucide-react';
 import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest, User as UserType } from '@/app/types';
+import NavBar from '@/components/Nav';
 
-// Add to global styles or component styles
+
 const styles = `
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -25,7 +26,6 @@ const styles = `
     display: none;
   }
 `;
-
 
 interface UserData {
   uid: string;
@@ -90,10 +90,6 @@ const AccountPage = () => {
   const [savedQuests, setSavedQuests] = useState<Quest[]>([]);
   const [loadingQuests, setLoadingQuests] = useState(false);
 
-  // Modals
-  const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
-  const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -111,15 +107,12 @@ const AccountPage = () => {
           const level = calculateLevel(xp);
           setLevelInfo(level);
 
-          // Fetch user's posts
           await fetchUserPosts(currentUser.uid);
           
-          // Fetch user's saved posts
           if (data?.savedPosts && data.savedPosts.length > 0) {
             await fetchSavedPosts(data.savedPosts);
           }
 
-          // Fetch user's quests
           await fetchUserQuests(currentUser.uid);
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -216,43 +209,28 @@ const AccountPage = () => {
       const quests = await questService.getUserQuests(uid);
       setMyQuests(quests);
       
-      // TODO: Implement saved quests functionality
-      // For now, using empty array
-      setSavedQuests([]);
+      const savedQuestIds = await questService.getUserSavedQuests(uid);
+      const savedQuestsData = await Promise.all(
+        savedQuestIds.map((id: string) => questService.getQuestById(id))
+      );
+      setSavedQuests(savedQuestsData.filter(Boolean) as Quest[]);
     } catch (error) {
-      console.error('Error fetching user quests:', error);
+      console.error('Error fetching quests:', error);
     } finally {
       setLoadingQuests(false);
     }
   };
 
-  const handleLikePost = async (postId: string) => {
-    if (!user?.uid) return;
-    
+  const handleLike = async (postId: string) => {
+    if (!user) return;
     try {
-      const updatePosts = (posts: Post[]) => posts.map(p => {
-        if (p.id === postId) {
-          const isLiked = p.likedBy?.includes(user.uid);
-          return {
-            ...p,
-            likeCount: isLiked ? (p.likeCount || 1) - 1 : (p.likeCount || 0) + 1,
-            likedBy: isLiked 
-              ? (p.likedBy || []).filter((uid: string) => uid !== user.uid)
-              : [...(p.likedBy || []), user.uid]
-          };
-        }
-        return p;
-      });
-
-      setYourPosts(updatePosts);
-      setSavedPosts(updatePosts);
-      
-      const post = [...yourPosts, ...savedPosts].find(p => p.id === postId);
-      if (!post) return;
-      
-      const isLiked = post.likedBy?.includes(user.uid);
       const postRef = firestoreDoc(db, 'posts', postId);
-      
+      const postDoc = await getDoc(postRef);
+      if (!postDoc.exists()) return;
+
+      const likedBy = postDoc.data().likedBy || [];
+      const isLiked = likedBy.includes(user.uid);
+
       if (isLiked) {
         await updateDoc(postRef, {
           likedBy: arrayRemove(user.uid),
@@ -264,73 +242,37 @@ const AccountPage = () => {
           likeCount: increment(1)
         });
       }
+
+      const updatePosts = (posts: Post[]) =>
+        posts.map(post =>
+          post.id === postId
+            ? {
+                ...post,
+                likedBy: isLiked
+                  ? post.likedBy?.filter(id => id !== user.uid)
+                  : [...(post.likedBy || []), user.uid],
+                likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1
+              }
+            : post
+        );
+
+      setYourPosts(updatePosts);
+      setSavedPosts(updatePosts);
     } catch (error) {
       console.error('Error liking post:', error);
     }
   };
 
-  const handleSavePost = async (postId: string) => {
-    if (!user?.uid) return;
-    
+  const handleComment = async (postId: string, commentText: string) => {
+    if (!user || !commentText.trim()) return;
     try {
-      const updatePosts = (posts: Post[]) => posts.map(p => 
-        p.id === postId ? { ...p, isSaved: !p.isSaved } : p
-      );
-
-      const post = [...yourPosts, ...savedPosts].find(p => p.id === postId);
-      const isSaved = post?.isSaved;
-
-      setYourPosts(updatePosts);
-      setSavedPosts(updatePosts);
-      
-      if (isSaved) {
-        await unsavePost(postId, user.uid);
-        setSavedPosts(prev => prev.filter(p => p.id !== postId));
-      } else {
-        await savePost(postId, user.uid);
-      }
-    } catch (error) {
-      console.error('Error toggling save:', error);
-    }
-  };
-
-  const handleSharePost = async (postId: string) => {
-    const post = [...yourPosts, ...savedPosts].find(p => p.id === postId);
-    if (post) {
-      setSelectedPostForShare(post);
-      
-      if (user?.uid) {
-        try {
-          await sharePost(postId, user.uid);
-          
-          const updatePosts = (posts: Post[]) => posts.map(p => 
-            p.id === postId ? { ...p, shareCount: (p.shareCount || 0) + 1 } : p
-          );
-          
-          setYourPosts(updatePosts);
-          setSavedPosts(updatePosts);
-        } catch (error) {
-          console.error('Error sharing post:', error);
-        }
-      }
-    }
-  };
-
-  const handleAddComment = async (postId: string, commentText: string) => {
-    if (!user?.uid || !commentText.trim()) return;
-    
-    try {
-      await addComment(postId, {
-        uid: user.uid,
-        userName: user.displayName || 'Anonymous',
-        userProfilePic: user.photoURL || '',
-        text: commentText.trim()
-      });
-      
-      const updatePosts = (posts: Post[]) => posts.map(post => 
-        post.id === postId ? { ...post, commentCount: (post.commentCount || 0) + 1 } : post
-      );
-
+      await addComment(postId, user.uid, commentText);
+      const updatePosts = (posts: Post[]) =>
+        posts.map(post =>
+          post.id === postId
+            ? { ...post, commentCount: post.commentCount + 1 }
+            : post
+        );
       setYourPosts(updatePosts);
       setSavedPosts(updatePosts);
     } catch (error) {
@@ -338,393 +280,457 @@ const AccountPage = () => {
     }
   };
 
+  const handleSave = async (postId: string, isSaved: boolean) => {
+    if (!user) return;
+    try {
+      if (isSaved) {
+        await unsavePost(postId, user.uid);
+      } else {
+        await savePost(postId, user.uid);
+      }
+      const updatePosts = (posts: Post[]) =>
+        posts.map(post =>
+          post.id === postId ? { ...post, isSaved: !isSaved } : post
+        );
+      setYourPosts(updatePosts);
+      setSavedPosts(updatePosts);
+    } catch (error) {
+      console.error('Error saving post:', error);
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    try {
+      await sharePost(postId);
+    } catch (error) {
+      console.error('Error sharing post:', error);
+    }
+  };
+
   const navigateTo = (path: string) => {
     router.push(path);
   };
 
-  const formatNumber = (num: number): string => {
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
-    return num.toString();
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin"></div>
+      <div className='min-h-screen bg-[#121212] flex items-center justify-center'>
+        <div className='w-16 h-16 border-4 border-[#EA6100] border-t-transparent rounded-full animate-spin'></div>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className='min-h-screen bg-[#121212] text-white flex items-center justify-center px-4'>
+        <div className='text-center max-w-md'>
+          <h2 className='text-3xl font-bold text-[#EA6100] mb-4'>Welcome to OnQuest</h2>
+          <p className='text-gray-400 mb-6'>Please log in to view your profile</p>
+          <button
+            onClick={() => navigateTo('/login')}
+            className='bg-[#EA6100] text-black px-8 py-3 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+          >
+            Log In
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#121212]">
-      <div className='h-[107px] w-full bg-black flex items-center px-5'>
-        <p className='text-3xl font-semibold text-[#EA6100]'>Account</p>
+    <div className='min-h-screen bg-[#121212]'>
+      <style>{styles}</style>
+      
+      <div className="hidden lg:block">
+        <NavBar user={user} onSignOut={handleSignOut} />
       </div>
-
-      {!isLoggedIn ? (
-        <div className='text-white min-h-[800px] p-5'>
-          <div className='bg-[#292929] justify-center items-center rounded-xl h-[250px] p-4 my-8 mx-2 flex flex-col gap-5'>
-            <div>
-              <p className='text-2xl text-white text-center'>Hello, Guest</p>
-              <p className='text-2xl text-white text-center'>Start your Quest here!</p>
-            </div>
-            <button 
-              onClick={() => navigateTo('/auth/signin')} 
-              className='bg-[#EA6100] text-black py-3 px-8 text-xl rounded-3xl font-semibold hover:bg-[#f5c094] transition-colors'
-            >
-              Sign In
-            </button>
-          </div>
-
-          <p className='text-3xl font-semibold text-[#EA6100] mb-4'>Settings</p>
-          <MenuOption
-            icon={<SlidersHorizontal className='text-[#EA6100]' size={28} />}
-            label="Preferences"
-            onClick={() => navigateTo('/account/preferences')}
-          />
-          <MenuOption
-            icon={<HelpCircle className='text-[#EA6100]' size={28} />}
-            label="Support"
-            onClick={() => navigateTo('/account/support')}
-          />
-          <Footer />
-        </div>
-      ) : (
-        <div className='text-white pb-20'>
+      
+      {/* Desktop: Account for sidebar, Mobile: Full width */}
+      <div className='lg:ml-[280px]'>
+        <div className='max-w-7xl mx-auto'>
           {/* Profile Header */}
           <div className='relative'>
-            <div className='h-32 w-full relative overflow-hidden'>
+            {/* Background Image */}
+            <div className='h-48 lg:h-64 relative overflow-hidden'>
               <img
-                src={userData?.backgroundURL || "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800"}
-                alt="Cover"
+                src={userData?.backgroundURL || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200'}
+                alt='Profile Background'
                 className='w-full h-full object-cover'
               />
-              <div className='absolute top-3 right-3 flex gap-2'>
-                <button 
-                  onClick={() => navigateTo('/account/profile')}
-                  className='bg-[rgba(248,111,10,0.9)] p-2 rounded-full hover:bg-[rgba(248,111,10,1)] transition-colors'
-                >
-                  <Edit2 size={18} className='text-white' />
-                </button>
-                <button 
-                  onClick={() => navigateTo('/account/settings')}
-                  className='bg-[rgba(248,111,10,0.9)] p-2 rounded-full hover:bg-[rgba(248,111,10,1)] transition-colors'
-                >
-                  <Settings size={18} className='text-white' />
-                </button>
-              </div>
+              <div className='absolute inset-0 bg-gradient-to-b from-transparent to-[#121212]'></div>
             </div>
 
-            <div className='px-5 -mt-12'>
-              <img
-                src={userData?.photoURL || 'https://via.placeholder.com/150'}
-                alt={userData?.displayName}
-                className='w-24 h-24 rounded-full border-4 border-[#121212] object-cover'
-              />
-            </div>
-          </div>
-
-          {/* User Info */}
-          <div className='px-5 mt-3'>
-            <div className='flex items-center gap-2'>
-              <h2 className='text-2xl font-bold text-white'>{userData?.displayName || 'User'}</h2>
-              {userData?.isVerified && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="#1DA1F2">
-                  <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.056-2.13c-.293-.303-.288-.694.018-.985.307-.29.718-.286 1.011.017l1.298 1.342 3.682-5.53c.12-.183.32-.29.526-.29.357 0 .688.291.688.612 0 .124-.065.249-.677.35z"/>
-                </svg>
-              )}
-            </div>
-            <p className='text-gray-400 text-sm'>@{userData?.displayName?.toLowerCase().replace(/\s/g, '') || 'user'}</p>
-            {userData?.title && (
-              <p className='text-[#EA6100] text-sm mt-1'>{userData.title}</p>
-            )}
-            {userData?.bio && (
-              <p className='text-gray-300 text-sm mt-2 leading-relaxed'>{userData.bio}</p>
-            )}
-
-            {/* Stats */}
-            <div className='flex gap-5 mt-4 text-sm'>
-              <div>
-                <span className='text-white font-bold'>{userData?.postsCount || yourPosts.length}</span>
-                <span className='text-gray-400 ml-1'>Posts</span>
-              </div>
-              <div>
-                <span className='text-white font-bold'>{userData?.followers?.length || 0}</span>
-                <span className='text-gray-400 ml-1'>Followers</span>
-              </div>
-              <div>
-                <span className='text-white font-bold'>{userData?.following?.length || 0}</span>
-                <span className='text-gray-400 ml-1'>Following</span>
-              </div>
-            </div>
-
-            {/* Level Progress */}
-            {levelInfo && (
-              <div className='mt-5 bg-[#292929] p-4 rounded-xl'>
-                <div className='flex items-center justify-between mb-2'>
-                  <span className='text-[#EA6100] font-semibold text-sm'>
-                    {levelInfo.currentLevel?.name || 'Scout'}
-                  </span>
-                  {levelInfo.nextLevel && (
-                    <span className='text-gray-400 text-xs'>
-                      {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
-                    </span>
-                  )}
+            {/* Profile Info - Overlapping */}
+            <div className='relative px-5 lg:px-8 -mt-16 lg:-mt-20'>
+              <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4'>
+                {/* Left: Avatar and Name */}
+                <div className='flex flex-col lg:flex-row items-center lg:items-end gap-4 lg:gap-6'>
+                  <div className='relative'>
+                    <img
+                      src={userData?.photoURL || '/default-avatar.png'}
+                      alt='Profile'
+                      className='w-32 h-32 lg:w-40 lg:h-40 rounded-full border-4 border-[#121212] object-cover'
+                    />
+                    {levelInfo && (
+                      <div className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap'>
+                        Level {levelInfo.level}
+                      </div>
+                    )}
+                  </div>
+                  <div className='text-center lg:text-left lg:mb-4'>
+                    <div className='flex items-center gap-2 justify-center lg:justify-start'>
+                      <h1 className='text-2xl lg:text-3xl font-bold text-white'>
+                        {userData?.displayName || 'User'}
+                      </h1>
+                      {userData?.isVerified && (
+                        <span className='text-[#EA6100] text-xl'>✓</span>
+                      )}
+                    </div>
+                    <p className='text-gray-400 mt-1'>
+                      @{userData?.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}
+                    </p>
+                    {userData?.title && (
+                      <p className='text-gray-500 text-sm mt-1'>{userData.title}</p>
+                    )}
+                  </div>
                 </div>
-                <div className='w-full bg-gray-700 rounded-full h-2.5'>
-                  <div 
-                    className='bg-gradient-to-r from-[#EA6100] to-[#EA6100] h-2.5 rounded-full transition-all duration-300'
-                    style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
-                  ></div>
-                </div>
-                <p className='text-gray-400 text-xs mt-2'>
-                  {userData?.totalXP || 0} XP Total
-                </p>
-              </div>
-            )}
 
-            {/* Badges */}
-            {badges.length > 0 && (
-              <div className='mt-5'>
-                <div className='flex items-center justify-between mb-3'>
-                  <h3 className='text-white font-semibold text-lg'>Earned Badges</h3>
-                  <button 
-                    onClick={() => navigateTo('/account/badges')}
-                    className='text-[#EA6100] text-sm hover:underline'
+                {/* Right: Edit Button (Desktop) */}
+                <div className='hidden lg:flex lg:mb-4'>
+                  <button
+                    onClick={() => navigateTo('/settings')}
+                    className='flex items-center gap-2 bg-[#292929] hover:bg-[#3a3a3a] text-white px-6 py-2.5 rounded-lg transition-colors'
                   >
-                    View All
+                    <Edit2 size={18} />
+                    <span>Edit Profile</span>
                   </button>
                 </div>
-                <div className='flex gap-3 overflow-x-auto pb-2'>
-                  {badges.map(badge => (
-                    <div 
-                      key={badge.id}
-                      className='bg-[#F8EBE2] rounded-lg p-3 flex flex-col items-center min-w-[90px] flex-shrink-0'
-                    >
-                      <img 
-                        src={badge.iconUrl} 
-                        alt={badge.name}
-                        className='w-12 h-12 object-contain mb-2'
-                      />
-                      <span className='text-[#402B09] text-xs font-semibold text-center'>
-                        {badge.name}
-                      </span>
+              </div>
+
+              {/* Stats - Desktop: Single row, Mobile: Keep as is */}
+              <div className='mt-6 grid grid-cols-3 lg:flex lg:gap-8 gap-4 text-center lg:text-left'>
+                <div>
+                  <div className='text-xl lg:text-2xl font-bold text-white'>
+                    {userData?.postsCount || yourPosts.length}
+                  </div>
+                  <div className='text-gray-400 text-sm'>Posts</div>
+                </div>
+                <div>
+                  <div className='text-xl lg:text-2xl font-bold text-white'>
+                    {userData?.followers?.length || 0}
+                  </div>
+                  <div className='text-gray-400 text-sm'>Followers</div>
+                </div>
+                <div>
+                  <div className='text-xl lg:text-2xl font-bold text-white'>
+                    {userData?.following?.length || 0}
+                  </div>
+                  <div className='text-gray-400 text-sm'>Following</div>
+                </div>
+                {levelInfo && (
+                  <div className='col-span-3 lg:col-span-1'>
+                    <div className='text-xl lg:text-2xl font-bold text-[#EA6100]'>
+                      {levelInfo.xp} XP
                     </div>
-                  ))}
+                    <div className='text-gray-400 text-sm'>Experience</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bio */}
+              {userData?.bio && (
+                <div className='mt-4 text-gray-300 max-w-3xl'>
+                  {userData.bio}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Posts Section */}
-            <div className='mt-6'>
-              <div className='flex items-center justify-between mb-4'>
-                <h3 className='text-white font-semibold text-lg'>Posts</h3>
-                <button 
-                  onClick={() => navigateTo('/account/posts')}
-                  className='text-[#EA6100] text-sm hover:underline'
-                >
-                  View All
-                </button>
-              </div>
-
-              <div className='flex gap-2 mb-4'>
-                <button
-                  onClick={() => setActivePostTab('your-posts')}
-                  className={`py-2 px-4 rounded-lg font-medium transition-colors ${
-                    activePostTab === 'your-posts'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-                >
-                  Your Posts
-                </button>
-                <button
-                  onClick={() => setActivePostTab('saved-posts')}
-                  className={`py-2 px-4 rounded-lg font-medium transition-colors ${
-                    activePostTab === 'saved-posts'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-                >
-                  Saved Posts
-                </button>
-              </div>
-
-              {loadingPosts ? (
-                <div className='text-center py-8'>
-                  <div className='text-gray-400'>Loading posts...</div>
-                </div>
-              ) : activePostTab === 'your-posts' ? (
-                yourPosts.length > 0 ? (
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                    {yourPosts.slice(0, 5).map(post => (
-                      <div key={post.id} className='min-w-[300px] flex-shrink-0'>
-                        <CompactPostCard
-                          post={post}
-                          onClick={() => navigateTo(`/post/${post.id}`)}
+              {/* Badges - Desktop: Horizontal, Mobile: Keep horizontal scroll */}
+              {badges.length > 0 && (
+                <div className='mt-6'>
+                  <h3 className='text-white font-semibold mb-3'>Badges</h3>
+                  <div className='flex gap-3 overflow-x-auto pb-2 scrollbar-hide'>
+                    {badges.map((badge) => (
+                      <div
+                        key={badge.id}
+                        className='flex-shrink-0 bg-[#292929] rounded-lg p-3 hover:bg-[#3a3a3a] transition-colors'
+                        title={badge.description}
+                      >
+                        <img
+                          src={badge.iconUrl}
+                          alt={badge.name}
+                          className='w-12 h-12 object-contain'
                         />
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                    <p className='text-gray-400'>No posts yet</p>
-                    <p className='text-gray-500 text-sm mt-1'>Share your first adventure!</p>
-                  </div>
-                )
-              ) : (
-                savedPosts.length > 0 ? (
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                    {savedPosts.slice(0, 5).map(post => (
-                      <div key={post.id} className='min-w-[300px] flex-shrink-0'>
-                        <CompactPostCard
-                          post={post}
-                          onClick={() => navigateTo(`/post/${post.id}`)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                    <p className='text-gray-400'>No saved posts</p>
-                    <p className='text-gray-500 text-sm mt-1'>Save posts to view them here</p>
-                  </div>
-                )
+                </div>
               )}
             </div>
+          </div>
 
-            {/* Quests Section */}
-            <div className='mt-6'>
-              <div className='flex items-center justify-between mb-3'>
-                <h3 className='text-white font-semibold text-lg'>Quests</h3>
-                <button 
-                  onClick={() => navigateTo('/account/quests')}
-                  className='text-[#EA6100] text-sm hover:underline'
-                >
-                  View All
-                </button>
-              </div>
+          {/* Desktop: Grid layout, Mobile: Stack */}
+          <div className='mt-8 px-5 lg:px-8 pb-20 lg:pb-8'>
+            <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
               
-              <div className='flex gap-2 mb-4 overflow-x-auto scrollbar-hide'>
-                <button
-                  onClick={() => setActiveQuestTab('public-quests')}
-                  className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                    activeQuestTab === 'public-quests'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-                >
-                  Public
-                </button>
-                <button
-                  onClick={() => setActiveQuestTab('private-quests')}
-                  className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                    activeQuestTab === 'private-quests'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-                >
-                  Private
-                </button>
-                <button
-                  onClick={() => setActiveQuestTab('saved-quests')}
-                  className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                    activeQuestTab === 'saved-quests'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-                >
-                  Saved Quests
-                </button>
+              {/* Left Column - Posts (Desktop: 2/3, Mobile: Full) */}
+              <div className='lg:col-span-2 space-y-6'>
+                
+                {/* Posts Section */}
+                <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
+                  <div className='flex items-center justify-between mb-4'>
+                    <h2 className='text-2xl font-bold text-white'>Posts</h2>
+                  </div>
+                  
+                  {/* Post Tabs */}
+                  <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
+                    <button
+                      onClick={() => setActivePostTab('your-posts')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                        activePostTab === 'your-posts'
+                          ? 'bg-[#EA6100] text-black'
+                          : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                    >
+                      Your Posts ({yourPosts.length})
+                    </button>
+                    <button
+                      onClick={() => setActivePostTab('saved-posts')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                        activePostTab === 'saved-posts'
+                          ? 'bg-[#EA6100] text-black'
+                          : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                    >
+                      Saved Posts ({savedPosts.length})
+                    </button>
+                  </div>
+
+                  {/* Posts Content - Horizontal Scroll */}
+                  {loadingPosts ? (
+                    <div className='text-center py-8'>
+                      <div className='text-gray-400'>Loading posts...</div>
+                    </div>
+                  ) : (
+                    <div>
+                      {activePostTab === 'your-posts' ? (
+                        yourPosts.length > 0 ? (
+                          <div>
+                            <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
+                              {yourPosts.slice(0, 5).map(post => (
+                                <div key={post.id} className='min-w-[300px] lg:min-w-[320px] flex-shrink-0'>
+                                  <PostCardCompact
+                                    post={post}
+                                    currentUser={user}
+                                    onLike={() => handleLike(post.id)}
+                                    onClick={() => navigateTo(`/post/${post.id}`)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            {yourPosts.length > 5 && (
+                              <button
+                                onClick={() => navigateTo('/account/all-posts?tab=your-posts')}
+                                className='mt-4 w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
+                              >
+                                <span>View All Posts ({yourPosts.length})</span>
+                                <IoChevronForward />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                            <p className='text-gray-400'>No posts yet</p>
+                            <button
+                              onClick={() => navigateTo('/create-post')}
+                              className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                            >
+                              Create Your First Post
+                            </button>
+                          </div>
+                        )
+                      ) : (
+                        savedPosts.length > 0 ? (
+                          <div>
+                            <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
+                              {savedPosts.slice(0, 5).map(post => (
+                                <div key={post.id} className='min-w-[300px] lg:min-w-[320px] flex-shrink-0'>
+                                  <PostCardCompact
+                                    post={post}
+                                    currentUser={user}
+                                    onLike={() => handleLike(post.id)}
+                                    onClick={() => navigateTo(`/post/${post.id}`)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            {savedPosts.length > 5 && (
+                              <button
+                                onClick={() => navigateTo('/account/all-posts?tab=saved-posts')}
+                                className='mt-4 w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
+                              >
+                                <span>View All Saved Posts ({savedPosts.length})</span>
+                                <IoChevronForward />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                            <p className='text-gray-400'>No saved posts</p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quests Section */}
+                <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
+                  <h2 className='text-2xl font-bold text-white mb-4'>Quests</h2>
+                  
+                  {/* Quest Tabs */}
+                  <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
+                    <button
+                      onClick={() => setActiveQuestTab('public-quests')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                        activeQuestTab === 'public-quests'
+                          ? 'bg-[#EA6100] text-black'
+                          : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                    >
+                      Public
+                    </button>
+                    <button
+                      onClick={() => setActiveQuestTab('private-quests')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                        activeQuestTab === 'private-quests'
+                          ? 'bg-[#EA6100] text-black'
+                          : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                    >
+                      Private
+                    </button>
+                    <button
+                      onClick={() => setActiveQuestTab('saved-quests')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                        activeQuestTab === 'saved-quests'
+                          ? 'bg-[#EA6100] text-black'
+                          : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                    >
+                      Saved Quests
+                    </button>
+                  </div>
+
+                  {/* Quests Content - Horizontal Scroll */}
+                  {loadingQuests ? (
+                    <div className='text-center py-8'>
+                      <div className='text-gray-400'>Loading quests...</div>
+                    </div>
+                  ) : activeQuestTab === 'public-quests' ? (
+                    myQuests.filter(q => q.isPublic).length > 0 ? (
+                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
+                        {myQuests.filter(q => q.isPublic).slice(0, 5).map(quest => (
+                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
+                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                        <p className='text-gray-400'>No public quests</p>
+                        <button
+                          onClick={() => navigateTo('/quest/create')}
+                          className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                        >
+                          Create Public Quest
+                        </button>
+                      </div>
+                    )
+                  ) : activeQuestTab === 'private-quests' ? (
+                    myQuests.filter(q => !q.isPublic).length > 0 ? (
+                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
+                        {myQuests.filter(q => !q.isPublic).slice(0, 5).map(quest => (
+                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
+                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                        <p className='text-gray-400'>No private quests</p>
+                        <button
+                          onClick={() => navigateTo('/quest/create')}
+                          className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
+                        >
+                          Create Private Quest
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    savedQuests.length > 0 ? (
+                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
+                        {savedQuests.slice(0, 5).map(quest => (
+                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
+                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                        <p className='text-gray-400'>No saved quests</p>
+                        <p className='text-gray-500 text-sm mt-1'>Save quests to view them here</p>
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
 
-              {loadingQuests ? (
-                <div className='text-center py-8'>
-                  <div className='text-gray-400'>Loading quests...</div>
+              {/* Right Column - Quick Actions (Desktop: 1/3, Mobile: Full) */}
+              <div className='lg:col-span-1 space-y-6'>
+                <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6 lg:sticky lg:top-6'>
+                  <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>Quick Actions</h3>
+                  
+                  <div className='space-y-2'>
+                    <MenuOption
+                      icon={<Settings className='text-[#EA6100]' size={20} />}
+                      label="Settings"
+                      onClick={() => navigateTo('/settings')}
+                    />
+                    <MenuOption
+                      icon={<Calendar className='text-[#EA6100]' size={20} />}
+                      label="Upcoming Quests"
+                      onClick={() => navigateTo('/account/upcoming-quests')}
+                    />
+                    <MenuOption
+                      icon={<SlidersHorizontal className='text-[#EA6100]' size={20} />}
+                      label="Preferences"
+                      onClick={() => navigateTo('/account/preferences')}
+                    />
+                    <MenuOption
+                      icon={<HelpCircle className='text-[#EA6100]' size={20} />}
+                      label="Support"
+                      onClick={() => navigateTo('/account/support')}
+                    />
+                  </div>
                 </div>
-              ) : activeQuestTab === 'public-quests' ? (
-                myQuests.filter(q => q.isPublic).length > 0 ? (
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                    {myQuests.filter(q => q.isPublic).slice(0, 5).map(quest => (
-                      <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                        <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                    <p className='text-gray-400'>No public quests</p>
-                    <button
-                      onClick={() => navigateTo('/quest/create')}
-                      className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
-                    >
-                      Create Public Quest
-                    </button>
-                  </div>
-                )
-              ) : activeQuestTab === 'private-quests' ? (
-                myQuests.filter(q => !q.isPublic).length > 0 ? (
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                    {myQuests.filter(q => !q.isPublic).slice(0, 5).map(quest => (
-                      <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                        <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                    <p className='text-gray-400'>No private quests</p>
-                    <button
-                      onClick={() => navigateTo('/quest/create')}
-                      className='mt-3 bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
-                    >
-                      Create Private Quest
-                    </button>
-                  </div>
-                )
-              ) : (
-                savedQuests.length > 0 ? (
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                    {savedQuests.slice(0, 5).map(quest => (
-                      <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                        <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                    <p className='text-gray-400'>No saved quests</p>
-                    <p className='text-gray-500 text-sm mt-1'>Save quests to view them here</p>
-                  </div>
-                )
-              )}
+              </div>
             </div>
           </div>
 
-          {/* Menu Options */}
-          <div className='px-5 mt-6'>
-            <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>Quick Actions</h3>
-            
-            <MenuOption
-              icon={<Calendar className='text-[#EA6100]' size={24} />}
-              label="Upcoming Quests"
-              onClick={() => navigateTo('/account/upcoming-quests')}
-            />
-            <MenuOption
-              icon={<SlidersHorizontal className='text-[#EA6100]' size={24} />}
-              label="Preferences"
-              onClick={() => navigateTo('/account/preferences')}
-            />
-            <MenuOption
-              icon={<HelpCircle className='text-[#EA6100]' size={24} />}
-              label="Support"
-              onClick={() => navigateTo('/account/support')}
-            />
+          {/* Mobile Footer */}
+          <div className='lg:hidden'>
+            <Footer />
           </div>
-
-          <Footer />
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -737,18 +743,31 @@ const MenuOption: React.FC<{
 }> = ({ icon, label, onClick }) => (
   <div 
     onClick={onClick}
-    className='w-full flex justify-between items-center py-4 border-b-2 border-[#EA6100] cursor-pointer hover:bg-[#1a1a1a] transition-colors'
+    className='flex justify-between items-center py-3 px-4 rounded-lg hover:bg-[#292929] cursor-pointer transition-colors group'
   >
-    <div className='flex gap-4 items-center'>
-      <div>{icon}</div>
-      <div className='text-xl text-white'>{label}</div>
+    <div className='flex gap-3 items-center'>
+      <div className='flex-shrink-0'>{icon}</div>
+      <div className='text-white group-hover:text-[#EA6100] transition-colors'>{label}</div>
     </div>
-    <div className='text-[#EA6100]'><IoChevronForward size={28} /></div>
+    <div className='text-[#EA6100] opacity-0 group-hover:opacity-100 transition-opacity'>
+      <IoChevronForward size={20} />
+    </div>
   </div>
 );
 
-// Compact Post Card for horizontal scrolling
-const CompactPostCard: React.FC<{ post: Post; onClick: () => void }> = ({ post, onClick }) => {
+// Compact Post Card matching your PostCard design
+const PostCardCompact: React.FC<{ 
+  post: Post; 
+  currentUser: any; 
+  onLike: () => void;
+  onClick: () => void;
+}> = ({ post, currentUser, onLike, onClick }) => {
+  const [liked, setLiked] = useState(post.likedBy?.includes(currentUser?.uid) || false);
+
+  useEffect(() => {
+    setLiked(post.likedBy?.includes(currentUser?.uid) || false);
+  }, [post.likedBy, currentUser?.uid]);
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
@@ -756,17 +775,41 @@ const CompactPostCard: React.FC<{ post: Post; onClick: () => void }> = ({ post, 
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
     if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onLike();
   };
 
   return (
     <div 
+      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
       onClick={onClick}
-      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-700'
     >
+      {/* User header */}
+      <div className='flex items-center justify-between p-3 border-b border-gray-800'>
+        <div className='flex items-center gap-2'>
+          <img 
+            src={post.userProfilePic || '/default-avatar.png'} 
+            alt={post.userName}
+            className='w-8 h-8 rounded-full object-cover'
+          />
+          <div>
+            <span className='text-white text-sm font-medium block'>{post.userName}</span>
+            <span className='text-gray-400 text-xs'>{formatTime(post.createdAt)}</span>
+          </div>
+        </div>
+        <button className='text-gray-400 hover:text-white' onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal size={18} />
+        </button>
+      </div>
+
+      {/* Post Image */}
       {post.photoUrl && (
         <div className='relative h-48'>
           <img
@@ -776,14 +819,32 @@ const CompactPostCard: React.FC<{ post: Post; onClick: () => void }> = ({ post, 
           />
         </div>
       )}
+
+      {/* Post Content */}
       <div className='p-3'>
-        <p className='text-white text-sm line-clamp-2 mb-2'>{post.text}</p>
-        <div className='flex items-center justify-between text-xs text-gray-400'>
-          <span>{formatTime(post.createdAt)}</span>
+        <p className='text-white text-sm line-clamp-2 mb-3'>{post.text}</p>
+        
+        {/* Actions */}
+        <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
-            <span>❤️ {post.likeCount || 0}</span>
-            <span>💬 {post.commentCount || 0}</span>
+            <button 
+              onClick={handleLikeClick}
+              className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-gray-400'}`}
+            >
+              <Heart size={18} className={liked ? 'fill-current' : ''} />
+              <span className='text-xs'>{post.likeCount || 0}</span>
+            </button>
+            <button className='flex items-center gap-1 text-gray-400 hover:text-white transition-colors' onClick={(e) => e.stopPropagation()}>
+              <MessageCircle size={18} />
+              <span className='text-xs'>{post.commentCount || 0}</span>
+            </button>
+            <button className='text-gray-400 hover:text-white transition-colors' onClick={(e) => e.stopPropagation()}>
+              <Share2 size={18} />
+            </button>
           </div>
+          <button className='text-gray-400 hover:text-[#EA6100] transition-colors' onClick={(e) => e.stopPropagation()}>
+            <Bookmark size={18} className={post.isSaved ? 'fill-current text-[#EA6100]' : ''} />
+          </button>
         </div>
       </div>
     </div>
@@ -795,7 +856,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
   return (
     <div 
       onClick={onClick}
-      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-700'
+      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
     >
       <div className='relative h-40'>
         <img
@@ -805,19 +866,19 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
         />
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 to-transparent' />
         <div className='absolute bottom-0 left-0 right-0 p-4'>
-          <h4 className='text-white font-bold text-lg mb-1'>{quest.title}</h4>
+          <h4 className='text-white font-bold text-lg mb-1 line-clamp-1'>{quest.title}</h4>
           <div className='flex items-center gap-2 text-gray-300 text-sm'>
             <MapPin size={14} />
-            <span>{quest.destination}</span>
+            <span className='line-clamp-1'>{quest.destination}</span>
           </div>
         </div>
       </div>
       <div className='p-4'>
         <div className='flex items-center justify-between text-sm'>
-          <span className='text-gray-400'>
+          <span className='text-gray-400 text-xs'>
             {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
           </span>
-          <span className='text-[#EA6100] font-medium'>
+          <span className='text-[#EA6100] font-medium text-xs'>
             {quest.isPublic ? 'Public' : 'Private'}
           </span>
         </div>
@@ -827,3 +888,4 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
 };
 
 export default AccountPage;
+

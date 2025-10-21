@@ -10,7 +10,6 @@ import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/Nav';
 import PhotoBasedQuestCreation from '@/components/quest/PhotoBasedQuestCreation';
-import LayoutWrapper from '@/components/LayoutWrapper';
 
 interface PlaceData {
   coordinates: { lat: number; lng: number };
@@ -422,7 +421,6 @@ const QuestPage = () => {
   const currentStepData = steps[currentStep];
 
   return (
-    <LayoutWrapper hasNavbar={true}>
       <div className="min-h-screen bg-black text-white md:pl-[80px] xl:pl-[280px]">
         {/* Desktop Layout */}
         <div className="hidden md:block">
@@ -603,7 +601,6 @@ const QuestPage = () => {
           <Footer />
         </div>
       </div>
-    </LayoutWrapper>
   );
 };
 

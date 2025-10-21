@@ -1,13 +1,53 @@
 @import "tailwindcss";
-/* Hide scrollbar utility */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+
+/* ==================== BASE STYLES ==================== */
+* {
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
 
+body {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+/* ==================== SCROLLBAR UTILITIES ==================== */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #EA6100 transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #EA6100;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #d55600;
+}
+
+/* ==================== ANIMATIONS ==================== */
 @keyframes slide-up {
   from {
     transform: translate(-50%, 100%);
@@ -30,32 +70,6 @@
   }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-.animate-slide-out {
-  animation: slide-out 0.3s ease-out;
-}
-
-/* Scrollbar hide utility */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Smooth transitions for interactive elements */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Hover scale effect for cards */
 @keyframes hover-scale {
   0% {
     transform: scale(1);
@@ -65,30 +79,174 @@
   }
 }
 
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slide-out 0.3s ease-out;
+}
+
 .hover-scale:hover {
   animation: hover-scale 0.2s ease-in-out forwards;
 }
-/* :root {
-  --background: #121212;
-  --foreground: #171717;
-} */
 
-/* @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-} */
+/* ==================== SMOOTH TRANSITIONS ==================== */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
 
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ==================== FOCUS STYLES ==================== */
+*:focus-visible {
+  outline: 2px solid #EA6100;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #EA6100;
+  outline-offset: 2px;
+}
+
+/* ===================================
+   FIXED POST CARD DIMENSIONS
+   Desktop images stay centered with blank space
+   =================================== */
+
+.responsive-post-card {
+    background-color: #000000;
+    border: 1px solid #262626;
+    margin: 0 auto 12px;
+    width: 100%;
+}
+
+/* Mobile: Full width */
+@media (max-width: 767px) {
+    .responsive-post-card {
+        max-width: 100%;
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+    }
+}
+
+/* Tablet: Fixed 470px, centered with blank space */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .responsive-post-card {
+        width: 470px; /* FIXED WIDTH */
+        max-width: 470px;
+        border-radius: 8px;
+    }
+}
+
+/* Desktop: Fixed 470px, centered with blank space */
+@media (min-width: 1024px) and (max-width: 1439px) {
+    .responsive-post-card {
+        width: 470px; /* FIXED WIDTH */
+        max-width: 470px;
+        border-radius: 8px;
+    }
+}
+
+/* Large Desktop: Fixed 600px, centered with blank space */
+@media (min-width: 1440px) {
+    .responsive-post-card {
+        width: 600px; /* FIXED WIDTH */
+        max-width: 600px;
+        border-radius: 8px;
+    }
+}
+
+/* Post Image Container - 4:5 ratio */
+.post-image-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 125%; /* 4:5 = 125% */
+    background-color: #000000;
+    overflow: hidden;
+}
+
+.post-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures image fills container */
+}
+
+/* Feed container - centers posts with blank space on sides */
+.feed-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+}
+
+@media (min-width: 768px) {
+    .feed-container {
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Centers posts */
+    }
+}
+
+/* Layout will have blank space on huge screens */
+.three-column-layout {
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+    .three-column-layout {
+        grid-template-columns: 240px 1fr;
+        gap: 30px;
+        max-width: 975px; /* Fixed max, blank space on sides */
+        margin: 0 auto;
+    }
+}
+
+@media (min-width: 1280px) {
+    .three-column-layout {
+        grid-template-columns: 280px 1fr 320px;
+        max-width: 1200px; /* Fixed max, blank space on sides */
+    }
+}
+
+@media (min-width: 1440px) {
+    .three-column-layout {
+        grid-template-columns: 320px 1fr 380px;
+        max-width: 1400px; /* Fixed max, blank space on sides */
+    }
+}
+
+/* Center the main feed column */
+.feed-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers posts */
+    width: 100%;
+}
+
+/* ==================== MOBILE OVERRIDES ==================== */
+@media (max-width: 1023px) {
+  .container-with-sidebar {
+    margin-left: 0;
   }
-} */
+}
 
-/* body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-} */
+/* ==================== PRINT STYLES ==================== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background-color: white;
+  }
+}

@@ -2074,6 +2074,7 @@ const MobileFeedPage = () => {
           userProfilePic: post.userProfilePic || post.author.avatar,
           text: post.text || post.content?.text || '',
           photoUrl: post.photoUrl || post.content?.images?.[0] || '',
+          imageUrls: post.content?.images || (post.photoUrl ? [post.photoUrl] : []) || [],
           location: post.location || post.metadata?.location || '',
           createdAt: post.createdAt || post.metadata?.createdAt,
           likeCount: post.likeCount ?? post.stats?.likes ?? 0,
@@ -2083,6 +2084,7 @@ const MobileFeedPage = () => {
           isSaved: userData?.savedPosts?.includes(post.id) || false,
           postType: post.postType || 'regular',
           questData: post.questData || post.questContext || null,
+
         }));
         
         setPosts(postsData);
@@ -2100,7 +2102,6 @@ const MobileFeedPage = () => {
 
   const loadMorePosts = async () => {
     if (!hasMore || loadingMore || !lastVisible || !user) return;
-    
     try {
       setLoadingMore(true);
       const result = await getPaginatedPosts(lastVisible, 5);
@@ -2113,6 +2114,7 @@ const MobileFeedPage = () => {
         userProfilePic: post.userProfilePic || post.author.avatar,
         text: post.text || post.content?.text || '',
         photoUrl: post.photoUrl || post.content?.images?.[0] || '',
+        imageUrls: post.content?.images || (post.photoUrl ? [post.photoUrl] : []) || [],
         location: post.location || post.metadata?.location || '',
         createdAt: post.createdAt || post.metadata?.createdAt,
         likeCount: post.likeCount ?? post.stats?.likes ?? 0,
