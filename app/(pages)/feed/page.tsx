@@ -45,7 +45,7 @@ const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
                     onClick={() => setShowCreateModal(true)}
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
                 >
-                    <Plus className="text-[#EA6100] w-5 h-5" />
+                    <Plus className="text-[#F7CEB0] w-5 h-5" />
                     <span className="text-gray-300">What's on your mind?</span>
                 </button>
             </div>
@@ -135,7 +135,7 @@ const RightSidebar = ({ user, userData }: any) => {
     <div className="fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
       {/* User Profile Card */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
-        <div className="h-24 bg-gradient-to-r from-[#EA6100] to-[#EA6100]"></div>
+        <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
         
         <div className="px-4 pb-4">
           <img 
@@ -174,7 +174,7 @@ const RightSidebar = ({ user, userData }: any) => {
           {levelInfo && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[#EA6100] font-medium text-sm">
+                <span className="text-[#F7CEB0] font-medium text-sm">
                   {levelInfo.currentLevel.name}
                 </span>
                 {levelInfo.nextLevel && (
@@ -185,7 +185,7 @@ const RightSidebar = ({ user, userData }: any) => {
               </div>
               <div className="w-full bg-gray-800 rounded-full h-2">
                 <div 
-                  className="bg-gradient-to-r from-[#EA6100] to-[#EA6100] h-2 rounded-full transition-all"
+                  className="bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2 rounded-full transition-all"
                   style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
                 ></div>
               </div>
@@ -199,7 +199,7 @@ const RightSidebar = ({ user, userData }: any) => {
                 <h4 className="text-white font-medium text-sm">Earned Badges</h4>
                 <button 
                   onClick={() => router.push(`/profile/${user?.uid}#badges`)}
-                  className="text-[#EA6100] text-xs hover:underline"
+                  className="text-[#F7CEB0] text-xs hover:underline"
                 >
                   View All
                 </button>
@@ -253,7 +253,7 @@ const RightSidebar = ({ user, userData }: any) => {
                 className={`text-xs px-3 py-1 rounded-full transition-colors ${
                   traveler.followers?.includes(user?.uid)
                     ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                    : 'bg-[#EA6100] text-black hover:bg-[#f5c094]'
+                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
                 }`}
               >
                 {traveler.followers?.includes(user?.uid) ? 'Following' : 'Follow'}
@@ -261,7 +261,7 @@ const RightSidebar = ({ user, userData }: any) => {
             </div>
           ))}
         </div>
-        <button className="text-[#EA6100] text-sm font-medium mt-4 hover:underline">
+        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline">
           Explore more
         </button>
       </div>
@@ -331,7 +331,7 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
               <select
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#EA6100] focus:outline-none"
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none"
               >
                 <option value="">Select a reason</option>
                 <option value="spam">Spam</option>
@@ -348,7 +348,7 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
                 value={reportDescription}
                 onChange={(e) => setReportDescription(e.target.value)}
                 placeholder="Provide more details..."
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#EA6100] focus:outline-none resize-none"
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none resize-none"
                 rows={3}
               />
             </div>
@@ -469,7 +469,7 @@ const ShareModal = ({ post, onClose }: any) => {
             />
             <button
               onClick={handleCopyLink}
-              className="bg-[#EA6100] text-black px-3 py-1 rounded text-sm font-medium hover:bg-[#f5c094] transition-colors"
+              className="bg-[#F7CEB0] text-black px-3 py-1 rounded text-sm font-medium hover:bg-[#f5c094] transition-colors"
             >
               Copy
             </button>
@@ -752,7 +752,7 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Post your comment..."
-                className="w-full bg-gray-800 text-white p-3 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none resize-none"
+                className="w-full bg-gray-800 text-white p-3 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none resize-none"
                 rows={2}
                 required
               />
@@ -761,7 +761,7 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
                 disabled={!commentText.trim()}
                 className={`absolute right-2 bottom-2 p-2 rounded-full transition-colors ${
                   commentText.trim() 
-                    ? 'bg-[#EA6100] text-black hover:bg-[#f5c094]' 
+                    ? 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]' 
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 }`}
               >
@@ -1204,7 +1204,7 @@ const Feed = () => {
                       className={`text-xs px-2 py-1 rounded-full transition-colors ${
                         isFollowingUser
                           ? 'bg-gray-700 text-white hover:bg-gray-600'
-                          : 'bg-[#EA6100] text-black hover:bg-[#f5c094]'
+                          : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
                       }`}
                     >
                       {isFollowingUser ? <UserCheck size={14} /> : <UserPlus size={14} />}
@@ -1260,7 +1260,7 @@ const Feed = () => {
               
               <button 
                 onClick={() => handleComment(post)}
-                className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
               >
                 <FaRegCommentDots className="w-6 h-6" />
                 <span className="text-sm">{post.stats.comments}</span>
@@ -1268,7 +1268,7 @@ const Feed = () => {
               
               <button 
                 onClick={() => handleShare(post.id)}
-                className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
               >
                 <Share2 className="w-6 h-6" />
                 {/* <span className="text-sm">{post.stats.shares || 0}</span> */}
@@ -1277,7 +1277,7 @@ const Feed = () => {
               <button 
                 onClick={() => handleSave(post.id)}
                 className={`ml-auto transition-colors ${
-                  isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+                  isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
                 }`}
               >
                 {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
@@ -1309,7 +1309,7 @@ const Feed = () => {
                     className={`text-xs px-2 py-1 rounded-full transition-colors ${
                       isFollowingUser
                         ? 'bg-gray-700 text-white hover:bg-gray-600'
-                        : 'bg-[#EA6100] text-black hover:bg-[#f5c094]'
+                        : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
                     }`}
                   >
                     {isFollowingUser ? <UserCheck size={14} /> : <UserPlus size={14} />}
@@ -1359,7 +1359,7 @@ const Feed = () => {
             
             <button 
               onClick={() => handleComment(post)}
-              className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
               <FaRegCommentDots className="w-6 h-6" />
               <span className="text-sm">{post.stats.comments}</span>
@@ -1367,7 +1367,7 @@ const Feed = () => {
             
             <button 
               onClick={() => handleShare(post.id)}
-              className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
               <Share2 className="w-6 h-6" />
               {/* <span className="text-sm">{post.stats.shares || 0}</span> */}
@@ -1376,7 +1376,7 @@ const Feed = () => {
             <button 
               onClick={() => handleSave(post.id)}
               className={`ml-auto transition-colors ${
-                isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+                isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
               }`}
             >
               {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
@@ -1452,7 +1452,7 @@ const Feed = () => {
         <div className="fixed bottom-6 left-[calc(280px+50%)] transform -translate-x-1/2 z-50">
           <button
             onClick={() => router.push('/quests/create') }
-            className="flex items-center justify-center w-14 h-14 bg-[#EA6100] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
+            className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
             aria-label="Create new quest"
           >
             <FaPlus className="text-xl" />
@@ -1677,7 +1677,7 @@ const MobilePostCard = ({
                     className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                       isFollowingUser
                         ? 'bg-gray-700 text-white'
-                        : 'bg-[#EA6100] text-black'
+                        : 'bg-[#F7CEB0] text-black'
                     }`}
                   >
                     {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
@@ -1731,7 +1731,7 @@ const MobilePostCard = ({
           
           <button 
             onClick={handleToggleComments}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <MessageCircle className="w-5 h-5" />
             <span className="text-xs">{post.commentCount || 0}</span>
@@ -1739,7 +1739,7 @@ const MobilePostCard = ({
           
           <button 
             onClick={onShare}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#EA6100] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <Share2 className="w-5 h-5" />
             {/* <span className="text-xs">{post.shareCount || 0}</span> */}
@@ -1748,7 +1748,7 @@ const MobilePostCard = ({
           <button 
             onClick={onSave}
             className={`transition-colors ${
-              isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
             }`}
           >
             {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -1770,14 +1770,14 @@ const MobilePostCard = ({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Add a comment..."
-                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none text-sm"
+                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
                   />
                   <button
                     type="submit"
                     disabled={!commentText.trim()}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
                       commentText.trim() 
-                        ? 'text-[#EA6100]' 
+                        ? 'text-[#F7CEB0]' 
                         : 'text-gray-600'
                     }`}
                   >
@@ -1875,7 +1875,7 @@ const MobilePostCard = ({
                   className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                     isFollowingUser
                       ? 'bg-gray-700 text-white'
-                      : 'bg-[#EA6100] text-black'
+                      : 'bg-[#F7CEB0] text-black'
                   }`}
                 >
                   {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
@@ -1926,7 +1926,7 @@ const MobilePostCard = ({
         
         <button 
           onClick={handleToggleComments}
-          className="flex items-center gap-1 text-gray-400 hover:text-[#EA6100] transition-colors"
+          className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
           <MessageCircle className="w-5 h-5" />
           <span className="text-xs">{post.commentCount || 0}</span>
@@ -1934,7 +1934,7 @@ const MobilePostCard = ({
         
         <button 
           onClick={onShare}
-          className="flex items-center gap-1 text-gray-400 hover:text-[#EA6100] transition-colors"
+          className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
           <Share2 className="w-5 h-5" />
           {/* <span className="text-xs">{post.shareCount || 0}</span> */}
@@ -1943,7 +1943,7 @@ const MobilePostCard = ({
         <button 
           onClick={onSave}
           className={`ml-auto transition-colors ${
-            isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
           }`}
         >
           {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -1965,14 +1965,14 @@ const MobilePostCard = ({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add a comment..."
-                  className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:border-transparent focus:outline-none text-sm"
+                  className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
                 />
                 <button
                   type="submit"
                   disabled={!commentText.trim()}
                   className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
                     commentText.trim() 
-                      ? 'text-[#EA6100]' 
+                      ? 'text-[#F7CEB0]' 
                       : 'text-gray-600'
                   }`}
                 >
@@ -2295,7 +2295,7 @@ const MobileFeedPage = () => {
           <h2 className="text-xl mb-4">Please sign in to view the feed</h2>
           <button 
             onClick={() => window.location.href = '/auth'}
-            className="bg-[#EA6100] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
+            className="bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
           >
             Sign In
           </button>
@@ -2321,7 +2321,7 @@ const MobileFeedPage = () => {
         
         <div className="px-4 pb-4">
           <h1 className="text-2xl font-medium text-white">
-            New day, <span className="text-[#EA6100]"> new Quest</span> — let's go!
+            New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
           </h1>
         </div>
       </div>

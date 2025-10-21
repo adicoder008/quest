@@ -13,10 +13,10 @@ interface User {
 }
 
 interface NavBarProps {
-  user: import('firebase/auth').User | null;
+  // Accept either the Firebase auth User or your app's User type to avoid type mismatch
+  user: import('firebase/auth').User | import('@/app/types/index').User | null;
   onSignOut: () => void;
 }
-
 const OnQuestIcon = () => (
   <img src='/quest_explore_footer.png' className="w-6 h-6" alt="OnQuest Icon" />
 );
