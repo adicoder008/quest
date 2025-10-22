@@ -341,7 +341,47 @@ const AITripPlannerPage = () => {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p>Conjuring up your next adventure...</p>
+          <div className="mt-4">
+            <div className="h-6 overflow-hidden relative mx-auto w-full max-w-xs">
+              <div className="text-gray-300 leading-6 animate-quest-lines">
+                {[
+                  'Conjuring up your next adventure...',
+                  'Plotting the perfect route...',
+                  'Scouting local gems...',
+                  'Packing digital bags...'
+                ].map((line, idx) => (
+                  <div key={idx}>{line}</div>
+                ))}
+              </div>
+            </div>
+
+            <style jsx>{`
+              .animate-quest-lines {
+                display: block;
+                /* total height = number of lines * line height */
+              }
+              .animate-quest-lines > div {
+                height: 1.5rem; /* matches the container (.h-6) */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              @keyframes slide-quest {
+                0% { transform: translateY(0%); }
+                20% { transform: translateY(0%); }
+                25% { transform: translateY(-100%); }
+                45% { transform: translateY(-100%); }
+                50% { transform: translateY(-200%); }
+                70% { transform: translateY(-200%); }
+                75% { transform: translateY(-300%); }
+                95% { transform: translateY(-300%); }
+                100% { transform: translateY(0%); }
+              }
+              .animate-quest-lines {
+                animation: slide-quest 6s linear infinite;
+              }
+            `}</style>
+          </div>
         </div>
       </div>
     );

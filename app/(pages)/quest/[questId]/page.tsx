@@ -298,6 +298,7 @@ const ShareQuestModal = ({ isOpen, onClose, onShareToFeed }: any) => {
   );
 };
 
+
 const QuestViewPage = () => {
   const [user, loading] = useAuthState(auth);
   const [quest, setQuest] = useState<Quest | null>(null);
@@ -607,35 +608,58 @@ const QuestViewPage = () => {
         </div>
       </header>
 
-      {!isEditMode && (<div className="lg:hidden sticky top-[65px] z-10 bg-gray-950 border-b border-gray-800 px-4 py-3"><button onClick={() => setShowMap(!showMap)} className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg transition-all font-medium ${showMap ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}><Map size={20} /><span>{showMap ? 'Hide Map' : 'Show Map View'}</span></button></div>)}
-
-      <div className="lg:hidden">
-        {showMap && !isEditMode && (
-          <div className="border-b-2 border-orange-500">
-            <div className="p-3 bg-gray-900 border-b border-gray-800">
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                <Filter size={16} className="text-gray-400 flex-shrink-0" />
+      {/* Mobile View - Map toggle in header, horizontal cards AFTER map, NO overlaps */}
+        <div className="lg:hidden">
+          {/* COMPACT HEADER with Map Toggle - Only show when NOT in edit mode */}
+          {!isEditMode && (
+            <div className="sticky top-[65px] z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
+              <div className="px-4 py-2 flex items-center justify-between">
+                {/* Map toggle button */}
                 <button 
-                  onClick={() => { setMapFilter('all'); setSelectedDay(0); }} 
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  onClick={() => setShowMap(!showMap)} 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium text-sm ${
+                    showMap 
+                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      :'bg-orange-500 text-white'
+                  }`}
                 >
-                  All Days
+                  <Map size={18} />
+                  <span>{showMap ? 'List View' : 'Map View'}</span>
                 </button>
-                {displayQuest.itinerary?.days?.map((day: any, index: number) => (
-                  <button 
-                    key={index} 
-                    onClick={() => { setMapFilter(index); setSelectedDay(index); }} 
-                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
-                  >
-                    Day {day.day}
-                  </button>
-                ))}
+                
+                {/* Day filters (only show when map is visible) */}
+                {showMap && (
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                    <button 
+                      onClick={() => { setMapFilter('all'); setSelectedDay(0); }} 
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+                      <button 
+                        key={index} 
+                        onClick={() => { setMapFilter(index); setSelectedDay(index); }} 
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
+                        }`}
+                      >
+                        D{day.day}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            
-            {/* Horizontal Scrolling Activity Cards for Mobile Map */}
-            <div className="relative">
-              <div className="h-[50vh] overflow-hidden">
+          )}
+
+          {/* MAP VIEW - Map at top, horizontal cards BELOW (not overlaying) */}
+          {showMap && !isEditMode ? (
+            <>
+              {/* Map Container - Fixed height, no overlays */}
+              <div className="h-[55vh]">
                 <InteractiveMap 
                   flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
                   activeIndex={activeCardIndex} 
@@ -643,80 +667,164 @@ const QuestViewPage = () => {
                 />
               </div>
               
-              {/* Horizontal Scrolling Activity Preview Cards */}
+              {/* Horizontal Scrollable Cards - AFTER map (below it), NO overlap */}
               {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).length > 0 && (
-                <div className="absolute bottom-4 left-0 right-0 px-4">
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                <div className="bg-gray-950 border-t-2 border-gray-800 p-4">
+                  <div className="mb-2">
+                    <h3 className="text-sm font-semibold text-gray-400">Swipe to explore stops</h3>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
                     {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).map((activity: any, index: number) => (
                       <div 
                         key={index}
                         onClick={() => setActiveCardIndex(index)}
-                        className={`flex-shrink-0 w-72 snap-center transition-all ${activeCardIndex === index ? 'scale-105' : 'scale-95 opacity-75'}`}
+                        className={`flex-shrink-0 w-72 snap-center transition-all cursor-pointer ${
+                          activeCardIndex === index 
+                            ? 'ring-2 ring-orange-500 scale-[1.02]' 
+                            : 'opacity-80 hover:opacity-100'
+                        }`}
                       >
-                        <MapActivityCard activity={activity} />
+                        <MapActivityCard activity={activity} isActive={activeCardIndex === index} />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-        <div className="pt-4">
-          <div className="p-4">
-            {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
-              <div key={dayIndex} className="mb-8">
-                <button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-4 w-full text-left hover:bg-gray-900 p-2 rounded-lg transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-sm shadow-lg">{day.day}</div>
-                  <div className="flex-1">
-                    <h2 className="text-lg font-bold">{day.title}</h2>
-                    <p className="text-xs text-gray-400">{new Date(day.date).toDateString()}</p>
+            </>
+          ) : !isEditMode ? (
+            /* LIST VIEW - Only show when map is hidden */
+            <div className="pt-4">
+              <div className="p-4">
+                {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
+                  <div key={dayIndex} className="mb-8">
+                    <button 
+                      onClick={() => toggleDayCollapse(dayIndex)} 
+                      className="flex items-center gap-3 mb-4 w-full text-left hover:bg-gray-900 p-2 rounded-lg transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-sm shadow-lg">
+                        {day.day}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-lg font-bold">{day.title}</h2>
+                        <p className="text-xs text-gray-400">{new Date(day.date).toDateString()}</p>
+                      </div>
+                      {collapsedDays.has(dayIndex) ? (
+                        <ChevronDown size={20} className="text-gray-400" />
+                      ) : (
+                        <ChevronUp size={20} className="text-gray-400" />
+                      )}
+                    </button>
+                    
+                    {!collapsedDays.has(dayIndex) && (
+                      <div className="space-y-0 pl-2">
+                        {day.activities?.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard 
+                                activity={activity} 
+                                isEditMode={isEditMode} 
+                                dayIndex={dayIndex} 
+                                activityIndex={activityIndex} 
+                                totalActivities={day.activities.length} 
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)} 
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} 
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} 
+                                onDragStart={handleDragStart} 
+                                onDragOver={handleDragOver} 
+                                onDrop={handleDrop} 
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} 
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} 
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button 
+                                  onClick={() => openAddActivityModal(dayIndex, activityIndex)} 
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" 
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {collapsedDays.has(dayIndex) ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronUp size={20} className="text-gray-400" />}
-                </button>
-                {!collapsedDays.has(dayIndex) && (
-                  <div className="space-y-0 pl-2">
-                    {day.activities?.map((activity: any, activityIndex: number) => (
-                      <React.Fragment key={activityIndex}>
-                        {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                        ) : (
-                          <GoogleFormActivityCard 
-                            activity={activity} 
-                            isEditMode={isEditMode} 
-                            dayIndex={dayIndex} 
-                            activityIndex={activityIndex} 
-                            totalActivities={day.activities.length} 
-                            onDelete={() => deleteActivity(dayIndex, activityIndex)} 
-                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} 
-                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} 
-                            onDragStart={handleDragStart} 
-                            onDragOver={handleDragOver} 
-                            onDrop={handleDrop} 
-                            onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} 
-                            onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} 
-                          />
-                        )}
-                        {isEditMode && (
-                          <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                            <button 
-                              onClick={() => openAddActivityModal(dayIndex, activityIndex)} 
-                              className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" 
-                              title="Add activity"
-                            >
-                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                            </button>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            /* EDIT MODE - Show full itinerary list */
+            <div className="pt-4">
+              <div className="p-4">
+                {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
+                  <div key={dayIndex} className="mb-8">
+                    <button 
+                      onClick={() => toggleDayCollapse(dayIndex)} 
+                      className="flex items-center gap-3 mb-4 w-full text-left hover:bg-gray-900 p-2 rounded-lg transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-sm shadow-lg">
+                        {day.day}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-lg font-bold">{day.title}</h2>
+                        <p className="text-xs text-gray-400">{new Date(day.date).toDateString()}</p>
+                      </div>
+                      {collapsedDays.has(dayIndex) ? (
+                        <ChevronDown size={20} className="text-gray-400" />
+                      ) : (
+                        <ChevronUp size={20} className="text-gray-400" />
+                      )}
+                    </button>
+                    
+                    {!collapsedDays.has(dayIndex) && (
+                      <div className="space-y-0 pl-2">
+                        {day.activities?.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard 
+                                activity={activity} 
+                                isEditMode={isEditMode} 
+                                dayIndex={dayIndex} 
+                                activityIndex={activityIndex} 
+                                totalActivities={day.activities.length} 
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)} 
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)} 
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)} 
+                                onDragStart={handleDragStart} 
+                                onDragOver={handleDragOver} 
+                                onDrop={handleDrop} 
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)} 
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)} 
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button 
+                                  onClick={() => openAddActivityModal(dayIndex, activityIndex)} 
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group" 
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
       <div className="hidden lg:flex max-w-7xl mx-auto">
         <div className="flex-1 overflow-y-auto">
@@ -774,45 +882,52 @@ const QuestViewPage = () => {
           </div>
         </div>
         {!isEditMode && (
-          <div className="hidden lg:block w-2/5 border-l border-gray-800 sticky top-[65px] h-[calc(100vh-65px)] flex flex-col">
-            <div className="p-4 border-b border-gray-800">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                <Filter size={16} className="text-gray-400 flex-shrink-0" />
-                <button 
-                  onClick={() => setMapFilter('all')} 
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
-                >
-                  All Days
-                </button>
-                {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+          <div className="hidden lg:block w-2/5 border-l border-gray-800 sticky top-[65px] h-[calc(100vh-65px)] overflow-hidden">
+            <div className="flex flex-col h-full">
+              {/* Filter buttons - fixed at top */}
+              <div className="p-4 border-b border-gray-800 flex-shrink-0">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <Filter size={16} className="text-gray-400 flex-shrink-0" />
                   <button 
-                    key={index} 
-                    onClick={() => setMapFilter(index)} 
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                    onClick={() => setMapFilter('all')} 
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
                   >
-                    Day {day.day}
+                    All Days
                   </button>
-                ))}
+                  {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+                    <button 
+                      key={index} 
+                      onClick={() => setMapFilter(index)} 
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                    >
+                      Day {day.day}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex-grow h-0">
-              <InteractiveMap 
-                flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
-                activeIndex={activeCardIndex} 
-                onPinClick={(index: number) => setActiveCardIndex(index)} 
-              />
-            </div>
-            {isOwner && (
-              <div className="p-4 border-t border-gray-800">
-                <button
-                  onClick={() => setShowPostModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"
-                >
-                  <Send size={16} />
-                  <span>Post Quest</span>
-                </button>
+              
+              {/* Map - takes all remaining space */}
+              <div className="flex-1 overflow-hidden">
+                <InteractiveMap 
+                  flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
+                  activeIndex={activeCardIndex} 
+                  onPinClick={(index: number) => setActiveCardIndex(index)} 
+                />
               </div>
-            )}
+              
+              {/* Post Quest button - fixed at bottom */}
+              {isOwner && (
+                <div className="p-4 border-t border-gray-800 flex-shrink-0 bg-gray-950">
+                  <button
+                    onClick={() => setShowPostModal(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"
+                  >
+                    <Send size={16} />
+                    <span>Post Quest</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -16,20 +16,54 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
-  const polylinesRef = useRef([]); // Changed to handle multiple polylines
+  const polylinesRef = useRef([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
 
-  // Filter cards that have location data and exclude first and last
-  const locatedCards = useMemo(() => flowCards.filter((card, index) => 
-    card.location && 
-    card.location.coordinates && 
-    card.location.coordinates.lat && 
-    card.location.coordinates.lng &&
-    index !== 0 && // Exclude first card (source)
-    index !== flowCards.length - 1 // Exclude last card (destination)
-  ), [flowCards]);
+  // Smart detection of source and destination cards
+  // Source: Cards with titles like "departure", "start", "source" or first card without specific location activities
+  // Destination: Cards with titles like "arrival", "end", "destination" or return journey indicators
+  const isSourceOrDestination = (card, index, allCards) => {
+    if (!card) return false;
+    
+    const title = (card.title || '').toLowerCase();
+    const description = (card.description || '').toLowerCase();
+    
+    // Check for source indicators
+    const sourceKeywords = ['departure', 'start from', 'leaving from', 'source', 'journey begins', 'travel from', 'from to','train','flight'];
+    const isSource = sourceKeywords.some(keyword => 
+      title.includes(keyword) || description.includes(keyword)
+    );
+    
+    // Check for destination indicators
+    const destKeywords = ['arrival', 'reach', 'return to', 'back to', 'destination', 'journey ends'];
+    const isDestination = destKeywords.some(keyword => 
+      title.includes(keyword) || description.includes(keyword)
+    );
+    
+    // Also check if it's a pure transit activity (train/bus ride with no stop)
+    const isTransit = title.includes('train ride') || title.includes('bus ride') || 
+                     title.includes('transfer') || title.includes('travel to');
+    
+    return isSource || isDestination || (isTransit && index === 0);
+  };
+
+  // Filter cards that have location data and exclude source/destination
+  const locatedCards = useMemo(() => {
+    return flowCards.filter((card, index) => {
+      // Must have valid location data
+      const hasLocation = card.location && 
+                         card.location.coordinates && 
+                         card.location.coordinates.lat && 
+                         card.location.coordinates.lng;
+      
+      if (!hasLocation) return false;
+      
+      // Exclude source/destination cards
+      return !isSourceOrDestination(card, index, flowCards);
+    });
+  }, [flowCards]);
   
   // Process cards to assign a color for each unique day
   const cardsWithDayInfo = useMemo(() => {
@@ -37,8 +71,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
     let dayCounter = 1;
     
     return locatedCards.map(card => {
-      // IMPORTANT: Assumes your card object has a date property like `card.date`.
-      // Adjust `card.date` to match your data structure.
+      // Use the date field from the card
       const cardDate = card.date ? new Date(card.date).toDateString() : 'Default Day';
 
       if (!dateToDayMap.has(cardDate)) {
@@ -62,12 +95,10 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
     return Array.from(legendMap.entries()).sort((a, b) => a[0] - b[0]);
   }, [cardsWithDayInfo]);
 
-
   useEffect(() => {
     initializeMap();
     
     return () => {
-      // Clean up multiple polylines on unmount
       if (polylinesRef.current) {
         polylinesRef.current.forEach(p => p.setMap(null));
       }
@@ -87,8 +118,11 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
     if (mapInstanceRef.current && markersRef.current.length > 0 && cardsWithDayInfo.length > 0) {
       markersRef.current.forEach((marker, index) => {
         if (marker && marker.setIcon) {
-          const isActive = index === activeIndex - 1;
+          // Find the original index in flowCards
           const card = cardsWithDayInfo[index];
+          const originalIndex = flowCards.findIndex(fc => fc.id === card.id);
+          const isActive = originalIndex === activeIndex;
+          
           if (card) {
             marker.setIcon({
               url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, card.dayColor, isActive))}`,
@@ -99,7 +133,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         }
       });
     }
-  }, [activeIndex, cardsWithDayInfo]);
+  }, [activeIndex, cardsWithDayInfo, flowCards]);
 
   const createMarkerSVG = (number, color, isActive = false) => {
     const finalColor = isActive ? '#EF4444' : color || '#3B82F6';
@@ -184,7 +218,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
 
-    polylinesRef.current.forEach(p => p.setMap(null)); // Clear old polylines
+    polylinesRef.current.forEach(p => p.setMap(null));
     polylinesRef.current = [];
 
     if (cardsWithDayInfo.length === 0) return;
@@ -198,12 +232,16 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       };
       bounds.extend(position);
 
+      // Find original index for active state
+      const originalIndex = flowCards.findIndex(fc => fc.id === card.id);
+      const isActive = originalIndex === activeIndex;
+
       const marker = new window.google.maps.Marker({
         position,
         map: mapInstanceRef.current,
         title: card.title || `Stop ${index + 1}`,
         icon: {
-          url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, card.dayColor, index === activeIndex - 1))}`,
+          url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, card.dayColor, isActive))}`,
           scaledSize: new window.google.maps.Size(48, 48),
           anchor: new window.google.maps.Point(24, 48)
         },
@@ -211,7 +249,6 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       });
 
       marker.addListener('click', () => {
-        const originalIndex = flowCards.findIndex(fc => fc.id === card.id);
         onPinClick(originalIndex);
       });
 
@@ -240,7 +277,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       markersRef.current.push(marker);
     });
 
-    // ** NEW: Draw colored polyline segments **
+    // Draw colored polyline segments
     for (let i = 0; i < cardsWithDayInfo.length - 1; i++) {
       const startCard = cardsWithDayInfo[i];
       const endCard = cardsWithDayInfo[i + 1];
@@ -250,7 +287,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         { lat: endCard.location.coordinates.lat, lng: endCard.location.coordinates.lng }
       ];
 
-      const segmentColor = startCard.dayColor; // Line color is based on the day of the starting point
+      const segmentColor = startCard.dayColor;
 
       const polylineSegment = new window.google.maps.Polyline({
         path: segmentPath,
@@ -274,7 +311,6 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       polylinesRef.current.push(polylineSegment);
     }
 
-
     if (cardsWithDayInfo.length === 1) {
       mapInstanceRef.current.setCenter(bounds.getCenter());
       mapInstanceRef.current.setZoom(12);
@@ -288,14 +324,21 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   };
 
   const centerOnActiveMarker = () => {
-    const adjustedIndex = activeIndex - 1;
-    if (mapInstanceRef.current && cardsWithDayInfo[adjustedIndex]) {
-      const position = {
-        lat: cardsWithDayInfo[adjustedIndex].location.coordinates.lat,
-        lng: cardsWithDayInfo[adjustedIndex].location.coordinates.lng
-      };
-      mapInstanceRef.current.panTo(position);
-      mapInstanceRef.current.setZoom(14);
+    if (mapInstanceRef.current && cardsWithDayInfo.length > 0) {
+      // Find the active card in cardsWithDayInfo
+      const activeCard = cardsWithDayInfo.find(card => {
+        const originalIndex = flowCards.findIndex(fc => fc.id === card.id);
+        return originalIndex === activeIndex;
+      });
+
+      if (activeCard) {
+        const position = {
+          lat: activeCard.location.coordinates.lat,
+          lng: activeCard.location.coordinates.lng
+        };
+        mapInstanceRef.current.panTo(position);
+        mapInstanceRef.current.setZoom(14);
+      }
     }
   };
 
@@ -336,9 +379,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
         <div>
           <h3 className="font-bold text-gray-900 text-lg">Journey Map</h3>
-          <p className="text-sm text-gray-600 mt-0.5">
-            {cardsWithDayInfo.length} stop{cardsWithDayInfo.length !== 1 ? 's' : ''} on your quest
-          </p>
+
+          
         </div>
         
         <div className="flex items-center gap-2">
@@ -364,7 +406,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         </div>
       </div>
       
-      <div className={`relative ${isFullscreen ? 'h-full' : 'h-96'}`}>
+      {/* Increased height from h-96 to h-[600px] for desktop, responsive for mobile */}
+      <div className={`relative ${isFullscreen ? 'h-full' : 'h-[500px] md:h-[600px]'}`}>
         <div 
           ref={mapRef} 
           className="w-full h-full"
@@ -384,7 +427,6 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       {cardsWithDayInfo.length > 0 && (
         <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
           <div className="flex items-center justify-between flex-wrap gap-y-2">
-            {/* ** NEW: Dynamic Day Legend ** */}
             <div className="flex items-center gap-4 overflow-x-auto pb-1">
               {dayLegend.map(([day, color]) => (
                 <div key={day} className="flex items-center gap-1.5 flex-shrink-0">
@@ -396,7 +438,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-200">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
               <span className="text-xs font-semibold text-gray-700">
-                Stop {Math.max(1, activeIndex)} of {cardsWithDayInfo.length}
+                Viewing {cardsWithDayInfo.length} stop{cardsWithDayInfo.length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
