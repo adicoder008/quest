@@ -5,7 +5,7 @@ import '@/app/globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'OnQuest - AI Trip Planner',
+  title: 'OnQuest',
   description: 'Plan your perfect trip with AI assistance',
   icon: '/FAVICON.svg',
 }

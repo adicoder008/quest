@@ -209,7 +209,10 @@ const AccountPage = () => {
       const quests = await questService.getUserQuests(uid);
       setMyQuests(quests);
       
-      const savedQuestIds = await questService.getUserSavedQuests(uid);
+      const savedQuestItems: any[] = (await questService.getUserSavedQuests(uid)) || [];
+      const savedQuestIds: string[] = savedQuestItems
+        .map((item: any) => (typeof item === 'string' ? item : item?.id))
+        .filter(Boolean);
       const savedQuestsData = await Promise.all(
         savedQuestIds.map((id: string) => questService.getQuestById(id))
       );

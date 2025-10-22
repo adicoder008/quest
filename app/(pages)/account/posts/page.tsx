@@ -12,20 +12,22 @@ import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, update
 interface Post {
   id: string;
   uid: string;
+  authorId: string;
   userName: string;
   userProfilePic: string;
   text: string;
-  photoUrl?: string | string[];
+  photoUrl?: string;
   createdAt: any;
   likeCount: number;
   commentCount: number;
-  shareCount?: number;
-  location?: string;
-  likedBy?: string[];
+  shareCount: number;
+  location: string;
+  likedBy: string[];
   isSaved?: boolean;
-  postType?: string;
+  postType?: 'regular' | 'event' | 'sponsored' | 'quest_completion';
   questData?: any;
   questContext?: any;
+  
 }
 
 const AllPostsPage = () => {
@@ -77,10 +79,11 @@ const AllPostsPage = () => {
         return {
           id: doc.id,
           uid: data.uid || uid,
+          authorId: data.authorId || data.uid || '',
           userName: data.userName || userData?.displayName || 'User',
           userProfilePic: data.userProfilePic || userData?.photoURL || '/default-avatar.png',
           text: data.text || '',
-          photoUrl: data.photoUrl || '',
+          photoUrl: Array.isArray(data.photoUrl) ? data.photoUrl[0] : data.photoUrl || '',
           createdAt: data.createdAt,
           likeCount: data.likeCount || 0,
           commentCount: data.commentCount || 0,
@@ -112,9 +115,10 @@ const AllPostsPage = () => {
             id: postDoc.id,
             uid: data.uid || '',
             userName: data.userName || 'User',
+            authorId: data.authorId || '',
             userProfilePic: data.userProfilePic || '/default-avatar.png',
             text: data.text || '',
-            photoUrl: data.photoUrl || '',
+            photoUrl: Array.isArray(data.photoUrl) ? data.photoUrl[0] : data.photoUrl || '',
             createdAt: data.createdAt,
             likeCount: data.likeCount || 0,
             commentCount: data.commentCount || 0,
