@@ -29,7 +29,7 @@ interface PhotoWithMetadata {
   file: File;
   preview: string;
   uploadStatus: 'pending' | 'uploading' | 'success' | 'error';
-  uploadedUrl?: string;
+  uploadedUrl?: any;
   uploadProgress?: number;
   dayAssigned?: number;
   location?: {
@@ -41,6 +41,7 @@ interface PhotoWithMetadata {
   description?: string;
   budget?: number;
   transportMode?: string;
+  
 }
 
 interface DayGrouping {
