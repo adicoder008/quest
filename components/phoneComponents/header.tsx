@@ -12,13 +12,13 @@ const Header = () => {
   return (
     <>
       {/* Sticky header with glassmorphism effect */}
-      <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-gray-800/70 backdrop-blur-md backdrop-saturate-150 text-white shadow-lg border-b border-gray-700/50">
+      <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2 rounded-md  bg-[#101828] backdrop-saturate-150 text-white shadow-lg ">
         <div className="flex items-center gap-3">
           <Link href="/">
             <img 
               src="/Darklogo.svg" 
               alt="Quest" 
-              className="w-20 h-12 object-contain cursor-pointer"
+              className="w-26 object-contain cursor-pointer"
             />
           </Link>
         </div>

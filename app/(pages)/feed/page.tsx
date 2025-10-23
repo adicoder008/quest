@@ -2321,7 +2321,7 @@ const MobileFeedPage = () => {
       <div className="sticky top-0 z-10 bg-black backdrop-blur-md border-b border-gray-700">
         <Header /> 
         
-        <div className="px-4 pb-4">
+        <div className="px-4 py-4">
           <h1 className="text-2xl font-medium text-white">
             New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
           </h1>
