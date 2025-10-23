@@ -659,7 +659,7 @@ const QuestViewPage = () => {
           {showMap && !isEditMode ? (
             <>
               {/* Map Container - Fixed height, no overlays */}
-              <div className="h-[55vh]">
+              <div className="h-[52vh]">
                 <InteractiveMap 
                   flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
                   activeIndex={activeCardIndex} 
@@ -670,9 +670,6 @@ const QuestViewPage = () => {
               {/* Horizontal Scrollable Cards - AFTER map (below it), NO overlap */}
               {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).length > 0 && (
                 <div className="bg-gray-950 border-t-2 border-gray-800 p-4">
-                  <div className="mb-2">
-                    <h3 className="text-sm font-semibold text-gray-400">Swipe to explore stops</h3>
-                  </div>
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
                     {(mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords).map((activity: any, index: number) => (
                       <div 
@@ -826,19 +823,30 @@ const QuestViewPage = () => {
           )}
         </div>
 
-      <div className="hidden lg:flex max-w-7xl mx-auto">
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-4 md:p-6 pr-16 md:pr-20">
+      <div className="hidden lg:flex max-w-[100vw] mx-auto h-[calc(100vh-65px)] overflow-hidden">
+        {/* LEFT SIDE - Scrollable Content */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 scroll-smooth">
+          <div className="max-w-4xl mx-auto p-4 md:p-6 pr-8 md:pr-12">
             {displayQuest.itinerary?.days?.map((day: any, dayIndex: number) => (
               <div key={dayIndex} className="mb-8">
-                <button onClick={() => toggleDayCollapse(dayIndex)} className="flex items-center gap-3 mb-6 w-full text-left hover:bg-gray-900 p-3 rounded-lg transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold shadow-lg">{day.day}</div>
+                <button 
+                  onClick={() => toggleDayCollapse(dayIndex)} 
+                  className="flex items-center gap-3 mb-6 w-full text-left hover:bg-gray-900 p-3 rounded-lg transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold shadow-lg">
+                    {day.day}
+                  </div>
                   <div className="flex-1">
                     <h2 className="text-xl font-bold">{day.title}</h2>
                     <p className="text-sm text-gray-400">{new Date(day.date).toDateString()}</p>
                   </div>
-                  {collapsedDays.has(dayIndex) ? <ChevronDown size={24} className="text-gray-400" /> : <ChevronUp size={24} className="text-gray-400" />}
+                  {collapsedDays.has(dayIndex) ? (
+                    <ChevronDown size={24} className="text-gray-400" />
+                  ) : (
+                    <ChevronUp size={24} className="text-gray-400" />
+                  )}
                 </button>
+                
                 {!collapsedDays.has(dayIndex) && (
                   <div className="space-y-0">
                     {day.activities?.map((activity: any, activityIndex: number) => (
@@ -879,59 +887,69 @@ const QuestViewPage = () => {
                 )}
               </div>
             ))}
+            
+            {/* Extra padding at bottom */}
+            <div className="h-20"></div>
           </div>
         </div>
+        
+        {/* RIGHT SIDE - Sticky Map & Button Panel */}
         {!isEditMode && (
-          <div className="hidden lg:block w-2/5 border-l border-gray-800 sticky top-[65px] h-[calc(100vh-65px)] overflow-hidden">
-            <div className="flex flex-col h-full">
-              {/* Filter buttons - fixed at top */}
-              <div className="p-4 border-b border-gray-800 flex-shrink-0">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                  <Filter size={16} className="text-gray-400 flex-shrink-0" />
+          <div className="w-2/5 min-w-[400px] max-w-[600px] border-l border-gray-800 flex flex-col h-full bg-gray-950">
+            {/* Filter buttons - fixed at top */}
+            <div className="p-4 border-b border-gray-800 flex-shrink-0 bg-gray-950">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 pb-2">
+                <Filter size={16} className="text-gray-400 flex-shrink-0" />
+                <button 
+                  onClick={() => setMapFilter('all')} 
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    mapFilter === 'all' 
+                      ? 'bg-orange-500 text-white shadow-lg' 
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  All Days
+                </button>
+                {displayQuest.itinerary?.days?.map((day: any, index: number) => (
                   <button 
-                    onClick={() => setMapFilter('all')} 
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
+                    key={index} 
+                    onClick={() => setMapFilter(index)} 
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      mapFilter === index 
+                        ? 'bg-orange-500 text-white shadow-lg' 
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
                   >
-                    All Days
+                    Day {day.day}
                   </button>
-                  {displayQuest.itinerary?.days?.map((day: any, index: number) => (
-                    <button 
-                      key={index} 
-                      onClick={() => setMapFilter(index)} 
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300'}`}
-                    >
-                      Day {day.day}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
-              
-              {/* Map - takes all remaining space */}
-              <div className="flex-1 overflow-hidden">
-                <InteractiveMap 
-                  flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
-                  activeIndex={activeCardIndex} 
-                  onPinClick={(index: number) => setActiveCardIndex(index)} 
-                />
-              </div>
-              
-              {/* Post Quest button - fixed at bottom */}
-              {isOwner && (
-                <div className="p-4 border-t border-gray-800 flex-shrink-0 bg-gray-950">
-                  <button
-                    onClick={() => setShowPostModal(true)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all text-sm font-semibold shadow-lg"
-                  >
-                    <Send size={16} />
-                    <span>Post Quest</span>
-                  </button>
-                </div>
-              )}
             </div>
+            
+            {/* Map - takes all remaining space */}
+            <div className="flex-1 overflow-hidden">
+              <InteractiveMap 
+                flowCards={mapFilter === 'all' ? allActivitiesWithCoords : dayActivitiesWithCoords} 
+                activeIndex={activeCardIndex} 
+                onPinClick={(index: number) => setActiveCardIndex(index)} 
+              />
+            </div>
+            
+            {/* Post Quest button - fixed at bottom */}
+            {isOwner && (
+              <div className="p-4 border-t border-gray-800 flex-shrink-0 bg-gray-950">
+                <button
+                  onClick={() => setShowPostModal(true)}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all text-base font-bold shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Send size={20} />
+                  <span>Post Quest</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
-
       {/* Floating Action Button for Mobile & Tablet */}
       {isOwner && !isEditMode && (
         <div className="lg:hidden fixed bottom-6 right-6 z-30">

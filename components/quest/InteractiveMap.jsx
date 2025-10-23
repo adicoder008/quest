@@ -407,7 +407,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       </div>
       
       {/* Increased height from h-96 to h-[600px] for desktop, responsive for mobile */}
-      <div className={`relative ${isFullscreen ? 'h-full' : 'h-[500px] md:h-[600px]'}`}>
+      <div className={`relative ${isFullscreen ? 'h-full' : 'h-[350px] sm:h-[400px] md:h-[500px] lg:h-[600px]'}`}>
         <div 
           ref={mapRef} 
           className="w-full h-full"

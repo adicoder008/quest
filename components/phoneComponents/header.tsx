@@ -1,35 +1,35 @@
-'use client'; // This component now uses a hook, so it must be a client component
+'use client';
 
 import { MessageSquareMore, Bell } from 'lucide-react';
 import React from 'react';
 import Link from 'next/link';
 import { NotificationBadge } from '@/components/Notifications/NotificationBell';
-import { useAuth } from '@/hooks/useAuth'; // 1. Import the new useAuth hook
+import { useAuth } from '@/hooks/useAuth';
 
-const Header = () => { // Changed to uppercase to follow React component naming conventions
-  const { user, loading } = useAuth(); // 2. Use the hook to get the current user
+const Header = () => {
+  const { user, loading } = useAuth();
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-800 text-white shadow-md">
+      {/* Sticky header with glassmorphism effect */}
+      <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-gray-800/70 backdrop-blur-md backdrop-saturate-150 text-white shadow-lg border-b border-gray-700/50">
         <div className="flex items-center gap-3">
           <Link href="/">
-              <img 
-                src="/Darklogo.svg" 
-                alt="Quest" 
-                className="w-20 h-12 object-contain cursor-pointer"
-              />
+            <img 
+              src="/Darklogo.svg" 
+              alt="Quest" 
+              className="w-20 h-12 object-contain cursor-pointer"
+            />
           </Link>
         </div>
+        
         <div className="flex items-center gap-6">
           <Link href="/chats">
-            <MessageSquareMore className='text-[#EA6100] size-6 hover:text-white transition-colors' />
+            <MessageSquareMore className='text-[#EA6100] size-6 hover:text-white transition-colors cursor-pointer' />
           </Link>
 
-          {/* 3. The conditional check now works because 'user' is defined */}
           <Link href="/notifications" className="relative">
-            <Bell className='text-[#EA6100] size-6 hover:text-white transition-colors' />
-            {/* We only render the badge if loading is false and a user exists */}
+            <Bell className='text-[#EA6100] size-6 hover:text-white transition-colors cursor-pointer' />
             {!loading && user && <NotificationBadge userId={user.uid} />}
           </Link>
         </div>
