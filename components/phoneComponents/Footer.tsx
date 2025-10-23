@@ -93,7 +93,7 @@ const Footer = () => {
 
           <Link href={'/quest'}><div className="flex flex-col items-center text-white">
             {/* <Quest size={22} className="" /> */}
-            <img src="../quest_explore_footer.png" alt="" className='' />
+            <img src="/oq_logo.svg" alt="OQ logo" className="w-6 h-6 object-contain filter invert" />
             <span className="text-xs ">Quest</span>
           </div></Link>
 
