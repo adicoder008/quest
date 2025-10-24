@@ -132,7 +132,7 @@ const RightSidebar = ({ user, userData }: any) => {
   };
 
   return (
-    <div className="fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
+    <div className="fixed right-0 top-0 h-screen w-[400px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
       {/* User Profile Card */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
         <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
@@ -1237,7 +1237,7 @@ const Feed = () => {
           {postImages && postImages.length > 0 && (
           <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
                     <img
-                        src={postImages[currentImageIdx]} // Show current image
+                        src={postImages[currentImageIdx].large} // Show current image
                         alt={`Post content ${currentImageIdx + 1}`}
                         className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
                     />
@@ -1371,7 +1371,7 @@ const Feed = () => {
         {postImages && postImages.length > 0 && (
                 <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
                     <img
-                        src={postImages[currentImageIdx]} // Show current image
+                        src={postImages[currentImageIdx].large} // Show current image
                         alt={`Post content ${currentImageIdx + 1}`}
                         className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
                     />
@@ -1803,7 +1803,7 @@ const MobilePostCard = ({
             {postImages && postImages.length > 0 && (
                 <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
                     <img
-                        src={postImages[currentImageIdx]} // Show current image
+                        src={postImages[currentImageIdx].large} // Show current image
                         alt={`Post content ${currentImageIdx + 1}`}
                         className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
                     />
@@ -2033,7 +2033,7 @@ const MobilePostCard = ({
       {postImages && postImages.length > 0 && (
                 <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
                     <img
-                        src={postImages[currentImageIdx]} // Show current image
+                        src={postImages[currentImageIdx].large} // Show current image
                         alt={`Post content ${currentImageIdx + 1}`}
                         className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
                     />
