@@ -366,8 +366,14 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-20 flex justify-center items-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-900 rounded-lg w-full max-w-sm border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900/95 backdrop-filter backdrop-blur-none rounded-lg w-full max-w-sm border border-gray-700 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Post Options</h3>
           <button onClick={onClose}>
@@ -1133,10 +1139,11 @@ const Feed = () => {
 
     const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
     const questData = post.questData || post.questContext;
-    const initialPostImage = post.content?.images?.[0] || post.photoUrl;
     const postText = post.content?.text || post.text;
-    
+    const postImages = post.content?.images || post.photoUrls || [];
+    const initialPostImage = postImages.length > 0 ? postImages[0] : '';
     const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
+    const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
     useEffect(() => {
         const resolveQuestImage = async () => {
@@ -1227,24 +1234,50 @@ const Feed = () => {
             <p className="px-4 pb-3 text-white">{postText}</p>
           )}
 
-          {finalPostImage && (
-            <div className="px-4 pb-3">
-              <div className="relative rounded-lg overflow-hidden">
-                <img
-                  src={finalPostImage}
-                  alt={`Quest to ${questData?.destination || questData?.questTitle}`}
-                  className="w-full object-cover max-h-[30vh]"
-                />
-                <div className="absolute bottom-0 left-0 right-0 h-2/5 bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
-                  <h2 className="text-xl font-bold text-white drop-shadow-lg pr-2">{questData?.title || questData?.questTitle}</h2>
-                  <button onClick={() => setSelectedPostForMenu(post)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 transition-colors">
-                    <MoreHorizontal className="w-5 h-5 text-white" />
-                  </button>
+          {postImages && postImages.length > 0 && (
+          <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
+                    <img
+                        src={postImages[currentImageIdx]} // Show current image
+                        alt={`Post content ${currentImageIdx + 1}`}
+                        className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
+                    />
+                    
+                    {/* Slider Controls (Only show if more than 1 image) */}
+                    {postImages.length > 1 && (
+                        <>
+                            {/* Previous Button */}
+                            <button 
+                                onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
+                                className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
+                                disabled={currentImageIdx === 0} // Optional: Disable at start
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                </svg>
+                            </button>
+                            {/* Next Button */}
+                            <button 
+                                onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
+                                className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
+                                disabled={currentImageIdx === postImages.length - 1} // Optional: Disable at end
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                               </svg>
+                            </button>
+                             {/* Indicator Dots */}
+                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                                {postImages.map((_: any, index: React.Key | null | undefined) => (
+                                    <div 
+                                        key={index}
+                                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
-              </div>
-            </div>
-          )}
+            )}
 
           <div className="border-t border-gray-700 px-4 py-3">
             <div className="flex items-center gap-6">
@@ -1335,15 +1368,50 @@ const Feed = () => {
           <p className="px-4 pb-3 text-white">{postText}</p>
         )}
 
-        {finalPostImage && (
-          <div className="px-4 pb-3">
-            <img
-              src={finalPostImage}
-              alt="Post content"
-              className="w-full rounded-lg object-cover max-h-[30vh]"
-            />
-          </div>
-        )}
+        {postImages && postImages.length > 0 && (
+                <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
+                    <img
+                        src={postImages[currentImageIdx]} // Show current image
+                        alt={`Post content ${currentImageIdx + 1}`}
+                        className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
+                    />
+                    
+                    {/* Slider Controls (Only show if more than 1 image) */}
+                    {postImages.length > 1 && (
+                        <>
+                            {/* Previous Button */}
+                            <button 
+                                onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
+                                className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
+                                disabled={currentImageIdx === 0} // Optional: Disable at start
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                </svg>
+                            </button>
+                            {/* Next Button */}
+                            <button 
+                                onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
+                                className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
+                                disabled={currentImageIdx === postImages.length - 1} // Optional: Disable at end
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                               </svg>
+                            </button>
+                             {/* Indicator Dots */}
+                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                                {postImages.map((_: any, index: React.Key | null | undefined) => (
+                                    <div 
+                                        key={index}
+                                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
         <div className="border-t border-gray-700 px-4 py-3">
           <div className="flex items-center gap-6">
@@ -1398,10 +1466,10 @@ const Feed = () => {
         onSignOut={handleSignOut}
       />
 
-      <main className="ml-[280px] mr-[380px] min-h-screen border-x border-gray-700">
+      <main className="ml-[280px] mr-[380px] min-h-screen border-x border-gray-700 bg-black">
          <div className="border-b border-gray-700">
-           <div className="p-4">
-                <h1 className="text-2xl font-medium text-white">
+           <div className="p-4 bg-black">
+                <h1 className="text-2xl font-medium text-white bg-black">
                 New day, <span className="text-[#EA6100]"> new Quest</span> — let's go! 
                 </h1>
            </div>
@@ -1547,7 +1615,30 @@ const MobilePostCard = ({
         await unfollowUser(currentUser.uid, post.uid);
         setIsFollowingUser(false);
       } else {
-        await followUser(currentUser.uid, post.uid);
+        const handleFollowClick = async (e: React.MouseEvent) => {
+          e.stopPropagation();
+          
+          // Validate both user IDs before making the call
+          if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
+            console.error('Invalid user IDs for follow action', { 
+              currentUserId: currentUser?.uid, 
+              authorId 
+            });
+            return;
+          }
+
+          try {
+            if (isFollowingUser) {
+              await unfollowUser(currentUser.uid, authorId);
+              setIsFollowingUser(false);
+            } else {
+              await followUser(currentUser.uid, authorId);
+              setIsFollowingUser(true);
+            }
+          } catch (error) {
+            console.error('Error toggling follow:', error);
+          }
+        };
         setIsFollowingUser(true);
       }
     } catch (error) {
@@ -1559,6 +1650,8 @@ const MobilePostCard = ({
   const questData = post.questData || post.questContext;
   const initialPostImage = post.photoUrl;
   const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
+  const postImages = post.imageUrls || post.photoUrls || (post.photoUrl ? [post.photoUrl] : []);
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
   
   useEffect(() => {
     const resolveQuestImage = async () => {
@@ -1672,16 +1765,19 @@ const MobilePostCard = ({
                   {post.userName}
                 </h3>
                 {!checkingFollow && currentUser?.uid !== post.uid && (
-                  <button
+                    <button
                     onClick={handleFollowClick}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                    className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
                       isFollowingUser
-                        ? 'bg-gray-700 text-white'
-                        : 'bg-[#F7CEB0] text-black'
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-[#F7CEB0] text-black'
                     }`}
-                  >
+                    >
                     {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
-                  </button>
+                    <span className="whitespace-nowrap">
+                      {isFollowingUser ? 'Following' : 'Follow'}
+                    </span>
+                    </button>
                 )}
               </div>
               <div className="flex items-center gap-1">
@@ -1703,20 +1799,49 @@ const MobilePostCard = ({
           <p className="text-white text-sm mb-3">{post.text}</p>
         )}
 
-        {finalPostImage && (
-          <div className="mb-3">
-            <div className="relative rounded-lg overflow-hidden">
-              <img src={finalPostImage} alt="Post content" className="w-full object-cover max-h-[30vh]" />
-              <div className="absolute bottom-0 left-0 right-0 h-2/5 bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none" />
-              <div className="absolute bottom-0 left-0 right-0 p-3 flex justify-between items-end">
-                <h2 className="text-lg font-bold text-white drop-shadow-lg pr-2">{questData?.title || questData?.questTitle}</h2>
-                <button onClick={onMenuClick} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 transition-colors">
-                  <MoreHorizontal className="w-5 h-5 text-white" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* --- REVISED IMAGE DISPLAY --- */}
+            {postImages && postImages.length > 0 && (
+                <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
+                    <img
+                        src={postImages[currentImageIdx]} // Show current image
+                        alt={`Post content ${currentImageIdx + 1}`}
+                        className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
+                    />
+                    
+                    {/* Slider Controls (Only show if more than 1 image) */}
+                    {postImages.length > 1 && (
+                         <>
+                            {/* Previous Button */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                </svg>
+                            </button>
+                            {/* Next Button */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                               </svg>
+                            </button>
+                             {/* Indicator Dots */}
+                             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                {postImages.map((_: any, index: React.Key | null | undefined) => (
+                                    <div 
+                                        key={index}
+                                        className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
         <div className="flex items-center justify-between pt-2 border-t border-gray-800">
           <button 
@@ -1862,25 +1987,27 @@ const MobilePostCard = ({
             src={post.userProfilePic || '/default-avatar.png'} 
             alt={post.userName}
             className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => router.push(`/profile/${post.uid}`)}
+            onClick={() => router.push(`/profile/${post.authorId}`)}
           />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.uid}`)}>
+              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.authorId}`)}>
                 {post.userName}
               </h3>
               {!checkingFollow && currentUser?.uid !== post.uid && (
-                <button
-                  onClick={handleFollowClick}
-                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                    isFollowingUser
+                    <button
+                    onClick={handleFollowClick}
+                    className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                      isFollowingUser
                       ? 'bg-gray-700 text-white'
-                      : 'bg-[#F7CEB0] text-black'
-                  }`}
-                >
-                  {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
-                </button>
-              )}
+                      : 'bg-black text-white border border-black'
+                    }`}
+                    >
+                    <span className="whitespace-nowrap">
+                      {isFollowingUser ? '' : 'Follow'}
+                    </span>
+                    </button>
+                )}
             </div>
             <div className="flex items-center gap-1">
               <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
@@ -1903,15 +2030,48 @@ const MobilePostCard = ({
         <p className="text-white text-sm mb-3">{post.text}</p>
       )}
 
-      {finalPostImage && (
-        <div className="mb-3">
-          <img
-            src={finalPostImage}
-            alt="Post content"
-            className="w-full rounded-lg object-cover max-h-[30vh]"
-          />
-        </div>
-      )}
+      {postImages && postImages.length > 0 && (
+                <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
+                    <img
+                        src={postImages[currentImageIdx]} // Show current image
+                        alt={`Post content ${currentImageIdx + 1}`}
+                        className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
+                    />
+                    
+                    {/* Slider Controls (Only show if more than 1 image) */}
+                    {postImages.length > 1 && (
+                         <>
+                            {/* Previous Button */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                </svg>
+                            </button>
+                            {/* Next Button */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                               </svg>
+                            </button>
+                             {/* Indicator Dots */}
+                             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                {postImages.map((_: any, index: React.Key | null | undefined) => (
+                                    <div 
+                                        key={index}
+                                        className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
       <div className="flex items-center pt-2 border-t border-gray-800 gap-3">
         <button 
@@ -2318,7 +2478,7 @@ const MobileFeedPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
-      <div className="sticky top-0 z-10 bg-black backdrop-blur-md border-b border-gray-700">
+      <div className="sticky top-0 z-50 bg-gray-800/50 backdrop-blur-2xl backdrop-saturate-200 border-b border-white/20 ">
         <Header /> 
         
         <div className="px-4 pb-4">

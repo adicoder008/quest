@@ -1044,23 +1044,59 @@ const TravelActivityCard = ({ activity, isEditMode }: any) => {
   );
 };
 
+// UPDATED GoogleFormActivityCard Component
+// Fixed mobile edit controls and added image management
+
 const GoogleFormActivityCard = ({ 
   activity, 
   isEditMode, 
   dayIndex, 
-  activityIndex,
+  activityIndex, 
   totalActivities, 
   onDelete, 
   onUpdate, 
   onToggleCollapse, 
   onDragStart, 
   onDragOver, 
-  onDrop,
-  onMoveUp,
-  onMoveDown
+  onDrop, 
+  onMoveUp, 
+  onMoveDown 
 }: any) => {
-  const isCollapsed = activity.collapsed;
+  const isCollapsed = activity.collapsed || false;
   const [isHovered, setIsHovered] = React.useState(false);
+  const [imagePreview, setImagePreview] = React.useState<string>('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Handle image file selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageUrl = reader.result as string;
+        setImagePreview(imageUrl);
+        // Update activity with new image
+        onUpdate('media', [{ url: imageUrl, type: 'image' }]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle image removal
+  const handleRemoveImage = () => {
+    setImagePreview('');
+    onUpdate('media', []);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle add image button click
+  const handleAddImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const currentImage = activity.media?.[0]?.url || imagePreview;
 
   return (
     <div 
@@ -1070,71 +1106,97 @@ const GoogleFormActivityCard = ({
       onDrop={(e) => onDrop(e, dayIndex, activityIndex)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={() => setIsHovered(true)}
       className={`relative mb-4 bg-gray-900 rounded-xl border-2 transition-all ${
         isEditMode ? 'border-gray-700 hover:border-orange-500 focus-within:border-orange-500' : 'border-transparent'
       }`}
     >
-      {/* RIGHT SIDE CONTROLS - Visible on hover (desktop) and always on mobile/tablet */}
-      {isEditMode && (isHovered || (typeof window !== 'undefined' && window.innerWidth < 1024)) && (
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full flex items-center gap-2 pl-2 z-10">
-          {/* 6-Dot Drag Handle */}
-          <button 
-            className="cursor-grab active:cursor-grabbing bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors touch-none"
-            onTouchStart={(e) => {
-              e.preventDefault();
-              const touch = e.touches[0];
-              const dragEvent = new MouseEvent('mousedown', {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                bubbles: true
-              });
-              (e.currentTarget as HTMLElement).dispatchEvent(dragEvent);
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="text-gray-500">
-              <circle cx="7" cy="5" r="1.5" />
-              <circle cx="13" cy="5" r="1.5" />
-              <circle cx="7" cy="10" r="1.5" />
-              <circle cx="13" cy="10" r="1.5" />
-              <circle cx="7" cy="15" r="1.5" />
-              <circle cx="13" cy="15" r="1.5" />
-            </svg>
-          </button>
-
-          {/* Up/Down Arrows */}
-          <div className="flex flex-col gap-1 bg-gray-800 rounded-lg p-1 shadow-lg border border-gray-700">
-            <button
-              onClick={onMoveUp}
-              disabled={activityIndex === 0}
-              className={`p-1.5 rounded transition-colors ${
-                activityIndex === 0
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
-              }`}
-              title="Move up"
-            >
-              <ChevronUp size={18} />
-            </button>
-            <button
-              onClick={onMoveDown}
-              disabled={activityIndex === totalActivities - 1}
-              className={`p-1.5 rounded transition-colors ${
-                activityIndex === totalActivities - 1
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
-              }`}
-              title="Move down"
-            >
-              <ChevronDown size={18} />
-            </button>
+      {/* MOBILE EDIT CONTROLS - Floating on the right side, always visible in edit mode */}
+      {isEditMode && (
+        <>
+          {/* Mobile Controls - Visible only on mobile/tablet */}
+          <div className="lg:hidden absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20">
+            <div className="flex flex-col gap-1 bg-white/5 backdrop-blur-sm rounded-lg p-1 shadow-lg border border-gray-700">
+              <button
+                onClick={onMoveUp}
+                disabled={activityIndex === 0}
+                className={`p-2 rounded transition-colors ${
+                  activityIndex === 0
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
+                }`}
+                title="Move up"
+              >
+                <ChevronUp size={16} />
+              </button>
+              <button
+                onClick={onMoveDown}
+                disabled={activityIndex === totalActivities - 1}
+                className={`p-2 rounded transition-colors ${
+                  activityIndex === totalActivities - 1
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
+                }`}
+                title="Move down"
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
           </div>
-        </div>
+
+          {/* Desktop Controls - Hover activated */}
+          <div className="hidden lg:block">
+            {(isHovered) && (
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full flex items-center gap-2 pl-2 z-10">
+                {/* 6-Dot Drag Handle */}
+                <button 
+                  className="cursor-grab active:cursor-grabbing bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors touch-none"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="text-gray-500">
+                    <circle cx="7" cy="5" r="1.5" />
+                    <circle cx="13" cy="5" r="1.5" />
+                    <circle cx="7" cy="10" r="1.5" />
+                    <circle cx="13" cy="10" r="1.5" />
+                    <circle cx="7" cy="15" r="1.5" />
+                    <circle cx="13" cy="15" r="1.5" />
+                  </svg>
+                </button>
+
+                {/* Up/Down Arrows */}
+                <div className="flex flex-col gap-1 bg-gray-800 rounded-lg p-1 shadow-lg border border-gray-700">
+                  <button
+                    onClick={onMoveUp}
+                    disabled={activityIndex === 0}
+                    className={`p-1.5 rounded transition-colors ${
+                      activityIndex === 0
+                        ? 'text-gray-600 cursor-not-allowed'
+                        : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
+                    }`}
+                    title="Move up"
+                  >
+                    <ChevronUp size={18} />
+                  </button>
+                  <button
+                    onClick={onMoveDown}
+                    disabled={activityIndex === totalActivities - 1}
+                    className={`p-1.5 rounded transition-colors ${
+                      activityIndex === totalActivities - 1
+                        ? 'text-gray-600 cursor-not-allowed'
+                        : 'text-gray-400 hover:bg-gray-700 hover:text-orange-500 active:bg-gray-600'
+                    }`}
+                    title="Move down"
+                  >
+                    <ChevronDown size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 pr-8 lg:pr-0">
           {isCollapsed ? (
             <div className="flex-1">
               <h3 className="font-semibold text-white">{activity.title}</h3>
@@ -1172,15 +1234,69 @@ const GoogleFormActivityCard = ({
 
       {!isCollapsed && (
         <div className="p-4 space-y-4">
-          {activity.media?.[0]?.url && (
-            <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
-              <img 
-                src={activity.media[0].url} 
-                alt={activity.title} 
-                className="w-full h-full object-cover" 
-                onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }} 
+          {/* Image Section with Edit Controls */}
+          {isEditMode ? (
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Activity Image</label>
+              {currentImage ? (
+                <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800 group">
+                  <img 
+                    src={currentImage} 
+                    alt={activity.title} 
+                    className="w-full h-full object-cover" 
+                  />
+                  {/* Image Controls Overlay */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      onClick={handleRemoveImage}
+                      className="p-3 bg-red-500 hover:bg-red-600 rounded-full transition-colors shadow-lg"
+                      title="Remove image"
+                    >
+                      <Trash2 size={20} className="text-white" />
+                    </button>
+                    <button
+                      onClick={handleAddImageClick}
+                      className="p-3 bg-orange-500 hover:bg-orange-600 rounded-full transition-colors shadow-lg"
+                      title="Change image"
+                    >
+                      <Edit2 size={20} className="text-white" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddImageClick}
+                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800/50 group"
+                >
+                  <Plus size={40} className="text-gray-500 group-hover:text-orange-500 transition-colors mb-2" />
+                  <p className="text-sm text-gray-400 group-hover:text-orange-400 transition-colors">
+                    Click to add image
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                </button>
+              )}
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
               />
             </div>
+          ) : (
+            // View Mode - Show image if exists
+            currentImage && (
+              <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
+                <img 
+                  src={currentImage} 
+                  alt={activity.title} 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }} 
+                />
+              </div>
+            )
           )}
           
           {isEditMode ? (
