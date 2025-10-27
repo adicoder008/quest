@@ -114,7 +114,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
     >
       <div className=" flex items-center justify-between">
         {isExpanded ? (
-          <img src='/Darklogo.svg' className="w-[130px]" alt="OnQuest" />
+          <img src='/OQ_LOGO_MAIN.svg' className="w-[130px] mb-3" alt="OnQuest" />
         ) : (
           <img src='/quest_explore_footer.png' className="w-[40px]" alt="OnQuest" />
         )}
@@ -139,7 +139,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
               onClick={() => handleNavClick(item.route)}
               className={`w-full flex items-center gap-4 px-4 py-2 rounded-full transition-colors relative group ${
                 isActive 
-                  ? 'bg-[#EA6100] text-black font-medium' 
+                  ? 'bg-[#ff6900] text-black font-medium' 
                   : 'text-white hover:bg-gray-900'
               }`}
               title={!isExpanded ? item.label : ''}
