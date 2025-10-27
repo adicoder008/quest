@@ -174,6 +174,7 @@ const questService = {
           },
           isPublic: false, // Quests are private by default
           isPostedToFeed: false, // Not posted to feed by default
+          associatedPostId: null, // Track the post ID when posted to feed
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
@@ -335,13 +336,14 @@ const questService = {
   },
 /**
  * Posts a quest to the public feed, ensuring it has an image and is only posted once.
+ * FIXED: Now properly fetches user data to get userName and userProfilePic
  */
 async postQuestToFeed(
   questId: string, 
   uid: string, 
   visibility: 'public' | 'private',
   coverImageFile?: File | null
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; postId?: string }> {
   try {
     const questRef = doc(db, 'quest', questId);
     const questSnap = await getDoc(questRef);
@@ -365,14 +367,26 @@ async postQuestToFeed(
       };
     }
 
+    // 3. Fetch user data to get userName and userProfilePic
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      throw new Error('User not found');
+    }
+
+    const userData = userSnap.data();
+    const userName = userData.displayName || 'Anonymous';
+    const userProfilePic = userData.photoURL || '';
+
     let finalCoverImageUrl = questData.coverImageUrl;
 
-    // 3. Handle new cover image upload
+    // 4. Handle new cover image upload
     if (coverImageFile) {
       finalCoverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
     }
 
-    // 4. Enforce image for public posts
+    // 5. Enforce image for public posts
     if (visibility === 'public' && !finalCoverImageUrl) {
       return {
         success: false,
@@ -380,11 +394,18 @@ async postQuestToFeed(
       };
     }
 
-    // 5. Create the feed post if public
+    let postId: string | undefined;
+
+    // 6. Create the feed post if public
     if (visibility === 'public') {
-      await createPost({
+      const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
+      const dayCount = questData.itinerary?.days?.length || 0;
+
+      const postResult = await createPost({
         uid: uid,
-        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${questData.itinerary?.days?.length || 0} days · ${questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0} activities`,
+        userName: userName, // Now properly set
+        userProfilePic: userProfilePic, // Now properly set
+        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
         photoUrl: finalCoverImageUrl, // Use the guaranteed image URL
         postType: 'quest_completion',
         questContext: {
@@ -393,17 +414,20 @@ async postQuestToFeed(
           description: questData.description || '',
         }
       });
+
+      postId = postResult.id;
     }
 
-    // 6. Update the quest document with new visibility and post status
+    // 7. Update the quest document with new visibility and post status
     await updateDoc(questRef, {
       coverImageUrl: finalCoverImageUrl, // Save new image URL if it was uploaded
       isPublic: visibility === 'public',
       isPostedToFeed: visibility === 'public' ? true : questData.isPostedToFeed, // Only set to true if posted publicly
+      associatedPostId: postId || questData.associatedPostId || null, // Save the post ID
       updatedAt: serverTimestamp()
     });
 
-    return { success: true };
+    return { success: true, postId };
   } catch (error) {
     console.error('Error posting quest to feed:', error);
     return { 
