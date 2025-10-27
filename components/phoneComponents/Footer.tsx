@@ -232,14 +232,11 @@ const Footer = () => {
             <span className="text-xs ">Post</span>
           </div>
 
-          {/* Quest Link */}
-          <Link href={'/quest'}>
-            <div className={`flex flex-col items-center ${getActiveClass('/quest')}`}>
-              {/* Note: The image color won't change with 'text-orange-500' */}
-              <img src="../quest_explore_footer.png" alt="" className='' />
-              <span className="text-xs ">Quest</span>
-            </div>
-          </Link>
+          <Link href={'/quest'}><div className="flex flex-col items-center text-white">
+            {/* <Quest size={22} className="" /> */}
+            <img src="/oq_logo.svg" alt="OQ logo" className="w-6 h-6 object-contain filter invert" />
+            <span className="text-xs ">Quest</span>
+          </div></Link>
 
           {/* Account Link */}
           <Link href={'/account'}>
