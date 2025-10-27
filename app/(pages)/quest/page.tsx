@@ -315,7 +315,7 @@ const QuestPage = () => {
                 }}
               />
 
-              <div className="relative container mx-auto px-8 flex flex-col justify-center items-end h-full">
+              <div className="relative container mx-auto px-8 flex flex-col justify-center items-center h-full">
                 <h1 className="text-5xl font-bold mb-4 text-white text-right">Plan Your Next Quest!</h1>
                 <p className="text-xl text-gray-200 mb-8 max-w-2xl text-right">
                   Create your own Quest from scratch or browse your saved Quests.
@@ -323,14 +323,14 @@ const QuestPage = () => {
                 <div className="flex gap-4">
                   <button
                     onClick={() => setIsCreating(true)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-orange-500/30 flex items-center gap-3"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-md transition-all shadow-lg hover:shadow-orange-500/30 flex items-center gap-3"
                   >
-                    <Plus className="w-6 h-6" />
+                    <Plus className="w-4 h-4" />
                     Create Quest
                   </button>
                   <button
                     onClick={() => router.push('/my-quests')}
-                    className="bg-white/10 backdrop-blur hover:bg-white/20 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all border border-white/30 flex items-center gap-3"
+                    className="bg-white/10 backdrop-blur hover:bg-white/20 text-white px-4 py-2 rounded-xl text-md transition-all border border-white/30 flex items-center gap-3"
                   >
                     <Folder className="w-6 h-6" />
                     My Quests
