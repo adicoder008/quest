@@ -13,6 +13,13 @@ import InteractiveMap from '../../../../components/quest/InteractiveMap';
 import { useToast, ToastContainer } from '@/hooks/use-toast';
 import { PostVisibilityModal } from '@/components/QuestPopups';
 import { LocationInput } from '@/components/common/LocationInput';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Flag } from 'lucide-react';
+import { FaHeart } from 'react-icons/fa';
+import { savePost, unsavePost, reportPost } from '@/lib/postService';
+import {Quest} from '../../../types/index'
+import { arrayRemove, arrayUnion, doc, getDoc, increment, updateDoc } from 'firebase/firestore';
+import { db, storage } from '../../../../lib/firebase.js';
+
 
 interface ActivityLocation {
   name: string;
@@ -35,25 +42,8 @@ interface Activity {
   type?: 'travel' | 'activity';
 }
 
-interface Day {
-  day: number;
-  date: string;
-  title: string;
-  activities: Activity[];
-}
 
-export interface Quest {
-  id: string;
-  destination: string;
-  title: string;
-  coverImageUrl?: string;
-  startDate: string;
-  endDate: string;
-  members: { [key: string]: 'owner' | 'editor' | 'viewer' };
-  isPublic: boolean;
-  copiedFrom?: string;
-  itinerary: { days: Day[]; };
-}
+
 
 const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
   const [title, setTitle] = useState('');
@@ -318,6 +308,13 @@ const QuestViewPage = () => {
   const [showAddActivityModal, setShowAddActivityModal] = useState(false);
   const [addActivityContext, setAddActivityContext] = useState<{ dayIndex: number; afterIndex: number } | null>(null);
   const { toasts, showToast, removeToast } = useToast();
+  const [isLiked, setIsLiked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
 
   const params = useParams();
   const router = useRouter();
@@ -331,6 +328,35 @@ const QuestViewPage = () => {
       loadQuest();
     }
   }, [user, loading, questId, router]);
+
+  useEffect(() => {
+    const fetchPostStats = async () => {
+      if (quest?.associatedPostId && user?.uid) {
+        try {
+          const postRef = doc(db, 'posts', quest.associatedPostId);
+          const postSnap = await getDoc(postRef);
+          
+          if (postSnap.exists()) {
+            const postData = postSnap.data();
+            setLikeCount(postData.likeCount || 0);
+            setIsLiked(postData.likedBy?.includes(user.uid) || false);
+          }
+          
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setIsSaved(userData.savedPosts?.includes(quest.associatedPostId) || false);
+          }
+        } catch (error) {
+          console.error('Error fetching post stats:', error);
+        }
+      }
+    };
+
+    fetchPostStats();
+  }, [quest?.associatedPostId, user?.uid, quest]);
+
 
   const loadQuest = async () => {
     if (!user?.uid) {
@@ -572,6 +598,79 @@ const QuestViewPage = () => {
         .map((a: any) => ({ ...a, date: displayQuest.itinerary.days[mapFilter].date }))
     : [];
 
+  
+
+    const handleLike = async () => {
+      if (!user?.uid || !quest?.associatedPostId) return;
+      
+      try {
+        const postRef = doc(db, 'posts', quest.associatedPostId);
+        
+        if (isLiked) {
+          await updateDoc(postRef, {
+            likedBy: arrayRemove(user.uid),
+            likeCount: increment(-1)
+          });
+          setIsLiked(false);
+          setLikeCount(prev => Math.max(0, prev - 1));
+        } else {
+          await updateDoc(postRef, {
+            likedBy: arrayUnion(user.uid),
+            likeCount: increment(1)
+          });
+          setIsLiked(true);
+          setLikeCount(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('Error toggling like:', error);
+        showToast('Failed to update like', 'error');
+      }
+    };
+
+    const handleSaveQuest = async () => {
+      if (!user?.uid || !quest?.associatedPostId) return;
+      
+      try {
+        if (isSaved) {
+          await unsavePost(quest.associatedPostId, user.uid);
+          setIsSaved(false);
+          showToast('Removed from saved', 'info');
+        } else {
+          await savePost(quest.associatedPostId, user.uid);
+          setIsSaved(true);
+          showToast('Saved successfully', 'success');
+        }
+      } catch (error) {
+        console.error('Error toggling save:', error);
+        showToast('Failed to update save status', 'error');
+      }
+    };
+
+    const handleCommentNavigate = () => {
+      if (quest?.associatedPostId) {
+        router.push(`/feed?scrollTo=${quest.associatedPostId}&openComments=true`);
+      }
+    };
+
+    const handleReportQuest = async () => {
+      if (!user?.uid || !quest?.associatedPostId || !reportReason) {
+        showToast('Please select a reason', 'error');
+        return;
+      }
+      
+      try {
+        await reportPost(quest.associatedPostId, user.uid, reportReason, reportDescription);
+        showToast('Quest reported successfully', 'success');
+        setShowReportModal(false);
+        setShowMoreMenu(false);
+        setReportReason('');
+        setReportDescription('');
+      } catch (error) {
+        console.error('Error reporting quest:', error);
+        showToast('Failed to report quest', 'error');
+      }
+    };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-20 lg:pb-0">
       <AddActivityModal 
@@ -587,26 +686,173 @@ const QuestViewPage = () => {
 
       <header className="sticky top-0 z-20 bg-gray-950/80 border-b border-gray-800 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button onClick={() => router.back()} className="p-2 hover:bg-gray-800 rounded-lg transition-colors"><ArrowLeft size={20} /></button>
-              <div>
+                <button onClick={() => router.back()} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+                <ArrowLeft size={20} />
+                </button>
+                <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg md:text-xl font-bold truncate max-w-[150px] md:max-w-xs">{quest.destination}</h1>
-                  {canEdit && !isEditMode && (<button onClick={() => setShowEditTitleModal(true)} className="p-1 hover:bg-gray-800 rounded transition-colors" title="Edit quest details"><Edit2 size={16} className="text-gray-400 hover:text-orange-500" /></button>)}
+                    <h1 className="text-lg md:text-xl font-bold truncate max-w-[150px] md:max-w-xs">
+                    {quest.destination}
+                    </h1>
+                    {canEdit && !isEditMode && (
+                    <button 
+                        onClick={() => setShowEditTitleModal(true)} 
+                        className="p-1 hover:bg-gray-800 rounded transition-colors" 
+                        title="Edit quest details"
+                    >
+                        <Edit2 size={16} className="text-gray-400 hover:text-orange-500" />
+                    </button>
+                    )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-400 mt-1"><Calendar size={12} /><span>{new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}</span></div>
-              </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                    <Calendar size={12} />
+                    <span>
+                    {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
+                    </span>
+                </div>
+                </div>
             </div>
+            
+            {/* ACTION BUTTONS - Different for Owner vs Viewer */}
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"><Share2 size={16} /><span className="hidden md:inline">Share</span></button>
-              {!canEdit && (<button onClick={handleCopyQuest} className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"><Copy size={16} /><span className="hidden md:inline">Copy</span></button>)}
-              {canEdit && !isEditMode && (<button onClick={() => setIsEditMode(true)} className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"><Edit3 size={16} /><span className="hidden md:inline">Edit</span></button>)}
-              {isEditMode && (<><button onClick={() => { setIsEditMode(false); setEditedQuest(JSON.parse(JSON.stringify(quest))); }} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm">Cancel</button><button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm disabled:opacity-50"><Save size={16} />{saving ? 'Saving...' : 'Save'}</button></>)}
+                {isOwner ? (
+                /* OWNER VIEW - Share and Edit */
+                <>
+                    <button 
+                    onClick={() => setIsShareModalOpen(true)} 
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                    >
+                    <Share2 size={16} />
+                    <span className="hidden md:inline">Share</span>
+                    </button>
+                    {!isEditMode && (
+                    <button 
+                        onClick={() => setIsEditMode(true)} 
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"
+                    >
+                        <Edit3 size={16} />
+                        <span className="hidden md:inline">Edit</span>
+                    </button>
+                    )}
+                    {isEditMode && (
+                    <>
+                        <button 
+                        onClick={() => { 
+                            setIsEditMode(false); 
+                            setEditedQuest(JSON.parse(JSON.stringify(quest))); 
+                        }} 
+                        className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                        >
+                        Cancel
+                        </button>
+                        <button 
+                        onClick={handleSave} 
+                        disabled={saving} 
+                        className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm disabled:opacity-50"
+                        >
+                        <Save size={16} />
+                        {saving ? 'Saving...' : 'Save'}
+                        </button>
+                    </>
+                    )}
+                </>
+                ) : quest.isPostedToFeed && quest.associatedPostId ? (
+                /* VIEWER VIEW - Like, Comment, Save, More */
+                <>
+                    <button 
+                    onClick={handleLike}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        isLiked 
+                        ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' 
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                    >
+                    <FaHeart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+                    <span className="hidden md:inline">{likeCount}</span>
+                    </button>
+                    
+                    <button 
+                    onClick={handleSaveQuest}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        isSaved 
+                        ? 'bg-orange-500/20 text-orange-500 hover:bg-orange-500/30' 
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                    >
+                    <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'} />
+                    <span className="hidden md:inline">Save</span>
+                    </button>
+                    
+                    <div className="relative">
+                    <button 
+                        onClick={() => setShowMoreMenu(!showMoreMenu)}
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                    >
+                        <MoreHorizontal size={16} />
+                    </button>
+                    
+                    {/* More Menu Dropdown */}
+                    {showMoreMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-gray-900 rounded-lg border border-gray-700 shadow-xl z-50">
+                        <button
+                            onClick={() => {
+                            setIsShareModalOpen(true);
+                            setShowMoreMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left rounded-t-lg"
+                        >
+                            <Share2 size={16} />
+                            <span>Share</span>
+                        </button>
+                        
+                        <button
+                            onClick={() => {
+                            handleCommentNavigate();
+                            setShowMoreMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
+                        >
+                            <MessageCircle size={16} />
+                            <span>Comment</span>
+                        </button>
+                        
+                        <button
+                            onClick={() => {
+                            setShowReportModal(true);
+                            setShowMoreMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left rounded-b-lg"
+                        >
+                            <Flag size={16} />
+                            <span>Report</span>
+                        </button>
+                        </div>
+                    )}
+                    </div>
+                </>
+                ) : !canEdit ? (
+                /* Non-owner viewing private quest - just Copy button */
+                <button 
+                    onClick={handleCopyQuest} 
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                >
+                    <Copy size={16} />
+                    <span className="hidden md:inline">Copy</span>
+                </button>
+                ) : null}
             </div>
-          </div>
+            </div>
         </div>
-      </header>
+        </header>
+
+        {showMoreMenu && (
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setShowMoreMenu(false)}
+            />
+          )}
 
       {/* Mobile View - Map toggle in header, horizontal cards AFTER map, NO overlaps */}
         <div className="lg:hidden">
@@ -936,14 +1182,14 @@ const QuestViewPage = () => {
             </div>
             
             {/* Post Quest button - fixed at bottom */}
-            {isOwner && (
+            {isOwner && !quest.isPostedToFeed && (
               <div className="p-4 border-t border-gray-800 flex-shrink-0 bg-gray-950">
                 <button
                   onClick={() => setShowPostModal(true)}
                   className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all text-base font-bold shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Send size={20} />
-                  <span>Post Quest</span>
+                  <span>Post Quest to Feed</span>
                 </button>
               </div>
             )}
@@ -951,17 +1197,18 @@ const QuestViewPage = () => {
         )}
       </div>
       {/* Floating Action Button for Mobile & Tablet */}
-      {isOwner && !isEditMode && (
+      {isOwner && !isEditMode && !quest.isPostedToFeed && (
         <div className="lg:hidden fixed bottom-6 right-6 z-30">
           <button
             onClick={() => setShowPostModal(true)}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-full transition-all shadow-2xl"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-full transition-all shadow-2xl hover:scale-105 active:scale-95"
           >
             <Send size={20} className="text-white" />
             <span className="font-semibold text-white">Post Quest</span>
           </button>
         </div>
       )}
+
       
       <PostVisibilityModal 
         isOpen={showPostModal} 
@@ -970,6 +1217,56 @@ const QuestViewPage = () => {
         questTitle={quest.destination} 
         hasCoverImage={!!quest.coverImageUrl} 
       />
+
+      {showReportModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+        <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">Report Quest</h3>
+            <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-gray-300 mb-2 block">Reason</label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              >
+                <option value="">Select a reason</option>
+                <option value="spam">Spam</option>
+                <option value="harassment">Harassment</option>
+                <option value="inappropriate">Inappropriate Content</option>
+                <option value="false_info">False Information</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-300 mb-2 block">Additional Details (Optional)</label>
+              <textarea
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                placeholder="Provide more details..."
+                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                rows={3}
+              />
+            </div>
+
+            <button
+              onClick={handleReportQuest}
+              disabled={!reportReason}
+              className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit Report
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
       <ToastContainer toasts={toasts} onClose={removeToast} />
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar { 

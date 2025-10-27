@@ -77,6 +77,13 @@ export interface Quest {
   preferences?: string[];
   budget?: number;
   copiedFrom?: string;
+  tags?: string[];
+  likesCount?: number;
+  commentsCount?: number;
+  sharesCount?: number;
+  isPostedToFeed?: boolean;
+  associatedPostId?: string | null;
+  
 }
 
 
