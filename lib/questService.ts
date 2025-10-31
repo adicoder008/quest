@@ -342,7 +342,7 @@ async postQuestToFeed(
   questId: string, 
   uid: string, 
   visibility: 'public' | 'private',
-  coverImageFile?: File | null
+  coverImageFile?: File 
 ): Promise<{ success: boolean; error?: string; postId?: string }> {
   try {
     const questRef = doc(db, 'quest', questId);

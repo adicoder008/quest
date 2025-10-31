@@ -311,7 +311,7 @@ const PublicProfilePage = () => {
                       />
                       {levelInfo && (
                         <div className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap'>
-                          Level {levelInfo.level}
+                           {levelInfo.currentLevel}
                         </div>
                       )}
                     </div>

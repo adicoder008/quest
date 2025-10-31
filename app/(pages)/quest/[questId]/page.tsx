@@ -427,7 +427,9 @@ const QuestViewPage = () => {
   const handlePostQuest = async (visibility: 'public' | 'private', coverImage: File | null) => {
     if (!user?.uid || !quest) return;
     try {
+      console.log(coverImage);
       const result = await questService.postQuestToFeed(questId, user.uid, visibility, coverImage);
+      console.log(result);
       if (result.success) {
         if (visibility === 'public') {
           showToast('Quest posted to feed successfully! 🎉', 'success');
@@ -477,10 +479,11 @@ const QuestViewPage = () => {
   const handleShareToFeed = async () => {
     if (!user || !quest) return;
     try {
+      console.log("before create post: ", quest.coverImageUrl?.large);
       await createPost({
         uid: user.uid,
         text: `Check out my Quest to ${quest.destination}! 🗺️`,
-        photoUrl: quest.coverImageUrl || '',
+        photoUrl: quest.coverImageUrl?.large,
         postType: 'quest_completion',
         questContext: {
           questId: questId,
@@ -489,6 +492,7 @@ const QuestViewPage = () => {
           category: 'travel'
         }
       });
+      
       showToast('Quest shared to feed!', 'success');
       setIsShareModalOpen(false);
     } catch (error) {
@@ -1215,7 +1219,7 @@ const QuestViewPage = () => {
         onClose={() => setShowPostModal(false)} 
         onPost={handlePostQuest} 
         questTitle={quest.destination} 
-        hasCoverImage={!!quest.coverImageUrl} 
+        hasCoverImage={!!quest.coverImageUrl?.large} 
       />
 
       {showReportModal && (

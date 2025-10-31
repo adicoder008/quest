@@ -59,7 +59,15 @@ export interface QuestItinerary {
 }
 
 export interface Quest {
-  coverImageUrl: Quest;
+  large: any;
+  coverImageUrl?:{
+    large:string;
+    medium: string;
+    small: string;
+
+
+
+  }
   id: string;
   uid: string;
   title: string;

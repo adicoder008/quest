@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Search,User, Bell, Mail,  Settings, LogOut, Menu } from 'lucide-react';
+import { Home, Search,User, Bell, Mail, Icon, Settings, LogOut, Menu } from 'lucide-react';
 
 interface User {
   uid?: string;
@@ -18,7 +18,11 @@ interface NavBarProps {
   onSignOut: () => void;
 }
 const OnQuestIcon = () => (
-  <img src='/quest_explore_footer.png' className="w-6 h-6" alt="OnQuest Icon" />
+  <img
+    src="/oq_logo.svg"
+    className="w-6 h-6 filter invert"
+    alt="OnQuest Icon"
+  />
 );
 
 const AITripPlannerIcon = () => (
@@ -116,7 +120,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
         {isExpanded ? (
           <img src='/OQ_LOGO_MAIN.svg' className="w-[130px] mb-3" alt="OnQuest" />
         ) : (
-          <img src='/quest_explore_footer.png' className="w-[40px]" alt="OnQuest" />
+          <img src='/oq_logo.svg' className="w-[40px] filter invert m-2" alt="OnQuest" />
         )}
         {screenWidth >= 1280 && (
           <button
@@ -137,14 +141,14 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
             <button
               key={item.route}
               onClick={() => handleNavClick(item.route)}
-              className={`w-full flex items-center gap-4 px-4 py-2 rounded-full transition-colors relative group ${
+              className={`w-full flex items-center gap-4 px-4 py-2 rounded-full transition-colors relative group ${ 
                 isActive 
                   ? 'bg-[#ff6900] text-black font-medium' 
                   : 'text-white hover:bg-gray-900'
               }`}
               title={!isExpanded ? item.label : ''}
             >
-              <span className="flex-shrink-0">
+              <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
                 <Icon />
               </span>
               {isExpanded && <span className="text-lg">{item.label}</span>}
@@ -160,7 +164,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
       </nav>
 
       <div className="border-t border-gray-700 pt-4">
-        <div className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center'}`}>
+        <div className={`flex items-center ${isExpanded ? 'jusjtify-between' : 'justify-center'}`}>
           {isExpanded ? (
             <>
               <div className="flex items-center gap-3 flex-1 min-w-0">

@@ -7,7 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
   title: 'OnQuest',
   description: 'Plan your perfect trip with AI assistance',
-  icon: '/FAVICON.svg',
+  icons: {
+    icon: '/oq_logo.svg',
+  }
 }
 
 export default function RootLayout({
