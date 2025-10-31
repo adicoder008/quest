@@ -191,10 +191,13 @@ const Hero = () => {
 
   return (
     <>
-      <div className="bg-[url('/walloq1.svg')] bg-bottom flex justify-center items-center bg-cover w-screen h-[90vh] ">
-        <div className='flex flex-col gap-4 text-white text-center p-4'>
+      <div className="bg-[url('/walloq1.svg')] bg-bottom flex justify-center items-center bg-cover w-screen h-[100vh] ">
+      {/* <div className='NAVBAR absolute x-to '>hi</div> */}
+      {/* <div className='flex flex-col ga'> */}
+      
+        <div className='flex flex-col gap-4 text-white text-center p-4 '>
           <h1 className='text-4xl md:text-6xl font-arsenal font-[400]'>
-            Where every <span className='font-[500] italic '>Journey</span> becomes a <span className='font-[500] italic '>Quest</span>
+            Where every trip becomes a <span className='font-[500] italic  '>Story </span> worth <span className='font-[500] italic  '>sharing </span>
           </h1>
           <p className='text-lg md:text-2xl max-w-3xl mx-auto'>
             Transform chaotic travel stories into structured, shareable itineraries powered by real explorers like you
@@ -204,16 +207,17 @@ const Hero = () => {
               onClick={handleActionClick}
               className='items-center text-white w-fit bg-[#EA6100] hover:bg-[#F86F0A] font-[450] rounded-3xl px-6 py-3 transition-colors'
             >
-              Explore Quests
+              Explore
             </button>
             <button 
               onClick={handleActionClick}
               className='items-center text-white w-fit bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 font-[450] rounded-3xl px-6 py-3 transition-colors'
             >
-              Start Your Own Quest
+              Create Quest
             </button>
           </div>
         </div>
+        {/* </div> */}
       </div>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
