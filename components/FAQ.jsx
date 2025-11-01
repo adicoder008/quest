@@ -5,14 +5,15 @@ import { FaChevronDown } from "react-icons/fa";
 
 const faqs = [
     {
-      question: "What is OnQuest?",
+      question: "What exactly is a Quest ?",
       answer:
-        "OnQuest is an AI-powered travel platform that helps you plan personalized trips, discover local events, and connect with fellow travelers. Our AI companion, Mr. Pebbles, creates smart itineraries tailored to your preferences and budget.",
+        " A Quest is a structured and user customized travel plan created by AI. It links routes, stops, and logistics on an interactive map, giving you real, verified insights from people who’ve already been there.",
     },
     {
-      question: "How does Mr. Pebbles work?",
+      question: "How does OnQuest help me plan my trips ?",
       answer:
-        "Mr. Pebbles is an AI-driven virtual travel guide that curates the best travel experiences for you. Just enter your destination and preferences, and he’ll generate a customized itinerary, suggest hidden gems, and assist you in real time during your journey.",
+        " Instead of starting from scratch, you can explore Quests made by other travelers, see their itineraries, and remix them to create your own with no endless scrolling or scattered tips"
+
     },
     // {
     //   question: "Can I use OnQuest for group travel?",
@@ -20,30 +21,29 @@ const faqs = [
     //     "Absolutely! OnQuest allows you to create a travel group, chat with friends, share your location, and split expenses effortlessly.",
     // },
     {
-      question: "Does OnQuest help with local events and activities?",
+      question: "How do i know OnQuest is reliable and accurate ?",
       answer:
-        "Yes! Our platform highlights local events, festivals, and must-visit spots in your chosen destination, so you never miss out on exciting experiences.",
+        "Every Quest goes through OnQuest’s 4-tier verification system, combining automated checks, peer validation, AI triangulation, and live data from sources like MapmyIndia — so you can trust what you see.",
     },
     {
-      question: "Is OnQuest free to use?",
-      answer:
-        "We offer a free version with essential trip planning features. Premium users get advanced AI recommendations, priority support, and exclusive local deals.",
+      question: "Who can create a Quest?",
+      answer: "Anyone! Whether you’re an explorer, trekker, or weekend traveler, you can post your route, share insights, and earn badges as your Quest helps others."
     },
     {
-      question: "Can I modify my itinerary after it's generated?",
+      question: "What makes OnQuest different from Google Maps or TripIt ?",
       answer:
-        "Yes! You can edit your itinerary at any time. Our AI dynamically adjusts recommendations based on your changes, ensuring a flexible and seamless travel experience.",
+        "OnQuest doesn’t just show routes, it structures and verifies them. It’s where navigation meets storytelling: a community-powered platform built around reliable, hyper-local travel intelligence.",
     },
     {
-      question: "How does OnQuest handle expense splitting?",
+      question: "How does OnQuest stay free to use ?",
       answer:
-        "OnQuest has a built-in expense tracker that lets you split bills with friends seamlessly, just like Splitwise.",
+        "OnQuest is free for travelers. It’s supported by hyper-local advertising — shown only when relevant, like near your next planned stop, so it enhances your trip instead of interrupting it.",
     },
-    // {
-    //   question: "What makes OnQuest different from others?",
-    //   answer:
-    //     "Unlike traditional travel platforms, OnQuest offers: AI-powered trip planning instead of generic recommendations. A real-time virtual guide (Mr. Pebbles) for instant travel assistance. Integrated expense tracking for hassle-free cost splitting.\n4️⃣ Personalized local event suggestions tailored to your interests.",
-    // },
+    {
+      question: "What’s included in the Feed ?",
+      answer:
+      "t’s your travel hub — filled with real Quests from real explorers. Browse what’s trending, save what you love, and turn ideas into your next route."
+    },
   ];
   
 
