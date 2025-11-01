@@ -16,7 +16,7 @@ const Header = () => {
         <div className="flex items-center gap-3">
           <Link href="/">
             <img 
-              src="/Darklogo.svg" 
+              src="/OQ_LOGO_MAIN.svg" 
               alt="Quest" 
               className="w-26 object-contain cursor-pointer"
             />

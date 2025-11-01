@@ -1,10 +1,42 @@
+// app/types/index.ts - UPDATED Quest interface
+
+export interface Quest {
+  id: string;
+  uid: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  members: { [key: string]: 'owner' | 'editor' | 'viewer' };
+  isPublic: boolean;
+  itinerary: QuestItinerary;
+  createdAt: string;
+  updatedAt: string;
+  source?: string;
+  transportMode?: string[];
+  tripType?: string;
+  preferences?: string[];
+  budget?: number;
+  copiedFrom?: string;
+  tags?: string[];
+  likesCount?: number;
+  commentsCount?: number;
+  sharesCount?: number;
+  isPostedToFeed?: boolean;
+  associatedPostId?: string | null;
+  
+  // FIXED: Single cover image URL (same format as posts)
+  coverImageUrl?: string; // Compressed image URL (same as post photoUrl)
+}
+
+// Rest of your types remain the same...
 export interface User {
   uid: string;
   email?: string;
   displayName?: string;
   photoURL?: string;
   bio?: string;
-  about?:string;
+  about?: string;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
@@ -24,10 +56,9 @@ export interface User {
   pushNotifications?: boolean;
   followers?: string[]; 
   following?: string[];
-  savedPosts?: string[]; // Array of post IDs
+  savedPosts?: string[];
   badges?: number[];
-  quests?: string[]; // Array of quest IDs
-
+  quests?: string[];
 }
 
 export interface QuestActivity {
@@ -58,43 +89,6 @@ export interface QuestItinerary {
   days: QuestDay[];
 }
 
-export interface Quest {
-  large: any;
-  coverImageUrl?:{
-    large:string;
-    medium: string;
-    small: string;
-
-
-
-  }
-  id: string;
-  uid: string;
-  title: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  members: { [key: string]: 'owner' | 'editor' | 'viewer' };
-  isPublic: boolean;
-  itinerary: QuestItinerary;
-  createdAt: string;
-  updatedAt: string;
-  source?: string;
-  transportMode?: string[];
-  tripType?: string;
-  preferences?: string[];
-  budget?: number;
-  copiedFrom?: string;
-  tags?: string[];
-  likesCount?: number;
-  commentsCount?: number;
-  sharesCount?: number;
-  isPostedToFeed?: boolean;
-  associatedPostId?: string | null;
-  
-}
-
-
 export interface QuestContext {
   questId: string;
   questTitle: string;
@@ -109,11 +103,11 @@ export interface Post {
   likedBy: any;
   id: string;
   authorId: string;
-  text: string; // Changed from 'content' to 'text' to match component usage
-  caption?: string; // Added optional caption
-  userName: string; // Added userName
-  userProfilePic: string; // Added userProfilePic
-  createdAt: string; // Should be a string (ISO) from Firestore
+  text: string;
+  caption?: string;
+  userName: string;
+  userProfilePic: string;
+  createdAt: string;
   questId?: string;
   questTitle?: string;
   questImage?: string;
@@ -128,9 +122,7 @@ export interface Post {
   shareCount?: number;
   isDeleted?: boolean;
   visibility?: 'public' | 'friends' | 'private';
-  isSaved?: boolean; 
-  
-  // Event-specific fields
+  isSaved?: boolean;
   eventTitle?: string;
   eventSubtitle?: string;
   eventPrice?: string | null;
@@ -138,8 +130,6 @@ export interface Post {
   eventLocation?: string;
   eventCapacity?: number | null;
   attendeesCount?: number;
-  
-  // Quest completion fields
   questContext?: QuestContext;
 }
 
@@ -189,16 +179,12 @@ export interface CreatePostData {
   topics?: string[];
   imageFile?: File;
   visibility?: string;
-  
-  // Event-specific
   eventTitle?: string;
   eventSubtitle?: string;
   eventPrice?: string;
   eventDate?: Date;
   eventLocation?: string;
   eventCapacity?: number;
-  
-  // Quest-specific
   questContext?: {
     questId: string;
     questTitle: string;
@@ -215,4 +201,3 @@ export interface CommentData {
   userProfilePic: string;
   text: string;
 }
-

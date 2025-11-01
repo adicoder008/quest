@@ -1667,6 +1667,7 @@ const MobilePostCard = ({
   };
  
   if (post.postType === 'quest_completion' || post.questContext) {
+    // FIX: Wrap in a fragment and add the comment modal logic
     return (
       <>
         <MobileQuestPostCard

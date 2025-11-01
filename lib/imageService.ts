@@ -10,6 +10,7 @@ const supportsWebP = (): boolean => {
 };
 
 interface ImageUrls {
+  compressedUrl: string | null;
   small: string;
   medium: string;
   large: string;

@@ -479,11 +479,11 @@ const QuestViewPage = () => {
   const handleShareToFeed = async () => {
     if (!user || !quest) return;
     try {
-      console.log("before create post: ", quest.coverImageUrl?.large);
+      console.log("before create post: ", quest.coverImageUrl);
       await createPost({
         uid: user.uid,
         text: `Check out my Quest to ${quest.destination}! 🗺️`,
-        photoUrl: quest.coverImageUrl?.large,
+        photoUrl: quest.coverImageUrl,
         postType: 'quest_completion',
         questContext: {
           questId: questId,
@@ -1219,7 +1219,7 @@ const QuestViewPage = () => {
         onClose={() => setShowPostModal(false)} 
         onPost={handlePostQuest} 
         questTitle={quest.destination} 
-        hasCoverImage={!!quest.coverImageUrl?.large} 
+        hasCoverImage={!!quest.coverImageUrl} 
       />
 
       {showReportModal && (
