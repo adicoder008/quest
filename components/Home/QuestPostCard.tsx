@@ -3,7 +3,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, Bookmark, MoreVertical } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreVertical , HeartPulse} from 'lucide-react';
+import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark} from 'react-icons/fa';
 
 interface QuestPostCardProps {
   post: {
@@ -22,6 +23,7 @@ interface QuestPostCardProps {
       questId: string;
       questTitle: string;
       description: string;
+
     };
   };
   currentUser: any;
@@ -137,18 +139,10 @@ export const QuestPostCard = ({
               }}
               className="ml-3 bg-white text-black px-4 py-2 rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors shadow-lg"
             >
-              View
+              View Quest
             </button>
           </div>
         </div>
-
-         <div className="absolute top-0 left-0 right-0 p-4 translate-x-140">
-            <div className="flex items-center gap-2 mb-2">
-                <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  🗺️ QUEST
-                </span>
-              </div>
-              </div>
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity" />
@@ -164,7 +158,7 @@ export const QuestPostCard = ({
                 isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
               }`}
             >
-              <Heart size={22} className={isLiked ? 'fill-current' : ''} />
+              <HeartPulse size={22} className={isLiked ? 'fill-current' : ''} />
               <span className="text-sm font-medium">{post.likeCount || 0}</span>
             </button>
 
@@ -172,7 +166,7 @@ export const QuestPostCard = ({
               onClick={onComment}
               className="flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-colors"
             >
-              <MessageCircle size={22} />
+              <FaRegCommentDots size={22} />
               <span className="text-sm font-medium">{post.commentCount || 0}</span>
             </button>
 
@@ -180,7 +174,7 @@ export const QuestPostCard = ({
               onClick={onShare}
               className="flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-colors"
             >
-              <Share2 size={22} />
+              <FaShareSquare size={22} />
               <span className="text-sm font-medium">{post.shareCount || 0}</span>
             </button>
           </div>
@@ -191,7 +185,7 @@ export const QuestPostCard = ({
               isSaved ? 'text-orange-500' : 'text-gray-400 hover:text-orange-500'
             }`}
           >
-            <Bookmark size={22} className={isSaved ? 'fill-current' : ''} />
+            <FaRegBookmark size={22} className={isSaved ? 'fill-current' : ''} />
           </button>
         </div>
       </div>
@@ -250,7 +244,7 @@ export const MobileQuestPostCard = ({
         style={{ height: '60vh' }}
       >
         <img
-          src={post.photoUrl}
+          src={post.photoUrl || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800'}
           alt={post.questContext?.questTitle}
           className="w-full h-full object-cover"
         />
@@ -259,9 +253,6 @@ export const MobileQuestPostCard = ({
 
         {/* Quest Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded mb-2 inline-block">
-            🗺️ QUEST
-          </span>
           <h2 className="text-white font-bold text-xl drop-shadow-lg mb-1">
             {post.questContext?.questTitle}
           </h2>
@@ -281,17 +272,17 @@ export const MobileQuestPostCard = ({
       <div className="flex items-center justify-between p-3 border-t border-gray-800">
         <div className="flex items-center gap-5">
           <button onClick={onLike} className={isLiked ? 'text-red-500' : 'text-gray-400'}>
-            <Heart size={24} className={isLiked ? 'fill-current' : ''} />
+            <HeartPulse size={24} className={isLiked ? 'fill-current' : ''} />
           </button>
           <button onClick={onComment} className="text-gray-400">
-            <MessageCircle size={24} />
+            <FaRegCommentDots size={24} />
           </button>
           <button onClick={onShare} className="text-gray-400">
-            <Share2 size={24} />
+            <FaShareSquare size={24} />
           </button>
         </div>
         <button onClick={onSave} className={isSaved ? 'text-orange-500' : 'text-gray-400'}>
-          <Bookmark size={24} className={isSaved ? 'fill-current' : ''} />
+          <FaBookmark size={24} className={isSaved ? 'fill-current' : ''} />
         </button>
       </div>
     </article>

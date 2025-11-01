@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, Search,User, Bell, Mail, Icon, Settings, LogOut, Menu } from 'lucide-react';
+import { IoPlanet } from 'react-icons/io5';
 
 interface User {
   uid?: string;
@@ -86,7 +87,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
       route: 'quest' 
     },
     { 
-      icon: AITripPlannerIcon,
+      icon: IoPlanet,
       label: 'AI Trip Planner',
       route: 'aitrip' 
     },

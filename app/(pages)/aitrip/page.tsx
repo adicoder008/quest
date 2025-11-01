@@ -541,15 +541,33 @@ const AITripPlannerPage = () => {
               <div className="max-w-2xl">
                 <div className="mb-8">
                   <label className="block text-base text-gray-400 mb-4">per person per night</label>
-                  <div className="text-center">
-                    <span className="text-5xl font-bold">₹ {tripData.budget.toLocaleString()}</span>
+                  <div className="text-center relative">
+                  <span className="text-5xl font-bold">₹ {tripData.budget.toLocaleString()}</span>
+                  <button
+                    onClick={() => {
+                    const value = prompt('Enter budget amount:', tripData.budget.toString());
+                    if (value && !isNaN(Number(value))) {
+                      const numValue = Number(value);
+                      if (numValue >= 500 && numValue <= 20000) {
+                      updateTripData('budget', numValue);
+                      } else {
+                      alert('Please enter a value between ₹500 and ₹20,000');
+                      }
+                    }
+                    }}
+                    className="ml-4 inline-flex items-center text-gray-400 hover:text-orange-500 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                    </svg>
+                  </button>
                   </div>
                 </div>
                 <input
                   type="range"
-                  min="1000"
-                  max="100000"
-                  step="1000"
+                  min="500"
+                  max="20000"
+                  step="500"
                   value={tripData.budget}
                   onChange={(e) => updateTripData('budget', parseInt(e.target.value))}
                   className="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
@@ -745,9 +763,9 @@ const AITripPlannerPage = () => {
                 </div>
                 <input
                   type="range"
-                  min="1000"
-                  max="100000"
-                  step="1000"
+                  min="500"
+                  max="20000"
+                  step="500"
                   value={tripData.budget}
                   onChange={(e) => updateTripData('budget', parseInt(e.target.value))}
                   className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
