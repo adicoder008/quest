@@ -104,8 +104,12 @@ const AccountPage = () => {
           setBadges(userBadges.slice(0, 3));
 
           const xp = data?.totalXP || 0;
+          console.log("User XP:", xp);
+        
           const level = calculateLevel(xp);
+          console.log("Calculated Level:", level);
           setLevelInfo(level);
+          console.log("Level Info Set:", level);
 
           await fetchUserPosts(currentUser.uid);
           
@@ -384,7 +388,7 @@ const AccountPage = () => {
                     />
                     {levelInfo && (
                       <div className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap'>
-                        Level {levelInfo.level}
+                        {levelInfo.currentLevel}
                       </div>
                     )}
                   </div>
@@ -441,7 +445,7 @@ const AccountPage = () => {
                 {levelInfo && (
                   <div className='col-span-3 lg:col-span-1'>
                     <div className='text-xl lg:text-2xl font-bold text-[#EA6100]'>
-                      {levelInfo.xp} XP
+                      {levelInfo.totalXP} XP
                     </div>
                     <div className='text-gray-400 text-sm'>Experience</div>
                   </div>

@@ -15,7 +15,7 @@ import useResponsive from '@/hooks/useResponsive';
 import CreatePost from '@/components/Feed_old/CreatePost';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
-import { FaPlus, FaHeartbeat, FaRegCommentDots, FaShareSquare } from 'react-icons/fa';
+import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
@@ -32,7 +32,7 @@ const generateUsername = (displayName: string | null | undefined): string => {
   return displayName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '');
 };
 
-// New component for the post creation button and modal logic
+// FIXED: New component for the post creation button and modal logic with responsive styles
 const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -40,13 +40,13 @@ const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
 
     return (
         <>
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 border-b border-gray-700">
                 <button
                     onClick={() => setShowCreateModal(true)}
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
                 >
-                    <Plus className="text-[#F7CEB0] w-5 h-5" />
-                    <span className="text-gray-300">What's on your mind?</span>
+                    <Plus className="text-[#F7CEB0] w-5 h-5 flex-shrink-0" />
+                    <span className="text-gray-300 text-sm md:text-base">What's on your mind?</span>
                 </button>
             </div>
 
@@ -71,7 +71,7 @@ const ResponsiveFeedPage = () => {
   return <MobileFeedPage />;
 };
 
-// RIGHT SIDEBAR
+// FIXED: RIGHT SIDEBAR with proper responsive behavior - hidden on mobile/tablet, visible on desktop
 const RightSidebar = ({ user, userData }: any) => {
   const [badges, setBadges] = useState<any[]>([]);
   const [levelInfo, setLevelInfo] = useState<any>(null);
@@ -132,7 +132,8 @@ const RightSidebar = ({ user, userData }: any) => {
   };
 
   return (
-    <div className="fixed right-0 top-0 h-screen w-[400px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
+    // FIXED: Hidden on screens smaller than 1280px (xl), only shows on large desktop
+    <div className="hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
       {/* User Profile Card */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
         <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
@@ -269,8 +270,7 @@ const RightSidebar = ({ user, userData }: any) => {
   );
 };
 
-// ... (Keep PostMenu, ShareModal, CommentModal as they are)
-
+// Professional Post Menu Component
 const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
   const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
   const [showReportModal, setShowReportModal] = useState(false);
@@ -317,10 +317,13 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
   if (showReportModal) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-        <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700 p-6">
+        <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white">Report Post</h3>
-            <button onClick={() => setShowReportModal(false)}>
+            <button 
+              onClick={() => setShowReportModal(false)}
+              className="p-1 hover:bg-gray-800 rounded-full transition-colors"
+            >
               <X size={20} className="text-gray-400" />
             </button>
           </div>
@@ -353,12 +356,20 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
               />
             </div>
 
-            <button
-              onClick={handleReport}
-              className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
-            >
-              Submit Report
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="flex-1 bg-gray-700 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReport}
+                className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Submit Report
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -371,22 +382,19 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
       onClick={onClose}
     >
       <div
-        className="bg-gray-900/95 backdrop-filter backdrop-blur-none rounded-lg w-full max-w-sm border border-gray-700 overflow-hidden"
+        className="bg-gray-900 rounded-xl w-full max-w-sm border border-gray-700 overflow-hidden shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Post Options</h3>
-          <button onClick={onClose}>
-            <X size={20} className="text-gray-400" />
-          </button>
         </div>
 
         <div className="py-2">
           <button
             onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
           >
-            <Copy size={20} />
+            <Copy size={20} className="text-gray-400" />
             <span>Copy Link</span>
           </button>
 
@@ -394,15 +402,15 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
             <>
               <button
                 onClick={() => {/* Edit functionality can be added later */}}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
               >
-                <Edit size={20} />
+                <Edit size={20} className="text-gray-400" />
                 <span>Edit Post</span>
               </button>
 
               <button
                 onClick={handleDelete}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
               >
                 <Trash2 size={20} />
                 <span>Delete Post</span>
@@ -411,12 +419,21 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
           ) : (
             <button
               onClick={() => setShowReportModal(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
             >
               <Flag size={20} />
               <span>Report Post</span>
             </button>
           )}
+        </div>
+
+        <div className="p-3 border-t border-gray-700">
+          <button
+            onClick={onClose}
+            className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -457,10 +474,13 @@ const ShareModal = ({ post, onClose }: any) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-900 rounded-lg w-full max-w-md border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Share Post</h3>
-          <button onClick={onClose}>
+          <button 
+            onClick={onClose}
+            className="p-1 hover:bg-gray-800 rounded-full transition-colors"
+          >
             <X size={20} className="text-gray-400" />
           </button>
         </div>
@@ -536,80 +556,24 @@ const ShareModal = ({ post, onClose }: any) => {
   );
 };
 
-const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
+// Inline Comments Component for Desktop
+const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchComments = async () => {
-      if (!post?.id) return;
-      
-      try {
-        const commentsRef = collection(db, 'posts', post.id, 'comments');
-        const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
-        const commentsSnapshot = await getDocs(commentsQuery);
-        
-        const commentsData: any[] = [];
-        for (const commentDoc of commentsSnapshot.docs) {
-          const commentData = commentDoc.data();
-          let commentAuthor = {
-            name: 'Anonymous',
-            avatar: '/default-avatar.png',
-            uid: commentData.uid
-          };
-          
-          if (commentData.uid) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', commentData.uid));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                commentAuthor = {
-                  name: userData.displayName || 'Anonymous',
-                  avatar: userData.photoURL || '/default-avatar.png',
-                  uid: commentData.uid
-                };
-              }
-            } catch (error) {
-              console.error('Error fetching comment author:', error);
-            }
-          }
-          
-          commentsData.push({
-            id: commentDoc.id,
-            text: commentData.text || '',
-            createdAt: commentData.createdAt,
-            author: commentAuthor,
-            ...commentData
-          });
-        }
-        
-        setComments(commentsData);
-      } catch (error) {
-        console.error('Error fetching comments:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchComments();
-  }, [post?.id]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !user) return;
+  const loadComments = async () => {
+    if (!post?.id) return;
     
+    setLoading(true);
     try {
-      await onCommentSubmit(post.id, commentText);
-      setCommentText('');
-      
-      // Refresh comments
       const commentsRef = collection(db, 'posts', post.id, 'comments');
       const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
       const commentsSnapshot = await getDocs(commentsQuery);
       
-      const commentsData = [];
+      const commentsData: any[] = [];
       for (const commentDoc of commentsSnapshot.docs) {
         const commentData = commentDoc.data();
         let commentAuthor = {
@@ -645,6 +609,21 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
       
       setComments(commentsData);
     } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !user) return;
+    
+    try {
+      await onCommentSubmit(post.id, commentText);
+      setCommentText('');
+      loadComments(); // Refresh comments
+    } catch (error) {
       console.error('Error submitting comment:', error);
     }
   };
@@ -662,91 +641,22 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col border border-gray-700 shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
-          >
-            <X size={20} className="text-white" />
-          </button>
-          <h2 className="text-xl font-bold text-white">Comments</h2>
-          <div className="w-8"></div>
-        </div>
+    <div className="mt-3 border-t border-gray-700 pt-3">
+      <button
+        onClick={() => {
+          setShowComments(!showComments);
+          if (!showComments) {
+            loadComments();
+          }
+        }}
+        className="text-gray-400 hover:text-[#F7CEB0] text-sm font-medium mb-3 transition-colors"
+      >
+        {showComments ? 'Hide' : 'View'} Comments ({post.stats?.comments || 0})
+      </button>
 
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-start gap-3">
-            <img 
-              src={post.author.avatar} 
-              alt={post.author.name}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => router.push(`/profile/${post.author.id}`)}
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-base font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.author.id}`)}>
-                  {post.author.name}
-                </h3>
-                <span className="text-gray-400 text-sm">·</span>
-                <span className="text-gray-400 text-sm">
-                  {new Date(post.metadata.createdAt?.seconds * 1000).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-white text-sm">{post.content.text}</p>
-              {post.content.images && post.content.images.length > 0 && (
-                <div className="mt-3">
-                  <img
-                    src={post.content.images[0]}
-                    alt="Post content"
-                    className="rounded-lg max-w-xs object-cover max-h-[30vh]"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex justify-center items-center p-8">
-              <div className="text-gray-400">Loading comments...</div>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <MessageCircle size={48} className="text-gray-600 mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">No comments yet</h3>
-              <p className="text-gray-400">Be the first to comment on this post!</p>
-            </div>
-          ) : (
-            <div className="p-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-3 mb-6 last:mb-0">
-                  <img 
-                    src={comment.author.avatar} 
-                    alt={comment.author.name}
-                    className="w-8 h-8 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => router.push(`/profile/${comment.author.uid}`)}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
-                        {comment.author.name}
-                      </h4>
-                      <span className="text-gray-400 text-xs">·</span>
-                      <span className="text-gray-400 text-xs">
-                        {formatCommentTime(comment.createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-white text-sm">{comment.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 border-t border-gray-700 bg-gray-900">
+      {showComments && (
+        <div className="space-y-3">
+          {/* Comment Input */}
           <form onSubmit={handleSubmit} className="flex items-start gap-3">
             <img 
               src={user?.photoURL || '/default-avatar.png'} 
@@ -754,40 +664,77 @@ const CommentModal = ({ post, user, onClose, onCommentSubmit }: any) => {
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
             <div className="flex-1 relative">
-              <textarea
+              <input
+                type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Post your comment..."
-                className="w-full bg-gray-800 text-white p-3 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none resize-none"
-                rows={2}
+                placeholder="Add a comment..."
+                className="w-full bg-gray-800 text-white px-3 py-2 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
                 required
               />
               <button
                 type="submit"
                 disabled={!commentText.trim()}
-                className={`absolute right-2 bottom-2 p-2 rounded-full transition-colors ${
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${
                   commentText.trim() 
-                    ? 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]' 
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    ? 'text-[#F7CEB0] hover:text-[#f5c094]' 
+                    : 'text-gray-600 cursor-not-allowed'
                 }`}
               >
                 <Send size={16} />
               </button>
             </div>
           </form>
+
+          {/* Comments List */}
+          {loading ? (
+            <div className="text-center py-4">
+              <div className="text-gray-400 text-sm">Loading comments...</div>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-400 text-sm">No comments yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-60 overflow-y-auto">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-2">
+                  <img 
+                    src={comment.author.avatar} 
+                    alt={comment.author.name}
+                    className="w-6 h-6 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => router.push(`/profile/${comment.author.uid}`)}
+                  />
+                  <div className="flex-1">
+                    <div className="bg-gray-800 rounded-lg p-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-xs font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
+                          {comment.author.name}
+                        </h4>
+                        <span className="text-gray-400 text-xs">·</span>
+                        <span className="text-gray-400 text-xs">
+                          {formatCommentTime(comment.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-white text-sm">{comment.text}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-// DESKTOP FEED COMPONENT
+// FIXED: DESKTOP FEED COMPONENT with responsive layout
 const Feed = () => {
   const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<any[]>([]);
-  const [selectedPostForComment, setSelectedPostForComment] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const router = useRouter();
@@ -995,10 +942,6 @@ const Feed = () => {
     }
   };
 
-  const handleComment = (post: any) => {
-    setSelectedPostForComment(post);
-  };
-
   const handleCommentSubmit = async (postId: string, commentText: string) => {
     if (!user?.uid || !commentText.trim()) return;
     
@@ -1094,9 +1037,7 @@ const Feed = () => {
     const [checkingFollow, setCheckingFollow] = useState(true);
     const authorId = post.author?.id || post.uid;
 
-
     useEffect(() => {
-      // In your useEffect where you check follow status
       const checkFollowStatus = async () => {
         if (!user?.uid || !authorId || user.uid === authorId) {
           setCheckingFollow(false);
@@ -1135,7 +1076,6 @@ const Feed = () => {
           console.error('Error toggling follow:', error);
         }
       };
-    
 
     const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
     const questData = post.questData || post.questContext;
@@ -1180,7 +1120,7 @@ const Feed = () => {
           }}
           currentUser={user}
           onLike={() => handleLike(post.id)}
-          onComment={() => handleComment(post)}
+          onComment={() => handleCommentSubmit(post.id, '')}
           onShare={() => handleShare(post.id)}
           onSave={() => handleSave(post.id)}
           onMenu={() => setSelectedPostForMenu(post)}
@@ -1191,13 +1131,13 @@ const Feed = () => {
 
     if (isQuestPost) {
       return (
-        <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
+        <article className="border bg-gray-900 mb-4 rounded-xl border-gray-700 overflow-hidden">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3 flex-1">
               <img 
                 src={post.author.avatar} 
                 alt={post.author.name} 
-                className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => router.push(`/profile/${post.author.id}`)}
               />
               <div className="flex-1">
@@ -1226,58 +1166,52 @@ const Feed = () => {
               </div>
             </div>
             <button onClick={() => setSelectedPostForMenu(post)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors">
-              <MoreHorizontal className="w-6 h-6 text-gray-400" />
+              <MoreHorizontal className="w-5 h-5 text-gray-400" />
             </button>
           </div>
 
           {postText && (
-            <p className="px-4 pb-3 text-white">{postText}</p>
+            <p className="px-4 pb-3 text-white text-sm">{postText}</p>
           )}
 
           {postImages && postImages.length > 0 && (
-          <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
-                    <img
-                        src={postImages[currentImageIdx].large} // Show current image
-                        alt={`Post content ${currentImageIdx + 1}`}
-                        className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
-                    />
-                    
-                    {/* Slider Controls (Only show if more than 1 image) */}
-                    {postImages.length > 1 && (
-                        <>
-                            {/* Previous Button */}
-                            <button 
-                                onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
-                                className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
-                                disabled={currentImageIdx === 0} // Optional: Disable at start
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                </svg>
-                            </button>
-                            {/* Next Button */}
-                            <button 
-                                onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
-                                className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
-                                disabled={currentImageIdx === postImages.length - 1} // Optional: Disable at end
-                            >
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                               </svg>
-                            </button>
-                             {/* Indicator Dots */}
-                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                                {postImages.map((_: any, index: React.Key | null | undefined) => (
-                                    <div 
-                                        key={index}
-                                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
+            <div className="px-4 pb-3 relative">
+              <img
+                src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]} 
+                alt={`Post content ${currentImageIdx + 1}`}
+                className="w-full rounded-lg object-contain max-h-[500px] bg-gray-800"
+              />
+              
+              {postImages.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                  </button>
+                  <button 
+                    onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {postImages.map((_: any, index: number) => (
+                      <div 
+                        key={index}
+                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="border-t border-gray-700 px-4 py-3">
             <div className="flex items-center gap-6">
@@ -1287,24 +1221,24 @@ const Feed = () => {
                   isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
                 }`}
               >
-                <FaHeartbeat className="w-6 h-6" />
-                <span className="text-sm">{post.stats.likes}</span>
+                <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                <span className="text-sm font-medium">{post.stats.likes || 0}</span>
               </button>
               
               <button 
-                onClick={() => handleComment(post)}
+                onClick={() => handleCommentSubmit(post.id, '')}
                 className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
               >
-                <FaRegCommentDots className="w-6 h-6" />
-                <span className="text-sm">{post.stats.comments}</span>
+                <FaRegCommentDots className="w-5 h-5" />
+                <span className="text-sm font-medium">{post.stats.comments || 0}</span>
               </button>
               
               <button 
                 onClick={() => handleShare(post.id)}
                 className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
               >
-                <Share2 className="w-6 h-6" />
-                {/* <span className="text-sm">{post.stats.shares || 0}</span> */}
+                <FaShareSquare className="w-5 h-5" />
+                <span className="text-sm font-medium">{post.stats.shares || 0}</span>
               </button>
 
               <button 
@@ -1313,22 +1247,29 @@ const Feed = () => {
                   isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
                 }`}
               >
-                {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
+                {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
               </button>
             </div>
           </div>
+
+          {/* Inline Comments */}
+          <InlineComments 
+            post={post} 
+            user={user} 
+            onCommentSubmit={handleCommentSubmit}
+          />
         </article>
       );
     }
 
     return (
-      <article className="border bg-gray-900 mb-4 rounded-lg border-gray-700">
+      <article className="border bg-gray-900 mb-4 rounded-xl border-gray-700 overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 flex-1">
             <img 
               src={post.author.avatar} 
               alt={post.author.name}
-              className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => router.push(`/profile/${post.author.id}`)}
             />
             <div className="flex-1">
@@ -1360,58 +1301,52 @@ const Feed = () => {
             onClick={() => setSelectedPostForMenu(post)}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
           >
-            <MoreHorizontal className="w-6 h-6 text-gray-400" />
+            <MoreHorizontal className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         {postText && (
-          <p className="px-4 pb-3 text-white">{postText}</p>
+          <p className="px-4 pb-3 text-white text-sm">{postText}</p>
         )}
 
         {postImages && postImages.length > 0 && (
-                <div className="px-4 pb-3 relative"> {/* Added relative positioning */}
-                    <img
-                        src={postImages[currentImageIdx].large} // Show current image
-                        alt={`Post content ${currentImageIdx + 1}`}
-                        className="w-full rounded-lg object-contain max-h-[50vh]" // Adjusted max-h for desktop
+          <div className="px-4 pb-3 relative">
+            <img
+              src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]}
+              alt={`Post content ${currentImageIdx + 1}`}
+              className="w-full rounded-lg object-contain max-h-[500px] bg-gray-800"
+            />
+            
+            {postImages.length > 1 && (
+              <>
+                <button 
+                  onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+                <button 
+                  onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {postImages.map((_: any, index: number) => (
+                    <div 
+                      key={index}
+                      className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
                     />
-                    
-                    {/* Slider Controls (Only show if more than 1 image) */}
-                    {postImages.length > 1 && (
-                        <>
-                            {/* Previous Button */}
-                            <button 
-                                onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
-                                className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
-                                disabled={currentImageIdx === 0} // Optional: Disable at start
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                </svg>
-                            </button>
-                            {/* Next Button */}
-                            <button 
-                                onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
-                                className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity disabled:opacity-30"
-                                disabled={currentImageIdx === postImages.length - 1} // Optional: Disable at end
-                            >
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                               </svg>
-                            </button>
-                             {/* Indicator Dots */}
-                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                                {postImages.map((_: any, index: React.Key | null | undefined) => (
-                                    <div 
-                                        key={index}
-                                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
+                  ))}
                 </div>
+              </>
             )}
+          </div>
+        )}
 
         <div className="border-t border-gray-700 px-4 py-3">
           <div className="flex items-center gap-6">
@@ -1421,24 +1356,24 @@ const Feed = () => {
                 isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
               }`}
             >
-              <FaHeartbeat className="w-6 h-6" />
-              <span className="text-sm">{post.stats.likes}</span>
+              <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
             
             <button 
-              onClick={() => handleComment(post)}
+              onClick={() => handleCommentSubmit(post.id, '')}
               className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
-              <FaRegCommentDots className="w-6 h-6" />
-              <span className="text-sm">{post.stats.comments}</span>
+              <FaRegCommentDots className="w-5 h-5" />
+              <span className="text-sm font-medium">{post.stats.comments || 0}</span>
             </button>
             
             <button 
               onClick={() => handleShare(post.id)}
               className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
-              <Share2 className="w-6 h-6" />
-              {/* <span className="text-sm">{post.stats.shares || 0}</span> */}
+              <FaShareSquare className="w-5 h-5" />
+              <span className="text-sm font-medium">{post.stats.shares || 0}</span>
             </button>
 
             <button 
@@ -1447,10 +1382,17 @@ const Feed = () => {
                 isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
               }`}
             >
-              {isSaved ? <BookmarkCheck className="w-6 h-6" /> : <Bookmark className="w-6 h-6" />}
+              {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
             </button>
           </div>
         </div>
+
+        {/* Inline Comments */}
+        <InlineComments 
+          post={post} 
+          user={user} 
+          onCommentSubmit={handleCommentSubmit}
+        />
       </article>
     );
   };
@@ -1466,75 +1408,70 @@ const Feed = () => {
         onSignOut={handleSignOut}
       />
 
-      <main className="ml-[280px] mr-[380px] min-h-screen border-x border-gray-700 bg-black">
-         <div className="border-b border-gray-700">
-           <div className="p-4 bg-black">
-                <h1 className="text-2xl font-medium text-white bg-black">
+      {/* FIXED: Responsive layout with proper margins */}
+      {/* On mobile: no margins, On tablet/desktop without sidebar: left margin only, On large desktop: both margins */}
+      <main className="md:ml-[280px] xl:mr-[380px] min-h-screen bg-black">
+        <div className="max-w-2xl mx-auto md:border-x border-gray-700 min-h-screen">
+          <div className="border-b border-gray-700">
+            <div className="p-4 bg-black">
+              <h1 className="text-xl md:text-2xl font-medium text-white bg-black">
                 New day, <span className="text-[#EA6100]"> new Quest</span> — let's go! 
-                </h1>
-           </div>
-           <CreatePostTrigger user={user} />
-         </div>
-        
-        <div className="p-4">
-          {initialLoading ? (
-            <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
-              <div className="text-gray-400">Loading posts...</div>
+              </h1>
             </div>
-          ) : (
-            <>
-              {posts.map((post) => (
-                <DesktopPost key={post.id} post={post} user={user} />
-              ))}
+            <CreatePostTrigger user={user} />
+          </div>
+          
+          <div className="p-4">
+            {initialLoading ? (
+              <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
+                <div className="text-gray-400">Loading posts...</div>
+              </div>
+            ) : (
+              <>
+                {posts.map((post) => (
+                  <DesktopPost key={post.id} post={post} user={user} />
+                ))}
 
-              {hasMore && (
-                <div id="scroll-sentinel" className="py-4">
-                  {loadingMore && (
-                    <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
-                      <div className="text-gray-400">Loading more posts...</div>
-                    </div>
-                  )}
-                </div>
-              )}
+                {hasMore && (
+                  <div id="scroll-sentinel" className="py-4">
+                    {loadingMore && (
+                      <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
+                        <div className="text-gray-400">Loading more posts...</div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {!hasMore && posts.length > 0 && (
-                <div className="border bg-gray-900 p-6 rounded-lg border-gray-700 text-center">
-                  <p className="text-gray-400">You've reached the end!</p>
-                </div>
-              )}
+                {!hasMore && posts.length > 0 && (
+                  <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
+                    <p className="text-gray-400">You've reached the end!</p>
+                  </div>
+                )}
 
-              {posts.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 text-lg">No posts yet</div>
-                  <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
-                </div>
-              )}
-            </>
-          )}
+                {posts.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg">No posts yet</div>
+                    <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </main>
 
       <RightSidebar user={user} userData={userData} />
 
       {user && (
-        <div className="fixed bottom-6 left-[calc(280px+50%)] transform -translate-x-1/2 z-50">
+        <div className="fixed bottom-6 right-6 z-50"> 
           <button
-            onClick={() => router.push('/quests/create') }
+            onClick={() => router.push('/quests/create')}
             className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
             aria-label="Create new quest"
           >
             <FaPlus className="text-xl" />
           </button>
         </div>
-      )}
-
-      {selectedPostForComment && user && (
-        <CommentModal
-          post={selectedPostForComment}
-          user={user}
-          onClose={() => setSelectedPostForComment(null)}
-          onCommentSubmit={handleCommentSubmit}
-        />
       )}
 
       {selectedPostForMenu && (
@@ -1559,9 +1496,8 @@ const Feed = () => {
   );
 };
 
-// ... (Keep Mobile components as they are but add similar follow button and profile navigation logic)
-
-// Add similar logic to MobilePostCard for follow buttons and profile navigation
+// Mobile components remain the same but with updated icons
+// Mobile components remain the same but with updated icons
 const MobilePostCard = ({ 
   post, 
   currentUser, 
@@ -1583,9 +1519,7 @@ const MobilePostCard = ({
   const isSaved = post.isSaved;
   const authorId = post.uid;
 
-
-    useEffect(() => {
-    // In your useEffect where you check follow status
+  useEffect(() => {
     const checkFollowStatus = async () => {
       if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
         setCheckingFollow(false);
@@ -1608,37 +1542,21 @@ const MobilePostCard = ({
 
   const handleFollowClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!currentUser?.uid || post.uid === currentUser.uid) return;
+    
+    if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
+      console.error('Invalid user IDs for follow action', { 
+        currentUserId: currentUser?.uid, 
+        authorId 
+      });
+      return;
+    }
 
     try {
       if (isFollowingUser) {
-        await unfollowUser(currentUser.uid, post.uid);
+        await unfollowUser(currentUser.uid, authorId);
         setIsFollowingUser(false);
       } else {
-        const handleFollowClick = async (e: React.MouseEvent) => {
-          e.stopPropagation();
-          
-          // Validate both user IDs before making the call
-          if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
-            console.error('Invalid user IDs for follow action', { 
-              currentUserId: currentUser?.uid, 
-              authorId 
-            });
-            return;
-          }
-
-          try {
-            if (isFollowingUser) {
-              await unfollowUser(currentUser.uid, authorId);
-              setIsFollowingUser(false);
-            } else {
-              await followUser(currentUser.uid, authorId);
-              setIsFollowingUser(true);
-            }
-          } catch (error) {
-            console.error('Error toggling follow:', error);
-          }
-        };
+        await followUser(currentUser.uid, authorId);
         setIsFollowingUser(true);
       }
     } catch (error) {
@@ -1747,7 +1665,105 @@ const MobilePostCard = ({
     setCommentText('');
     loadComments();
   };
-  
+ 
+  if (post.postType === 'quest_completion' || post.questContext) {
+    // FIX: Wrap in a fragment and add the comment modal logic
+    return (
+      <>
+        <MobileQuestPostCard
+          post={{
+            id: post.id,
+            uid: post.uid,
+            userName: post.userName,
+            userProfilePic: post.userProfilePic,
+            text: post.text || '',
+            photoUrl: post.photoUrl || '',
+            createdAt: post.createdAt,
+            likeCount: post.likeCount || 0,
+            commentCount: post.commentCount || 0,
+            shareCount: post.shareCount || 0,
+            likedBy: post.likedBy || [],
+            questContext: post.questContext
+          }}
+          currentUser={currentUser}
+          onLike={onLike}
+          onComment={handleToggleComments} 
+          onShare={onShare}
+          onSave={onSave}
+          onMenu={onMenuClick}
+          isSaved={post.isSaved}
+        />
+        
+        {showComments && (
+          <div className="mt-4 pt-4 border-t border-gray-800 p-4">
+            <form onSubmit={handleSubmitComment} className="mb-4">
+              <div className="flex items-start gap-2">
+                <img 
+                  src={currentUser.photoURL || '/default-avatar.png'} 
+                  alt="Your profile"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Add a comment..."
+                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!commentText.trim()}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
+                      commentText.trim() 
+                        ? 'text-[#F7CEB0]' 
+                        : 'text-gray-600'
+                    }`}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {loadingComments ? (
+              <div className="text-center py-4">
+                <div className="text-gray-400 text-sm">Loading comments...</div>
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-gray-400 text-sm">No comments yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start gap-2">
+                    <img 
+                      src={comment.author.avatar} 
+                      alt={comment.author.name}
+                      className="w-7 h-7 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => router.push(`/profile/${comment.author.uid}`)}
+                    />
+                    <div className="flex-1">
+                      <div className="bg-gray-900 rounded-lg p-2">
+                        <h4 className="text-xs font-medium text-white mb-1 cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
+                          {comment.author.name}
+                        </h4>
+                        <p className="text-xs text-gray-300">{comment.text}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 ml-2">
+                        {formatTime(comment.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  }
   if (isQuestPost) {
     return (
       <article className="border-b border-gray-800 bg-black p-4">
@@ -1765,19 +1781,19 @@ const MobilePostCard = ({
                   {post.userName}
                 </h3>
                 {!checkingFollow && currentUser?.uid !== post.uid && (
-                    <button
+                  <button
                     onClick={handleFollowClick}
                     className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
                       isFollowingUser
                       ? 'bg-gray-700 text-white'
                       : 'bg-[#F7CEB0] text-black'
                     }`}
-                    >
+                  >
                     {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
                     <span className="whitespace-nowrap">
                       {isFollowingUser ? 'Following' : 'Follow'}
                     </span>
-                    </button>
+                  </button>
                 )}
               </div>
               <div className="flex items-center gap-1">
@@ -1799,49 +1815,44 @@ const MobilePostCard = ({
           <p className="text-white text-sm mb-3">{post.text}</p>
         )}
 
-        {/* --- REVISED IMAGE DISPLAY --- */}
-            {postImages && postImages.length > 0 && (
-                <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
-                    <img
-                        src={postImages[currentImageIdx].large} // Show current image
-                        alt={`Post content ${currentImageIdx + 1}`}
-                        className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
+        {postImages && postImages.length > 0 && (
+          <div className="mb-3 relative rounded-lg overflow-hidden">
+            <img
+              src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]}
+              alt={`Post content ${currentImageIdx + 1}`}
+              className="w-full object-contain max-h-[70vh] bg-gray-800"
+            />
+            
+            {postImages.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {postImages.map((_: any, index: number) => (
+                    <div 
+                      key={index}
+                      className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
                     />
-                    
-                    {/* Slider Controls (Only show if more than 1 image) */}
-                    {postImages.length > 1 && (
-                         <>
-                            {/* Previous Button */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                </svg>
-                            </button>
-                            {/* Next Button */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                            >
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                               </svg>
-                            </button>
-                             {/* Indicator Dots */}
-                             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                {postImages.map((_: any, index: React.Key | null | undefined) => (
-                                    <div 
-                                        key={index}
-                                        className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
+                  ))}
                 </div>
+              </>
             )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between pt-2 border-t border-gray-800">
           <button 
@@ -1850,24 +1861,24 @@ const MobilePostCard = ({
               isLiked ? 'text-red-500' : 'text-gray-400'
             }`}
           >
-            <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span className="text-xs">{post.likeCount || 0}</span>
+            <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span className="text-xs font-medium">{post.likeCount || 0}</span>
           </button>
           
           <button 
             onClick={handleToggleComments}
             className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-xs">{post.commentCount || 0}</span>
+            <FaRegCommentDots className="w-5 h-5" />
+            <span className="text-xs font-medium">{post.commentCount || 0}</span>
           </button>
           
           <button 
             onClick={onShare}
             className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
-            <Share2 className="w-5 h-5" />
-            {/* <span className="text-xs">{post.shareCount || 0}</span> */}
+            <FaShareSquare className="w-5 h-5" />
+            <span className="text-xs font-medium">{post.shareCount || 0}</span>
           </button>
 
           <button 
@@ -1876,7 +1887,7 @@ const MobilePostCard = ({
               isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
             }`}
           >
-            {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+            {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
           </button>
         </div>
 
@@ -1951,34 +1962,7 @@ const MobilePostCard = ({
     );
   }
 
-  if (post.postType === 'quest_completion' || post.questContext) {
-    return (
-      <MobileQuestPostCard
-        post={{
-          id: post.id,
-          uid: post.uid,
-          userName: post.userName,
-          userProfilePic: post.userProfilePic,
-          text: post.text || '',
-          photoUrl: post.photoUrl || '',
-          createdAt: post.createdAt,
-          likeCount: post.likeCount || 0,
-          commentCount: post.commentCount || 0,
-          shareCount: post.shareCount || 0,
-          likedBy: post.likedBy || [],
-          questContext: post.questContext
-        }}
-        currentUser={currentUser}
-        onLike={onLike}
-        onComment={() => onComment(post)}
-        onShare={onShare}
-        onSave={onSave}
-        onMenu={onMenuClick}
-        isSaved={post.isSaved}
-      />
-    );
-  }
-
+  // This is the default card for regular posts
   return (
     <article className="border-b border-gray-800 bg-black p-4">
       <div className="flex items-center justify-between mb-3">
@@ -1995,19 +1979,19 @@ const MobilePostCard = ({
                 {post.userName}
               </h3>
               {!checkingFollow && currentUser?.uid !== post.uid && (
-                    <button
-                    onClick={handleFollowClick}
-                    className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
-                      isFollowingUser
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-black text-white border border-black'
-                    }`}
-                    >
-                    <span className="whitespace-nowrap">
-                      {isFollowingUser ? '' : 'Follow'}
-                    </span>
-                    </button>
-                )}
+                <button
+                  onClick={handleFollowClick}
+                  className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                    isFollowingUser
+                    ? 'bg-gray-700 text-white'
+                    : 'bg-black text-white border border-black'
+                  }`}
+                >
+                  <span className="whitespace-nowrap">
+                    {isFollowingUser ? '' : 'Follow'}
+                  </span>
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
@@ -2031,47 +2015,43 @@ const MobilePostCard = ({
       )}
 
       {postImages && postImages.length > 0 && (
-                <div className="mb-3 relative rounded-lg overflow-hidden"> {/* Added relative & overflow */}
-                    <img
-                        src={postImages[currentImageIdx].large} // Show current image
-                        alt={`Post content ${currentImageIdx + 1}`}
-                        className="w-full object-contain max-h-[70vh]" // Adjusted max-h for mobile
-                    />
-                    
-                    {/* Slider Controls (Only show if more than 1 image) */}
-                    {postImages.length > 1 && (
-                         <>
-                            {/* Previous Button */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                </svg>
-                            </button>
-                            {/* Next Button */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                            >
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                               </svg>
-                            </button>
-                             {/* Indicator Dots */}
-                             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                {postImages.map((_: any, index: React.Key | null | undefined) => (
-                                    <div 
-                                        key={index}
-                                        className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
+        <div className="mb-3 relative rounded-lg overflow-hidden">
+          <img
+            src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]}
+            alt={`Post content ${currentImageIdx + 1}`}
+            className="w-full object-contain max-h-[70vh] bg-gray-800"
+          />
+          
+          {postImages.length > 1 && (
+            <>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {postImages.map((_: any, index: number) => (
+                  <div 
+                    key={index}
+                    className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center pt-2 border-t border-gray-800 gap-3">
         <button 
@@ -2080,24 +2060,24 @@ const MobilePostCard = ({
             isLiked ? 'text-red-500' : 'text-gray-400'
           }`}
         >
-          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-          <span className="text-xs">{post.likeCount || 0}</span>
+          <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
         
         <button 
           onClick={handleToggleComments}
           className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
-          <MessageCircle className="w-5 h-5" />
-          <span className="text-xs">{post.commentCount || 0}</span>
+          <FaRegCommentDots className="w-5 h-5" />
+          <span className="text-xs font-medium">{post.commentCount || 0}</span>
         </button>
         
         <button 
           onClick={onShare}
           className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
-          <Share2 className="w-5 h-5" />
-          {/* <span className="text-xs">{post.shareCount || 0}</span> */}
+          <FaShareSquare className="w-5 h-5" />
+          <span className="text-xs font-medium">{post.shareCount || 0}</span>
         </button>
 
         <button 
@@ -2106,7 +2086,7 @@ const MobilePostCard = ({
             isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
           }`}
         >
-          {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+          {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
         </button>
       </div>
 
@@ -2181,6 +2161,7 @@ const MobilePostCard = ({
   );
 };
 
+// FIXED: Mobile Feed Page with responsive header
 const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2244,7 +2225,6 @@ const MobileFeedPage = () => {
           isSaved: userData?.savedPosts?.includes(post.id) || false,
           postType: post.postType || 'regular',
           questData: post.questData || post.questContext || null,
-
         }));
         
         setPosts(postsData);
@@ -2478,11 +2458,12 @@ const MobileFeedPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
-      <div className="sticky top-0 z-50 bg-gray-800/50 backdrop-blur-2xl backdrop-saturate-200 border-b border-white/20 ">
+      {/* FIXED: Sticky header with proper responsive styling */}
+      <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-700">
         <Header /> 
         
-        <div className="px-4 py-4">
-          <h1 className="text-2xl font-medium text-white">
+        <div className="px-4 py-3">
+          <h1 className="text-xl font-medium text-white">
             New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
           </h1>
         </div>
@@ -2492,8 +2473,8 @@ const MobileFeedPage = () => {
 
       <div className="pb-20">
         {posts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-lg">No posts yet</div>
+          <div className="text-center py-12 px-4">
+            <div className="text-gray-400 text-base">No posts yet</div>
             <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
           </div>
         ) : (
@@ -2515,15 +2496,15 @@ const MobileFeedPage = () => {
               <div id="mobile-scroll-sentinel" className="py-4">
                 {loadingMore && (
                   <div className="text-center py-4">
-                    <div className="text-gray-400">Loading more posts...</div>
+                    <div className="text-gray-400 text-sm">Loading more posts...</div>
                   </div>
                 )}
               </div>
             )}
 
             {!hasMore && posts.length > 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-400">You've reached the end!</p>
+              <div className="text-center py-8 px-4">
+                <p className="text-gray-400 text-sm">You've reached the end!</p>
               </div>
             )}
           </>

@@ -1,3 +1,5 @@
+// lib/questService.ts - UPDATED with simplified cover image handling
+
 import {
   doc,
   getDoc,
@@ -46,14 +48,11 @@ export interface GenerateQuestResponse {
   error?: string;
 }
 
-// Add FlowCardState interface
 export interface FlowCardState {
   id: string;
   type: string;
   content?: any;
-  // Add other properties as needed
 }
-
 
 const questService = {
 
@@ -70,7 +69,6 @@ const questService = {
         throw new Error('User UID is required');
       }
 
-      // Call the AI generation API first
       const response = await fetch('/api/generate-quest', {
         method: 'POST',
         headers: {
@@ -132,6 +130,7 @@ const questService = {
 
   /**
    * Core quest creation with transaction
+   * FIXED: Now uses single compressed image URL (same as posts)
    */
   async createQuest(uid: string, questData: any, itineraryData?: any, coverImageFile?: File, flowCards?: FlowCardState[]) {
     console.log('createQuest called with:', { uid, questData });
@@ -147,24 +146,30 @@ const questService = {
     const userRef = doc(db, 'users', uid);
 
     try {
-
-       // Upload cover image if provided
-    let coverImageUrl = null;
-    if (coverImageFile) {
-      try {
-        coverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
-        console.log('Cover image uploaded:', coverImageUrl);
-      } catch (error) {
-        console.error('Error uploading cover image:', error);
-        // Decide if you want to fail the whole quest creation or just proceed without an image
+      // FIXED: Upload cover image using the same compression as posts
+      let coverImageUrl: string | null = null;
+      if (coverImageFile) {
+        try {
+          // This returns a single compressed URL (same as posts)
+          const imageUrls = await compressAndUploadImage(
+            coverImageFile, 
+            'quest-covers', 
+            uid
+          );
+          coverImageUrl = imageUrls.compressedUrl;
+          console.log('Cover image uploaded:', coverImageUrl);
+        } catch (error) {
+          console.error('Error uploading cover image:', error);
+          // Decide if you want to fail the whole quest creation or just proceed without an image
+        }
       }
-    }
+
       await runTransaction(db, async (transaction) => {
         // 1. Create the Quest document
         const questDocument = {
           ...questData,
           itinerary: itineraryData || null,
-          coverImageUrl: coverImageUrl || null,
+          coverImageUrl: coverImageUrl || null, // Single URL, same as posts
           flowCards: flowCards || [],
           owner: uid,
           id: questId,
@@ -172,12 +177,13 @@ const questService = {
           members: {
             [uid]: 'owner'
           },
-          isPublic: false, // Quests are private by default
-          isPostedToFeed: false, // Not posted to feed by default
-          associatedPostId: null, // Track the post ID when posted to feed
+          isPublic: false,
+          isPostedToFeed: false,
+          associatedPostId: null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
+        
         console.log('Creating quest document:', questDocument);
         transaction.set(newQuestRef, questDocument);
 
@@ -220,7 +226,6 @@ const questService = {
       }
       
       const questData = questSnap.data();
-      // Allow access if public or the user is a member
       if (!questData.isPublic && (!questData.members || !questData.members[uid])) {
         throw new Error('You do not have permission to view this quest.');
       }
@@ -233,23 +238,21 @@ const questService = {
   },
     
   /**
-   * Fetches a single quest document by its ID, without user permission checks.
-   * To be used internally by services where permissions are already established.
+   * Fetches a single quest document by its ID, without user permission checks
    */
   async getQuestById(questId: string): Promise<Quest | null> {
     try {
-        const questRef = doc(db, 'quest', questId);
-        const questSnap = await getDoc(questRef);
-        if (questSnap.exists()) {
-            return { id: questSnap.id, ...questSnap.data() } as Quest;
-        }
-        return null;
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
+      if (questSnap.exists()) {
+        return { id: questSnap.id, ...questSnap.data() } as Quest;
+      }
+      return null;
     } catch (error) {
-        console.error('Error fetching quest by ID:', error);
-        throw error;
+      console.error('Error fetching quest by ID:', error);
+      throw error;
     }
   },
-
 
   /**
    * Fetches all quests a user is a member of
@@ -281,7 +284,6 @@ const questService = {
         quests.push({ id: doc.id, ...doc.data() } as Quest);
       });
       
-      // Sort in memory because Firestore doesn't allow __name__ and orderBy on a different field
       quests.sort((a, b) => {
         const aTimestamp =
           a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
@@ -301,6 +303,9 @@ const questService = {
     }
   },
 
+  /**
+   * Get user's saved quests
+   */
   getUserSavedQuests: async function (uid: string): Promise<Quest[]> {
     try {
       const userRef = doc(db, 'users', uid);
@@ -334,160 +339,170 @@ const questService = {
       throw error;
     }
   },
-/**
- * Posts a quest to the public feed, ensuring it has an image and is only posted once.
- * FIXED: Now properly fetches user data to get userName and userProfilePic
- */
-async postQuestToFeed(
-  questId: string, 
-  uid: string, 
-  visibility: 'public' | 'private',
-  coverImageFile?: File | null
-): Promise<{ success: boolean; error?: string; postId?: string }> {
-  try {
-    const questRef = doc(db, 'quest', questId);
-    const questSnap = await getDoc(questRef);
 
-    if (!questSnap.exists()) {
-      throw new Error('Quest not found');
-    }
+  /**
+   * Posts a quest to the public feed
+   * FIXED: Now handles single compressed image URL (same as posts)
+   */
+  async postQuestToFeed(
+    questId: string, 
+    uid: string, 
+    visibility: 'public' | 'private',
+    coverImageFile?: File | null
+  ): Promise<{ success: boolean; error?: string; postId?: string }> {
+    try {
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
 
-    const questData = questSnap.data();
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
 
-    // 1. Check permissions
-    if (questData.members?.[uid] !== 'owner') {
-      throw new Error('Only the quest owner can post to the feed.');
-    }
+      const questData = questSnap.data();
 
-    // 2. Prevent duplicate posting for public quests
-    if (visibility === 'public' && questData.isPostedToFeed) {
-      return { 
-        success: false, 
-        error: 'This quest has already been posted to the feed.' 
-      };
-    }
+      // 1. Check permissions
+      if (questData.members?.[uid] !== 'owner') {
+        throw new Error('Only the quest owner can post to the feed.');
+      }
 
-    // 3. Fetch user data to get userName and userProfilePic
-    const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
-    
-    if (!userSnap.exists()) {
-      throw new Error('User not found');
-    }
+      // 2. Prevent duplicate posting for public quests
+      if (visibility === 'public' && questData.isPostedToFeed) {
+        return { 
+          success: false, 
+          error: 'This quest has already been posted to the feed.' 
+        };
+      }
 
-    const userData = userSnap.data();
-    const userName = userData.displayName || 'Anonymous';
-    const userProfilePic = userData.photoURL || '';
-
-    let finalCoverImageUrl = questData.coverImageUrl;
-
-    // 4. Handle new cover image upload
-    if (coverImageFile) {
-      finalCoverImageUrl = await compressAndUploadImage(coverImageFile, 'quest-covers', uid);
-    }
-
-    // 5. Enforce image for public posts
-    if (visibility === 'public' && !finalCoverImageUrl) {
-      return {
-        success: false,
-        error: 'A cover image is required to post a quest publicly.'
-      };
-    }
-
-    let postId: string | undefined;
-
-    // 6. Create the feed post if public
-    if (visibility === 'public') {
-      const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
-      const dayCount = questData.itinerary?.days?.length || 0;
-
-      const postResult = await createPost({
-        uid: uid,
-        userName: userName, // Now properly set
-        userProfilePic: userProfilePic, // Now properly set
-        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
-        photoUrl: finalCoverImageUrl, // Use the guaranteed image URL
-        postType: 'quest_completion',
-        questContext: {
-          questId: questId,
-          questTitle: questData.title || `Quest to ${questData.destination}`,
-          description: questData.description || '',
-        }
-      });
-
-      postId = postResult.id;
-    }
-
-    // 7. Update the quest document with new visibility and post status
-    await updateDoc(questRef, {
-      coverImageUrl: finalCoverImageUrl, // Save new image URL if it was uploaded
-      isPublic: visibility === 'public',
-      isPostedToFeed: visibility === 'public' ? true : questData.isPostedToFeed, // Only set to true if posted publicly
-      associatedPostId: postId || questData.associatedPostId || null, // Save the post ID
-      updatedAt: serverTimestamp()
-    });
-
-    return { success: true, postId };
-  } catch (error) {
-    console.error('Error posting quest to feed:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to post quest' 
-    };
-  }
-},
-
-
-/**
- * Get public quests for feed
- */
-async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
-  try {
-    const questsRef = collection(db, 'quest');
-    const q = query(
-      questsRef,
-      where('isPublic', '==', true),
-      orderBy('createdAt', 'desc'),
-      limit(limitCount)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    const quests: Quest[] = [];
-    
-    for (const docSnap of querySnapshot.docs) {
-      const data = docSnap.data();
+      // 3. Fetch user data
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
       
-      let ownerName = 'Anonymous';
-      let ownerPhoto = '';
-      
-      if (data.owner) {
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
+
+      const userData = userSnap.data();
+      const userName = userData.displayName || 'Anonymous';
+      const userProfilePic = userData.photoURL || '';
+
+      let finalCoverImageUrl = questData.coverImageUrl || null;
+
+      // 4. Handle new cover image upload (if provided)
+      if (coverImageFile) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', data.owner));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            ownerName = userData.displayName || 'Anonymous';
-            ownerPhoto = userData.photoURL || '';
-          }
+          // FIXED: Upload using same compression as posts
+          finalCoverImageUrl = await compressAndUploadImage(
+            coverImageFile, 
+            'quest-covers', 
+            uid
+          );
+          console.log('New cover image uploaded:', finalCoverImageUrl);
         } catch (error) {
-          console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
+          console.error('Error uploading new cover image:', error);
+          throw new Error('Failed to upload cover image');
         }
       }
-      
-      quests.push({
-        id: docSnap.id,
-        ...data,
-        ownerName,
-        ownerPhoto
-      } as unknown as Quest);
+
+      // 5. Enforce image for public posts
+      if (visibility === 'public' && !finalCoverImageUrl) {
+        return {
+          success: false,
+          error: 'A cover image is required to post a quest publicly.'
+        };
+      }
+
+      let postId: string | undefined;
+
+      // 6. Create the feed post if public
+      if (visibility === 'public') {
+        const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
+        const dayCount = questData.itinerary?.days?.length || 0;
+
+        const postResult = await createPost({
+          uid: uid,
+          userName: userName,
+          userProfilePic: userProfilePic,
+          text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
+          photoUrl: finalCoverImageUrl!, // Single compressed URL
+          postType: 'quest_completion',
+          questContext: {
+            questId: questId,
+            questTitle: questData.title || `Quest to ${questData.destination}`,
+            description: questData.description || '',
+          }
+        });
+
+        postId = postResult.id;
+      }
+
+      // 7. Update the quest document
+      await updateDoc(questRef, {
+        coverImageUrl: finalCoverImageUrl, // Single URL
+        isPublic: visibility === 'public',
+        isPostedToFeed: visibility === 'public' ? true : questData.isPostedToFeed,
+        associatedPostId: postId || questData.associatedPostId || null,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true, postId };
+    } catch (error) {
+      console.error('Error posting quest to feed:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to post quest' 
+      };
     }
-    
-    return quests;
-  } catch (error) {
-    console.error('Error fetching public quests:', error);
-    throw error;
-  }
-},
-  
+  },
+
+  /**
+   * Get public quests for feed
+   */
+  async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
+    try {
+      const questsRef = collection(db, 'quest');
+      const q = query(
+        questsRef,
+        where('isPublic', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const quests: Quest[] = [];
+      
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        
+        let ownerName = 'Anonymous';
+        let ownerPhoto = '';
+        
+        if (data.owner) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', data.owner));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              ownerName = userData.displayName || 'Anonymous';
+              ownerPhoto = userData.photoURL || '';
+            }
+          } catch (error) {
+            console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
+          }
+        }
+        
+        quests.push({
+          id: docSnap.id,
+          ...data,
+          ownerName,
+          ownerPhoto
+        } as unknown as Quest);
+      }
+      
+      return quests;
+    } catch (error) {
+      console.error('Error fetching public quests:', error);
+      throw error;
+    }
+  },
 
   /**
    * Updates the itinerary of a quest
@@ -522,7 +537,6 @@ async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
    * AI Itinerary Generation (Placeholder)
    */
   async generateAItinerary(questData: TripData): Promise<any> {
-    // This is a placeholder. The actual implementation relies on the /api/generate-quest endpoint.
     console.log('Generating AI itinerary for:', questData);
     return { days: [], generated: true };
   },
@@ -536,14 +550,14 @@ async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     const blankDays = Array.from({ length: days }, (_, i) => {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-        return {
-            day: i + 1,
-            date: currentDate.toISOString().split('T')[0],
-            title: `Day ${i + 1}`,
-            activities: []
-        };
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      return {
+        day: i + 1,
+        date: currentDate.toISOString().split('T')[0],
+        title: `Day ${i + 1}`,
+        activities: []
+      };
     });
     
     return {
