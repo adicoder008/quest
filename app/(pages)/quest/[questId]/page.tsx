@@ -19,6 +19,8 @@ import { savePost, unsavePost, reportPost } from '@/lib/postService';
 import {Quest} from '../../../types/index'
 import { arrayRemove, arrayUnion, doc, getDoc, increment, updateDoc } from 'firebase/firestore';
 import { db, storage } from '../../../../lib/firebase.js';
+import { VideoGenerationModal } from '@/components/quest/VideoGenerationModal';
+import { Video } from 'lucide-react';
 
 
 interface ActivityLocation {
@@ -315,6 +317,8 @@ const QuestViewPage = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
 
   const params = useParams();
   const router = useRouter();
@@ -723,7 +727,13 @@ const QuestViewPage = () => {
             <div className="flex items-center gap-2">
                 {isOwner ? (
                 /* OWNER VIEW - Share and Edit */
-                <>
+                <>  <button 
+                      onClick={() => setShowVideoModal(true)} 
+                      className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm"
+                    >
+                      <Video size={16} />
+                      <span>Generate Video</span>
+                    </button>
                     <button 
                     onClick={() => setIsShareModalOpen(true)} 
                     className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
@@ -1221,6 +1231,23 @@ const QuestViewPage = () => {
         questTitle={quest.destination} 
         hasCoverImage={!!quest.coverImageUrl} 
       />
+
+      {showVideoModal && user && quest && (
+      <VideoGenerationModal
+        isOpen={showVideoModal}
+        onClose={() => setShowVideoModal(false)}
+        questId={questId}
+        questData={{
+          destination: quest.destination,
+          userName: user.displayName || 'Traveler',
+          userProfilePic: user.photoURL || '',
+          coverImageUrl: quest.coverImageUrl || '',
+          itinerary: quest.itinerary,
+          title: quest.title
+        }}
+        uid={user.uid}
+      />
+    )}
 
       {showReportModal && (
       <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
