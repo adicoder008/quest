@@ -927,8 +927,8 @@ const QuestViewPage = () => {
                         onClick={() => setActiveCardIndex(index)}
                         className={`flex-shrink-0 w-72 snap-center transition-all cursor-pointer ${
                           activeCardIndex === index 
-                            ? 'ring-2 ring-orange-500 scale-[1.02]' 
-                            : 'opacity-80 hover:opacity-100'
+                            ? ' scale-[1.02]' 
+                            : ' hover:opacity-100'
                         }`}
                       >
                         <MapActivityCard activity={activity} isActive={activeCardIndex === index} />
@@ -1294,7 +1294,7 @@ const MapActivityCard = ({ activity }: any) => {
           <img src={activity.media[0].url} alt={activity.title} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           {activity.time && (
-            <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+            <div className="absolute top-2 right-2 bg-black/75 px-2 py-1 rounded-full flex items-center gap-1">
               <Clock size={12} className="text-orange-400" />
               <span className="text-xs font-medium text-white">{activity.time}</span>
             </div>

@@ -22,6 +22,7 @@ import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
 import { getUserBadges, getLevelInfo } from '../../../lib/firebaseSerive';
+import { getFollowingList } from '@/lib/followService';
 
 // Import the new NavBar component
 import NavBar from '@/components/Nav';
@@ -1033,30 +1034,64 @@ const Feed = () => {
   const DesktopPost = ({ post, user }: { post: any, user: UserType | null }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
     const isSaved = post.isSaved;
-    const [isFollowingUser, setIsFollowingUser] = useState(false);
+    const [isFollowingUser, setIsFollowingUser] = useState(true);
     const [checkingFollow, setCheckingFollow] = useState(true);
     const authorId = post.author?.id || post.uid;
 
-    useEffect(() => {
-      const checkFollowStatus = async () => {
-        if (!user?.uid || !authorId || user.uid === authorId) {
-          setCheckingFollow(false);
-          return;
-        }
+    // useEffect(() => {
+    //   const checkFollowStatus = async () => {
+    //     if (!user?.uid || !authorId || user.uid === authorId) {
+    //       setCheckingFollow(false);
+    //       return;
+    //     }
         
-        try {
-          const followerDocRef = doc(db, 'users', authorId, 'followers', user.uid);
-          const followerDoc = await getDoc(followerDocRef);
-          setIsFollowingUser(followerDoc.exists());
-        } catch (error) {
-          console.error('Error checking follow status:', error);
-        } finally {
-          setCheckingFollow(false);
-        }
-      };
+    //     try {
+    //       const followerDocRef = doc(db, 'users', authorId, 'followers', user.uid);
+    //       const followerDoc = await getDoc(followerDocRef);
+    //       setIsFollowingUser(followerDoc.exists());
+    //     } catch (error) {
+    //       console.error('Error checking follow status:', error);
+    //     } finally {
+    //       setCheckingFollow(false);
+    //     }
+    //   };
 
-      checkFollowStatus();
-    }, [user?.uid, authorId]);
+    //   checkFollowStatus();
+    // }, [user?.uid, authorId]);
+
+    useEffect(() => {
+
+    const checkFollowStatus = async () => {
+      // 1. Initial Checks
+      if (!user?.uid || !authorId || user.uid === authorId) {
+        setCheckingFollow(false);
+        return;
+      }
+      
+      try {
+        // 2. Fetch the current user's 'following' array
+        const followingList = await getFollowingList(user.uid);
+
+        // 3. Check if the authorId is in the list
+        const isFollowing = followingList.includes(authorId);
+        
+        // TEMPORARY LOG: Check what the helper function actually returned
+        console.log("Following List Retrieved:", followingList);
+        console.log("Author ID to check:", authorId);
+
+        setIsFollowingUser(isFollowing);
+        // setIsFollowingUser(true);
+
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      } finally {
+        setCheckingFollow(false);
+      }
+    };
+
+    checkFollowStatus();
+    
+}, [user?.uid, authorId]); // Dependencies are correct
 
     const handleFollowClick = async () => {
         if (!user?.uid || !authorId || authorId === user.uid) {
@@ -1412,14 +1447,14 @@ const Feed = () => {
       {/* On mobile: no margins, On tablet/desktop without sidebar: left margin only, On large desktop: both margins */}
       <main className="md:ml-[280px] xl:mr-[380px] min-h-screen bg-black">
         <div className="max-w-2xl mx-auto md:border-x border-gray-700 min-h-screen">
-          <div className="border-b border-gray-700">
+          {/* <div className="border-b border-gray-700">
             <div className="p-4 bg-black">
               <h1 className="text-xl md:text-2xl font-medium text-white bg-black">
                 New day, <span className="text-[#EA6100]"> new Quest</span> — let's go! 
               </h1>
             </div>
             <CreatePostTrigger user={user} />
-          </div>
+          </div> */}
           
           <div className="p-4">
             {initialLoading ? (
@@ -1519,26 +1554,55 @@ const MobilePostCard = ({
   const isSaved = post.isSaved;
   const authorId = post.uid;
 
-  useEffect(() => {
-    const checkFollowStatus = async () => {
-      if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
-        setCheckingFollow(false);
-        return;
-      }
+  // useEffect(() => {
+  //   const checkFollowStatus = async () => {
+  //     if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
+  //       setCheckingFollow(false);
+  //       return;
+  //     }
       
-      try {
-        const followerDocRef = doc(db, 'users', authorId, 'followers', currentUser.uid);
-        const followerDoc = await getDoc(followerDocRef);
-        setIsFollowingUser(followerDoc.exists());
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-      } finally {
-        setCheckingFollow(false);
-      }
+  //     try {
+  //       const followerDocRef = doc(db, 'users', authorId, 'followers', currentUser.uid);
+  //       const followerDoc = await getDoc(followerDocRef);
+  //       setIsFollowingUser(followerDoc.exists());
+  //     } catch (error) {
+  //       console.error('Error checking follow status:', error);
+  //     } finally {
+  //       setCheckingFollow(false);
+  //     }
+  //   };
+
+  //   checkFollowStatus();
+  // }, [currentUser?.uid, authorId]);
+
+  // Assuming getFollowingList is imported and setCheckingFollow/setIsFollowingUser are states
+useEffect(() => {
+    const checkFollowStatus = async () => {
+        
+        if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
+            setCheckingFollow(false);
+            return;
+        }
+        
+        try {
+            // 🛑 CHANGE 🛑: Use the helper to read the 'following' array field
+            const followingList = await getFollowingList(currentUser.uid); 
+
+            // Check if the authorId is included in the array
+            const isFollowing = followingList.includes(authorId); 
+            
+            setIsFollowingUser(isFollowing);
+
+        } catch (error) {
+            console.error('Error checking follow status:', error);
+        } finally {
+            setCheckingFollow(false);
+        }
     };
 
     checkFollowStatus();
-  }, [currentUser?.uid, authorId]);
+    
+}, [currentUser?.uid, authorId]);
 
   const handleFollowClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1988,7 +2052,7 @@ const MobilePostCard = ({
                   }`}
                 >
                   <span className="whitespace-nowrap">
-                    {isFollowingUser ? '' : 'Follow'}
+                    {isFollowingUser ? 'Following' : 'Follow'}
                   </span>
                 </button>
               )}

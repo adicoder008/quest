@@ -5,7 +5,7 @@ import React from "react";
 
 const SearchBar: React.FC = () => {
   return (
-    <div className="flex items-center w-full max-w-md mx-auto bg-white rounded-2xl shadow p-2">
+    <div className="flex items-center w-full max-w-md mx-auto bg-white rounded-md shadow p-2">
       {/* Search Icon */}
       <Search className="w-5 h-5 text-black font-bold ml-2" />
 
