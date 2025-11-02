@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
       // You'll need to set up Remotion Lambda and get credentials
       // https://www.remotion.dev/docs/lambda/setup
       
-      const { renderMediaOnLambda } = await import('@remotion/lambda');
+      const { renderMediaOnLambda, getRenderProgress } = await import('@remotion/lambda');
       
       try {
+        // Start render on Lambda
         const renderResponse = await renderMediaOnLambda({
           region: process.env.REMOTION_AWS_REGION as any,
           functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
@@ -54,42 +55,68 @@ export async function POST(request: NextRequest) {
           serveUrl: process.env.REMOTION_SERVE_URL!,
           codec: 'h264',
           inputProps: requestData.questData,
-          privacy: 'public',
-          onProgress: async ({ progress }) => {
-            await updateDoc(requestRef, {
-              progress: Math.round(progress * 100),
-              updatedAt: serverTimestamp()
+          privacy: 'public'
+        });
+
+        // Poll for progress
+        const checkProgress = async () => {
+          try {
+            const progress = await getRenderProgress({
+              renderId: renderResponse.renderId,
+              bucketName: renderResponse.bucketName,
+              functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
+              region: process.env.REMOTION_AWS_REGION as any
             });
+
+            // Update progress in Firestore
+            if (progress.overallProgress < 1) {
+              await updateDoc(requestRef, {
+                progress: Math.round(progress.overallProgress * 100),
+                updatedAt: serverTimestamp()
+              });
+
+              // Continue polling
+              setTimeout(checkProgress, 2000);
+            } else if (progress.done && progress.outputFile) {
+              // Video is complete
+              // Upload to Firebase Storage
+              const videoBuffer = await fetch(progress.outputFile).then(r => r.arrayBuffer());
+              const videoRef = ref(storage, `quest-videos/${requestData.questId}/${Date.now()}.mp4`);
+              await uploadBytes(videoRef, videoBuffer);
+              const videoUrl = await getDownloadURL(videoRef);
+
+              // Update request with completed video
+              await updateDoc(requestRef, {
+                status: 'completed',
+                videoUrl,
+                progress: 100,
+                completedAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              });
+
+              // Update quest with video URL
+              const questRef = doc(db, 'quest', requestData.questId);
+              await updateDoc(questRef, {
+                videoUrl,
+                videoStatus: 'completed',
+                updatedAt: serverTimestamp()
+              });
+            } else if (progress.fatalErrorEncountered) {
+              throw new Error(progress.errors?.[0]?.message || 'Video rendering failed');
+            }
+          } catch (error) {
+            console.error('Error checking progress:', error);
+            throw error;
           }
-        });
+        };
 
-        // Upload to Firebase Storage
-        const videoBuffer = await fetch(renderResponse.url).then(r => r.arrayBuffer());
-        const videoRef = ref(storage, `quest-videos/${requestData.questId}/${Date.now()}.mp4`);
-        await uploadBytes(videoRef, videoBuffer);
-        const videoUrl = await getDownloadURL(videoRef);
-
-        // Update request with completed video
-        await updateDoc(requestRef, {
-          status: 'completed',
-          videoUrl,
-          progress: 100,
-          completedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-
-        // Update quest with video URL
-        const questRef = doc(db, 'quest', requestData.questId);
-        await updateDoc(questRef, {
-          videoUrl,
-          videoStatus: 'completed',
-          updatedAt: serverTimestamp()
-        });
+        // Start progress polling
+        checkProgress();
 
         return NextResponse.json({
           success: true,
-          videoUrl,
-          requestId
+          requestId,
+          message: 'Video generation started'
         });
 
       } catch (error: any) {
