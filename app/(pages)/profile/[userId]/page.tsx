@@ -7,7 +7,7 @@ import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
 import { calculateLevel } from '@/lib/xpService';
 import { followUser, unfollowUser } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
-import { MapPin, UserPlus, UserMinus, MessageCircle, Heart, MessageCircle as MessageCircleIcon, Share2, Bookmark, MoreHorizontal, ArrowLeft } from 'lucide-react';
+import { MapPin, UserPlus, UserMinus, MessageCircle, Heart, Share2, Bookmark, MoreHorizontal, ArrowLeft } from 'lucide-react';
 import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
@@ -59,6 +59,7 @@ interface Post {
   shareCount?: number;
   location?: string;
   likedBy?: string[];
+  isSaved?: boolean;
 }
 
 const PublicProfilePage = () => {
@@ -92,12 +93,10 @@ const PublicProfilePage = () => {
           setBadges(userBadges.slice(0, 3));
 
           const xp = data?.totalXP || 0;
-          console.log("User XP:", xp);
           const level = calculateLevel(xp);
-          console.log("User Level:", level);
           setLevelInfo(level);
 
-          await fetchUserPosts(profileUserId);
+          await fetchUserPosts(profileUserId, data);
           await fetchPublicQuests(profileUserId);
         } catch (error) {
           console.error("Error fetching profile data:", error);
@@ -109,7 +108,7 @@ const PublicProfilePage = () => {
     return () => unsubscribe();
   }, [profileUserId]);
 
-  const fetchUserPosts = async (uid: string) => {
+  const fetchUserPosts = async (uid: string, userData?: any) => {
     try {
       const postsRef = collection(db, 'posts');
       const q = query(
@@ -124,8 +123,8 @@ const PublicProfilePage = () => {
         return {
           id: doc.id,
           uid: data.uid || uid,
-          userName: data.userName || profileUser?.displayName || 'User',
-          userProfilePic: data.userProfilePic || profileUser?.photoURL || '/default-avatar.png',
+          userName: data.userName || userData?.displayName || 'User',
+          userProfilePic: data.userProfilePic || userData?.photoURL || '/default-avatar.png',
           text: data.text || '',
           photoUrl: data.photoUrl || '',
           createdAt: data.createdAt,
@@ -134,6 +133,7 @@ const PublicProfilePage = () => {
           shareCount: data.shareCount || 0,
           location: data.location || '',
           likedBy: data.likedBy || [],
+          isSaved: false,
         };
       });
       
@@ -249,15 +249,14 @@ const PublicProfilePage = () => {
     <div className="min-h-screen bg-[#121212]">
       <style>{styles}</style>
 
-      <NavBar user={null} onSignOut={function (): void {
-        throw new Error('Function not implemented.');
-      } } />
+      <div className="hidden lg:block">
+        <NavBar user={currentUser} onSignOut={() => {}} />
+      </div>
       
-      {/* Desktop: Account for sidebar, Mobile: Full width */}
       <div className='lg:ml-[280px]'>
         <div className='max-w-7xl mx-auto'>
           
-          {/* Header - Mobile only */}
+          {/* Mobile Header */}
           <div className='lg:hidden sticky top-0 z-10 h-[60px] w-full bg-black flex items-center px-5 border-b border-gray-700'>
             <button 
               onClick={() => router.back()}
@@ -288,7 +287,6 @@ const PublicProfilePage = () => {
           <div className='px-5 lg:px-8 pb-20 lg:pb-8'>
             {/* Profile Header */}
             <div className='relative'>
-              {/* Background Image */}
               <div className='h-48 lg:h-64 relative overflow-hidden rounded-b-xl lg:rounded-xl lg:mt-6'>
                 <img
                   src={profileUser.backgroundURL || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200'}
@@ -298,10 +296,8 @@ const PublicProfilePage = () => {
                 <div className='absolute inset-0 bg-gradient-to-b from-transparent to-[#121212]'></div>
               </div>
 
-              {/* Profile Info */}
               <div className='relative -mt-16 lg:-mt-20'>
                 <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4'>
-                  {/* Left: Avatar and Name */}
                   <div className='flex flex-col lg:flex-row items-center lg:items-end gap-4 lg:gap-6'>
                     <div className='relative'>
                       <img
@@ -311,7 +307,7 @@ const PublicProfilePage = () => {
                       />
                       {levelInfo && (
                         <div className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap'>
-                           {levelInfo.currentLevel}
+                          {levelInfo.currentLevel}
                         </div>
                       )}
                     </div>
@@ -333,7 +329,7 @@ const PublicProfilePage = () => {
                     </div>
                   </div>
 
-                  {/* Right: Action Buttons */}
+                  {/* Action Buttons */}
                   <div className='lg:mb-4 w-full lg:w-auto'>
                     {!isOwnProfile && currentUser ? (
                       <div className='flex gap-3'>
@@ -371,7 +367,7 @@ const PublicProfilePage = () => {
                         onClick={() => router.push('/account')}
                         className='w-full px-6 py-2.5 rounded-lg font-medium bg-[#EA6100] text-black hover:bg-[#f5c094] transition-colors'
                       >
-                        Edit Profile
+                        View Your Profile
                       </button>
                     ) : null}
                   </div>
@@ -400,7 +396,7 @@ const PublicProfilePage = () => {
                   {levelInfo && (
                     <div className='col-span-3 lg:col-span-1'>
                       <div className='text-xl lg:text-2xl font-bold text-[#EA6100]'>
-                        {levelInfo.xp} XP
+                        {levelInfo.totalXP} XP
                       </div>
                       <div className='text-gray-400 text-sm'>Experience</div>
                     </div>
@@ -419,11 +415,11 @@ const PublicProfilePage = () => {
                   <div className='mt-5 bg-[#1a1a1a] p-4 rounded-xl'>
                     <div className='flex items-center justify-between mb-2'>
                       <span className='text-[#EA6100] font-semibold text-sm'>
-                        {levelInfo.currentLevel?.name || 'Scout'}
+                        {levelInfo.currentLevel || 'Scout'}
                       </span>
                       {levelInfo.nextLevel && (
                         <span className='text-gray-400 text-xs'>
-                          {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
+                          {levelInfo.xpToNext} XP to {levelInfo.nextLevel}
                         </span>
                       )}
                     </div>
@@ -470,9 +466,9 @@ const PublicProfilePage = () => {
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                   <div className='flex items-center justify-between mb-4'>
                     <h3 className='text-white font-semibold text-xl'>Posts</h3>
-                    {posts.length > 5 && (
+                    {posts.length > 3 && (
                       <button 
-                        onClick={() => router.push(`/account/posts`)}
+                        onClick={() => router.push(`/user/${profileUserId}/posts`)}
                         className='text-[#EA6100] text-sm hover:underline flex items-center gap-1'
                       >
                         <span>View All ({posts.length})</span>
@@ -481,16 +477,15 @@ const PublicProfilePage = () => {
                     )}
                   </div>
                   
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 lg:mx-0 lg:px-0 scrollbar-hide'>
-                    {posts.slice(0, 5).map(post => (
-                      <div key={post.id} className='min-w-[300px] lg:min-w-[320px] flex-shrink-0'>
-                        <PostCardCompact
-                          post={post}
-                          currentUser={currentUser}
-                          onLike={() => handleLike(post.id)}
-                          onClick={() => router.push(`/post/${post.id}`)}
-                        />
-                      </div>
+                  <div className='space-y-4'>
+                    {posts.slice(0, 3).map(post => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        currentUser={currentUser}
+                        onLike={() => handleLike(post.id)}
+                        onClick={() => router.push(`/post/${post.id}`)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -505,9 +500,9 @@ const PublicProfilePage = () => {
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                   <div className='flex items-center justify-between mb-4'>
                     <h3 className='text-white font-semibold text-xl'>Public Quests</h3>
-                    {publicQuests.length > 5 && (
+                    {publicQuests.length > 4 && (
                       <button 
-                        onClick={() => router.push(`/account/quests`)}
+                        onClick={() => router.push(`/user/${profileUserId}/quests`)}
                         className='text-[#EA6100] text-sm hover:underline flex items-center gap-1'
                       >
                         <span>View All ({publicQuests.length})</span>
@@ -516,14 +511,13 @@ const PublicProfilePage = () => {
                     )}
                   </div>
                   
-                  <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 lg:mx-0 lg:px-0 scrollbar-hide'>
-                    {publicQuests.slice(0, 5).map(quest => (
-                      <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                        <QuestCard
-                          quest={quest}
-                          onClick={() => router.push(`/quest/${quest.id}`)}
-                        />
-                      </div>
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    {publicQuests.slice(0, 4).map(quest => (
+                      <QuestCard
+                        key={quest.id}
+                        quest={quest}
+                        onClick={() => router.push(`/quest/${quest.id}`)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -537,7 +531,6 @@ const PublicProfilePage = () => {
             </div>
           </div>
 
-          {/* Mobile Footer */}
           <div className='lg:hidden'>
             <Footer />
           </div>
@@ -547,14 +540,19 @@ const PublicProfilePage = () => {
   );
 };
 
-// Post Card Component with like functionality
-const PostCardCompact: React.FC<{ 
+// Post Card Component with Read More
+const PostCard: React.FC<{ 
   post: Post; 
   currentUser: any; 
   onLike: () => void;
   onClick: () => void;
 }> = ({ post, currentUser, onLike, onClick }) => {
   const [liked, setLiked] = useState(post.likedBy?.includes(currentUser?.uid) || false);
+  const [showFullText, setShowFullText] = useState(false);
+
+  useEffect(() => {
+    setLiked(post.likedBy?.includes(currentUser?.uid) || false);
+  }, [post.likedBy, currentUser?.uid]);
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
@@ -575,31 +573,32 @@ const PostCardCompact: React.FC<{
     onLike();
   };
 
+  const textLimit = 150;
+  const needsReadMore = post.text.length > textLimit;
+
   return (
     <div 
-      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
+      className='bg-[#292929] rounded-xl overflow-hidden hover:bg-[#3a3a3a] transition-colors border border-gray-800'
     >
-      {/* User header */}
-      <div className='flex items-center justify-between p-3 border-b border-gray-800'>
-        <div className='flex items-center gap-2'>
+      <div className='flex items-center justify-between p-4 border-b border-gray-800'>
+        <div className='flex items-center gap-3 cursor-pointer' onClick={onClick}>
           <img 
             src={post.userProfilePic || '/default-avatar.png'} 
             alt={post.userName}
-            className='w-8 h-8 rounded-full object-cover'
+            className='w-10 h-10 rounded-full object-cover'
           />
           <div>
-            <span className='text-white text-sm font-medium block'>{post.userName}</span>
-            <span className='text-gray-400 text-xs'>{formatTime(post.createdAt)}</span>
+            <span className='text-white font-medium block'>{post.userName}</span>
+            <span className='text-gray-400 text-sm'>{formatTime(post.createdAt)}</span>
           </div>
         </div>
-        <button className='text-gray-400 hover:text-white'>
-          <MoreHorizontal size={18} />
+        <button className='text-gray-400 hover:text-white' onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal size={20} />
         </button>
       </div>
 
-      {/* Post Image */}
       {post.photoUrl && (
-        <div className='relative h-48' onClick={onClick}>
+        <div className='relative w-full aspect-square cursor-pointer' onClick={onClick}>
           <img
             src={Array.isArray(post.photoUrl) ? post.photoUrl[0] : post.photoUrl}
             alt="Post"
@@ -608,30 +607,55 @@ const PostCardCompact: React.FC<{
         </div>
       )}
 
-      {/* Post Content */}
-      <div className='p-3' onClick={onClick}>
-        <p className='text-white text-sm line-clamp-2 mb-3'>{post.text}</p>
+      <div className='p-4'>
+        <div className='mb-3'>
+          <p className='text-white'>
+            {needsReadMore && !showFullText 
+              ? `${post.text.slice(0, textLimit)}...` 
+              : post.text
+            }
+          </p>
+          {needsReadMore && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFullText(!showFullText);
+              }}
+              className='text-[#EA6100] text-sm mt-1 hover:underline'
+            >
+              {showFullText ? 'Show less' : 'Read more'}
+            </button>
+          )}
+        </div>
         
-        {/* Actions */}
-        <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-3'>
+        <div className='flex items-center justify-between pt-3 border-t border-gray-800'>
+          <div className='flex items-center gap-4'>
             <button 
               onClick={handleLike}
-              className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-gray-400'}`}
+              className={`flex items-center gap-2 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
             >
-              <Heart size={18} className={liked ? 'fill-current' : ''} />
-              <span className='text-xs'>{post.likeCount || 0}</span>
+              <Heart size={22} className={liked ? 'fill-current' : ''} />
+              <span className='text-sm font-medium'>{post.likeCount || 0}</span>
             </button>
-            <button className='flex items-center gap-1 text-gray-400 hover:text-white transition-colors'>
-              <MessageCircleIcon size={18} />
-              <span className='text-xs'>{post.commentCount || 0}</span>
+            <button 
+              className='flex items-center gap-2 text-gray-400 hover:text-white transition-colors'
+              onClick={onClick}
+            >
+              <MessageCircle size={22} />
+              <span className='text-sm font-medium'>{post.commentCount || 0}</span>
             </button>
-            <button className='text-gray-400 hover:text-white transition-colors'>
-              <Share2 size={18} />
+            <button 
+              className='text-gray-400 hover:text-white transition-colors'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Share2 size={22} />
             </button>
           </div>
-          <button className='text-gray-400 hover:text-[#EA6100] transition-colors'>
-            <Bookmark size={18} />
+          <button 
+            className='text-gray-400 hover:text-[#EA6100] transition-colors'
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Bookmark size={22} className={post.isSaved ? 'fill-current text-[#EA6100]' : ''} />
           </button>
         </div>
       </div>
@@ -646,7 +670,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
       onClick={onClick}
       className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
     >
-      <div className='relative h-40'>
+      <div className='relative h-48'>
         <img
           src={quest.coverImageUrl as any || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600'}
           alt={quest.title}

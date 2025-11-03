@@ -1,3 +1,5 @@
+// lib/imageService.ts - Simplified single image upload
+
 import imageCompression from 'browser-image-compression';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
@@ -9,75 +11,46 @@ const supportsWebP = (): boolean => {
   return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
 };
 
-interface ImageUrls {
-  compressedUrl: string | null;
-  small: string;
-  medium: string;
-  large: string;
-  original: string;
-}
-
 /**
- * Compress and upload image in 3 sizes (small, medium, large)
- * Returns object with all URLs
+ * Compress and upload a single optimized image
+ * Returns a single URL string
  */
 export const compressAndUploadImage = async (
   file: File,
   path: string,
   uid: string
-): Promise<ImageUrls> => {
+): Promise<string> => {
   const timestamp = Date.now();
   const baseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
   const format = supportsWebP() ? 'image/webp' : 'image/jpeg';
   const extension = supportsWebP() ? 'webp' : 'jpg';
 
-  // Define sizes - all maintaining 4:5 ratio
-  const sizes = [
-    { name: 'small', maxWidth: 320, maxHeight: 400, maxSizeMB: 0.08 },
-    { name: 'medium', maxWidth: 640, maxHeight: 800, maxSizeMB: 0.15 },
-    { name: 'large', maxWidth: 1080, maxHeight: 1350, maxSizeMB: 0.3 }
-  ];
-
-  const urls: any = {};
-
-  // Upload each size
-  for (const size of sizes) {
-    const options = {
-      maxSizeMB: size.maxSizeMB,
-      maxWidthOrHeight: Math.max(size.maxWidth, size.maxHeight),
-      useWebWorker: true,
-      fileType: format,
-      initialQuality: 0.85
-    };
-
-    const compressedFile = await imageCompression(file, options);
-    const storageRef = ref(
-      storage,
-      `${path}/${uid}/${timestamp}_${size.name}_${baseName}.${extension}`
-    );
-    
-    await uploadBytes(storageRef, compressedFile);
-    const downloadURL = await getDownloadURL(storageRef);
-    urls[size.name] = downloadURL;
-  }
-
-  // Also upload original (compressed but not resized)
-  const originalOptions = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1920,
+  // Single optimized compression - good quality, reasonable size
+  const options = {
+    maxSizeMB: 0.5,              // 500KB max
+    maxWidthOrHeight: 1920,      // Full HD
     useWebWorker: true,
-    fileType: format
+    fileType: format,
+    initialQuality: 0.85         // High quality
   };
-  
-  const originalCompressed = await imageCompression(file, originalOptions);
-  const originalRef = ref(
-    storage,
-    `${path}/${uid}/${timestamp}_original_${baseName}.${extension}`
-  );
-  await uploadBytes(originalRef, originalCompressed);
-  urls.original = await getDownloadURL(originalRef);
 
-  return urls as ImageUrls;
+  const compressedFile = await imageCompression(file, options);
+  
+  console.log('Compression:', {
+    original: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+    compressed: `${(compressedFile.size / 1024).toFixed(2)} KB`,
+    saved: `${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`
+  });
+
+  const storageRef = ref(
+    storage,
+    `${path}/${uid}/${timestamp}_${baseName}.${extension}`
+  );
+  
+  await uploadBytes(storageRef, compressedFile);
+  const downloadURL = await getDownloadURL(storageRef);
+  
+  return downloadURL;
 };
 
 /**

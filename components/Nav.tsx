@@ -100,7 +100,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
   const handleNavClick = (route: string) => {
     setActiveRoute(route);
     if (route === 'explore') router.push('/explore');
-    else if (route === 'profile') router.push(`/profile/${user?.uid}`);
+    else if (route === 'profile') router.push(`/account`);
     else if (route === 'quest') router.push('/quest');
     else if (route === 'settings') router.push('/settings');
     else if (route === 'notifications') router.push('/notifications');

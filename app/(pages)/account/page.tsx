@@ -8,14 +8,12 @@ import { calculateLevel } from '@/lib/xpService';
 import { addComment } from '@/lib/postService';
 import { savePost, unsavePost, sharePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
-import MobilePostCard from '@/components/Home/MobilePostCard';
 import { Settings, Edit2, Calendar, SlidersHorizontal, HelpCircle, MapPin, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from 'lucide-react';
 import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
-import { Quest, User as UserType } from '@/app/types';
+import { Quest } from '@/app/types';
 import NavBar from '@/components/Nav';
-
 
 const styles = `
   .scrollbar-hide {
@@ -104,12 +102,8 @@ const AccountPage = () => {
           setBadges(userBadges.slice(0, 3));
 
           const xp = data?.totalXP || 0;
-          console.log("User XP:", xp);
-        
           const level = calculateLevel(xp);
-          console.log("Calculated Level:", level);
           setLevelInfo(level);
-          console.log("Level Info Set:", level);
 
           await fetchUserPosts(currentUser.uid);
           
@@ -270,23 +264,6 @@ const AccountPage = () => {
     }
   };
 
-  const handleComment = async (postId: string, commentText: string) => {
-    if (!user || !commentText.trim()) return;
-    try {
-      await addComment(postId, user.uid, commentText);
-      const updatePosts = (posts: Post[]) =>
-        posts.map(post =>
-          post.id === postId
-            ? { ...post, commentCount: post.commentCount + 1 }
-            : post
-        );
-      setYourPosts(updatePosts);
-      setSavedPosts(updatePosts);
-    } catch (error) {
-      console.error('Error adding comment:', error);
-    }
-  };
-
   const handleSave = async (postId: string, isSaved: boolean) => {
     if (!user) return;
     try {
@@ -303,14 +280,6 @@ const AccountPage = () => {
       setSavedPosts(updatePosts);
     } catch (error) {
       console.error('Error saving post:', error);
-    }
-  };
-
-  const handleShare = async (postId: string) => {
-    try {
-      await sharePost(postId);
-    } catch (error) {
-      console.error('Error sharing post:', error);
     }
   };
 
@@ -360,7 +329,6 @@ const AccountPage = () => {
         <NavBar user={user} onSignOut={handleSignOut} />
       </div>
       
-      {/* Desktop: Account for sidebar, Mobile: Full width */}
       <div className='lg:ml-[280px]'>
         <div className='max-w-7xl mx-auto'>
           {/* Profile Header */}
@@ -375,10 +343,9 @@ const AccountPage = () => {
               <div className='absolute inset-0 bg-gradient-to-b from-transparent to-[#121212]'></div>
             </div>
 
-            {/* Profile Info - Overlapping */}
+            {/* Profile Info */}
             <div className='relative px-5 lg:px-8 -mt-16 lg:-mt-20'>
               <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4'>
-                {/* Left: Avatar and Name */}
                 <div className='flex flex-col lg:flex-row items-center lg:items-end gap-4 lg:gap-6'>
                   <div className='relative'>
                     <img
@@ -410,10 +377,9 @@ const AccountPage = () => {
                   </div>
                 </div>
 
-                {/* Right: Edit Button (Desktop) */}
                 <div className='hidden lg:flex lg:mb-4'>
                   <button
-                    onClick={() => navigateTo('/settings')}
+                    onClick={() => navigateTo('/settings/edit-profile')}
                     className='flex items-center gap-2 bg-[#292929] hover:bg-[#3a3a3a] text-white px-6 py-2.5 rounded-lg transition-colors'
                   >
                     <Edit2 size={18} />
@@ -422,7 +388,7 @@ const AccountPage = () => {
                 </div>
               </div>
 
-              {/* Stats - Desktop: Single row, Mobile: Keep as is */}
+              {/* Stats */}
               <div className='mt-6 grid grid-cols-3 lg:flex lg:gap-8 gap-4 text-center lg:text-left'>
                 <div>
                   <div className='text-xl lg:text-2xl font-bold text-white'>
@@ -459,7 +425,7 @@ const AccountPage = () => {
                 </div>
               )}
 
-              {/* Badges - Desktop: Horizontal, Mobile: Keep horizontal scroll */}
+              {/* Badges */}
               {badges.length > 0 && (
                 <div className='mt-6'>
                   <h3 className='text-white font-semibold mb-3'>Badges</h3>
@@ -483,11 +449,11 @@ const AccountPage = () => {
             </div>
           </div>
 
-          {/* Desktop: Grid layout, Mobile: Stack */}
+          {/* Content */}
           <div className='mt-8 px-5 lg:px-8 pb-20 lg:pb-8'>
             <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
               
-              {/* Left Column - Posts (Desktop: 2/3, Mobile: Full) */}
+              {/* Left Column - Posts */}
               <div className='lg:col-span-2 space-y-6'>
                 
                 {/* Posts Section */}
@@ -496,7 +462,6 @@ const AccountPage = () => {
                     <h2 className='text-2xl font-bold text-white'>Posts</h2>
                   </div>
                   
-                  {/* Post Tabs */}
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActivePostTab('your-posts')}
@@ -520,7 +485,6 @@ const AccountPage = () => {
                     </button>
                   </div>
 
-                  {/* Posts Content - Horizontal Scroll */}
                   {loadingPosts ? (
                     <div className='text-center py-8'>
                       <div className='text-gray-400'>Loading posts...</div>
@@ -529,23 +493,21 @@ const AccountPage = () => {
                     <div>
                       {activePostTab === 'your-posts' ? (
                         yourPosts.length > 0 ? (
-                          <div>
-                            <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                              {yourPosts.slice(0, 5).map(post => (
-                                <div key={post.id} className='min-w-[300px] lg:min-w-[320px] flex-shrink-0'>
-                                  <PostCardCompact
-                                    post={post}
-                                    currentUser={user}
-                                    onLike={() => handleLike(post.id)}
-                                    onClick={() => navigateTo(`/post/${post.id}`)}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            {yourPosts.length > 5 && (
+                          <div className='space-y-4'>
+                            {yourPosts.slice(0, 3).map(post => (
+                              <PostCard
+                                key={post.id}
+                                post={post}
+                                currentUser={user}
+                                onLike={() => handleLike(post.id)}
+                                onSave={() => handleSave(post.id, post.isSaved || false)}
+                                onClick={() => navigateTo(`/post/${post.id}`)}
+                              />
+                            ))}
+                            {yourPosts.length > 3 && (
                               <button
                                 onClick={() => navigateTo('/account/all-posts?tab=your-posts')}
-                                className='mt-4 w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
+                                className='w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
                               >
                                 <span>View All Posts ({yourPosts.length})</span>
                                 <IoChevronForward />
@@ -565,23 +527,21 @@ const AccountPage = () => {
                         )
                       ) : (
                         savedPosts.length > 0 ? (
-                          <div>
-                            <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                              {savedPosts.slice(0, 5).map(post => (
-                                <div key={post.id} className='min-w-[300px] lg:min-w-[320px] flex-shrink-0'>
-                                  <PostCardCompact
-                                    post={post}
-                                    currentUser={user}
-                                    onLike={() => handleLike(post.id)}
-                                    onClick={() => navigateTo(`/post/${post.id}`)}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            {savedPosts.length > 5 && (
+                          <div className='space-y-4'>
+                            {savedPosts.slice(0, 3).map(post => (
+                              <PostCard
+                                key={post.id}
+                                post={post}
+                                currentUser={user}
+                                onLike={() => handleLike(post.id)}
+                                onSave={() => handleSave(post.id, post.isSaved || false)}
+                                onClick={() => navigateTo(`/post/${post.id}`)}
+                              />
+                            ))}
+                            {savedPosts.length > 3 && (
                               <button
                                 onClick={() => navigateTo('/account/all-posts?tab=saved-posts')}
-                                className='mt-4 w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
+                                className='w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
                               >
                                 <span>View All Saved Posts ({savedPosts.length})</span>
                                 <IoChevronForward />
@@ -602,7 +562,6 @@ const AccountPage = () => {
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                   <h2 className='text-2xl font-bold text-white mb-4'>Quests</h2>
                   
-                  {/* Quest Tabs */}
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActiveQuestTab('public-quests')}
@@ -636,18 +595,15 @@ const AccountPage = () => {
                     </button>
                   </div>
 
-                  {/* Quests Content - Horizontal Scroll */}
                   {loadingQuests ? (
                     <div className='text-center py-8'>
                       <div className='text-gray-400'>Loading quests...</div>
                     </div>
                   ) : activeQuestTab === 'public-quests' ? (
                     myQuests.filter(q => q.isPublic).length > 0 ? (
-                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                        {myQuests.filter(q => q.isPublic).slice(0, 5).map(quest => (
-                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                          </div>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                        {myQuests.filter(q => q.isPublic).slice(0, 4).map(quest => (
+                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
                         ))}
                       </div>
                     ) : (
@@ -663,11 +619,9 @@ const AccountPage = () => {
                     )
                   ) : activeQuestTab === 'private-quests' ? (
                     myQuests.filter(q => !q.isPublic).length > 0 ? (
-                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                        {myQuests.filter(q => !q.isPublic).slice(0, 5).map(quest => (
-                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                          </div>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                        {myQuests.filter(q => !q.isPublic).slice(0, 4).map(quest => (
+                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
                         ))}
                       </div>
                     ) : (
@@ -683,11 +637,9 @@ const AccountPage = () => {
                     )
                   ) : (
                     savedQuests.length > 0 ? (
-                      <div className='flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide'>
-                        {savedQuests.slice(0, 5).map(quest => (
-                          <div key={quest.id} className='min-w-[280px] flex-shrink-0'>
-                            <QuestCard quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                          </div>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                        {savedQuests.slice(0, 4).map(quest => (
+                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
                         ))}
                       </div>
                     ) : (
@@ -700,7 +652,7 @@ const AccountPage = () => {
                 </div>
               </div>
 
-              {/* Right Column - Quick Actions (Desktop: 1/3, Mobile: Full) */}
+              {/* Right Column - Quick Actions */}
               <div className='lg:col-span-1 space-y-6'>
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6 lg:sticky lg:top-6'>
                   <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>Quick Actions</h3>
@@ -710,6 +662,11 @@ const AccountPage = () => {
                       icon={<Settings className='text-[#EA6100]' size={20} />}
                       label="Settings"
                       onClick={() => navigateTo('/settings')}
+                    />
+                    <MenuOption
+                      icon={<Edit2 className='text-[#EA6100]' size={20} />}
+                      label="Edit Profile"
+                      onClick={() => navigateTo('/settings/edit-profile')}
                     />
                     <MenuOption
                       icon={<Calendar className='text-[#EA6100]' size={20} />}
@@ -732,7 +689,6 @@ const AccountPage = () => {
             </div>
           </div>
 
-          {/* Mobile Footer */}
           <div className='lg:hidden'>
             <Footer />
           </div>
@@ -762,14 +718,16 @@ const MenuOption: React.FC<{
   </div>
 );
 
-// Compact Post Card matching your PostCard design
-const PostCardCompact: React.FC<{ 
+// Post Card Component with Read More
+const PostCard: React.FC<{ 
   post: Post; 
   currentUser: any; 
   onLike: () => void;
+  onSave: () => void;
   onClick: () => void;
-}> = ({ post, currentUser, onLike, onClick }) => {
+}> = ({ post, currentUser, onLike, onSave, onClick }) => {
   const [liked, setLiked] = useState(post.likedBy?.includes(currentUser?.uid) || false);
+  const [showFullText, setShowFullText] = useState(false);
 
   useEffect(() => {
     setLiked(post.likedBy?.includes(currentUser?.uid) || false);
@@ -793,32 +751,37 @@ const PostCardCompact: React.FC<{
     onLike();
   };
 
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSave();
+  };
+
+  const textLimit = 150;
+  const needsReadMore = post.text.length > textLimit;
+
   return (
     <div 
-      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
-      onClick={onClick}
+      className='bg-[#292929] rounded-xl overflow-hidden hover:bg-[#3a3a3a] transition-colors border border-gray-800'
     >
-      {/* User header */}
-      <div className='flex items-center justify-between p-3 border-b border-gray-800'>
-        <div className='flex items-center gap-2'>
+      <div className='flex items-center justify-between p-4 border-b border-gray-800'>
+        <div className='flex items-center gap-3 cursor-pointer' onClick={onClick}>
           <img 
             src={post.userProfilePic || '/default-avatar.png'} 
             alt={post.userName}
-            className='w-8 h-8 rounded-full object-cover'
+            className='w-10 h-10 rounded-full object-cover'
           />
           <div>
-            <span className='text-white text-sm font-medium block'>{post.userName}</span>
-            <span className='text-gray-400 text-xs'>{formatTime(post.createdAt)}</span>
+            <span className='text-white font-medium block'>{post.userName}</span>
+            <span className='text-gray-400 text-sm'>{formatTime(post.createdAt)}</span>
           </div>
         </div>
         <button className='text-gray-400 hover:text-white' onClick={(e) => e.stopPropagation()}>
-          <MoreHorizontal size={18} />
+          <MoreHorizontal size={20} />
         </button>
       </div>
 
-      {/* Post Image */}
       {post.photoUrl && (
-        <div className='relative h-48'>
+        <div className='relative w-full aspect-square cursor-pointer' onClick={onClick}>
           <img
             src={Array.isArray(post.photoUrl) ? post.photoUrl[0] : post.photoUrl}
             alt="Post"
@@ -827,30 +790,55 @@ const PostCardCompact: React.FC<{
         </div>
       )}
 
-      {/* Post Content */}
-      <div className='p-3'>
-        <p className='text-white text-sm line-clamp-2 mb-3'>{post.text}</p>
+      <div className='p-4'>
+        <div className='mb-3'>
+          <p className='text-white'>
+            {needsReadMore && !showFullText 
+              ? `${post.text.slice(0, textLimit)}...` 
+              : post.text
+            }
+          </p>
+          {needsReadMore && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFullText(!showFullText);
+              }}
+              className='text-[#EA6100] text-sm mt-1 hover:underline'
+            >
+              {showFullText ? 'Show less' : 'Read more'}
+            </button>
+          )}
+        </div>
         
-        {/* Actions */}
-        <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-3'>
+        <div className='flex items-center justify-between pt-3 border-t border-gray-800'>
+          <div className='flex items-center gap-4'>
             <button 
               onClick={handleLikeClick}
-              className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-gray-400'}`}
+              className={`flex items-center gap-2 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
             >
-              <Heart size={18} className={liked ? 'fill-current' : ''} />
-              <span className='text-xs'>{post.likeCount || 0}</span>
+              <Heart size={22} className={liked ? 'fill-current' : ''} />
+              <span className='text-sm font-medium'>{post.likeCount || 0}</span>
             </button>
-            <button className='flex items-center gap-1 text-gray-400 hover:text-white transition-colors' onClick={(e) => e.stopPropagation()}>
-              <MessageCircle size={18} />
-              <span className='text-xs'>{post.commentCount || 0}</span>
+            <button 
+              className='flex items-center gap-2 text-gray-400 hover:text-white transition-colors'
+              onClick={onClick}
+            >
+              <MessageCircle size={22} />
+              <span className='text-sm font-medium'>{post.commentCount || 0}</span>
             </button>
-            <button className='text-gray-400 hover:text-white transition-colors' onClick={(e) => e.stopPropagation()}>
-              <Share2 size={18} />
+            <button 
+              className='text-gray-400 hover:text-white transition-colors'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Share2 size={22} />
             </button>
           </div>
-          <button className='text-gray-400 hover:text-[#EA6100] transition-colors' onClick={(e) => e.stopPropagation()}>
-            <Bookmark size={18} className={post.isSaved ? 'fill-current text-[#EA6100]' : ''} />
+          <button 
+            onClick={handleSaveClick}
+            className={`transition-colors ${post.isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'}`}
+          >
+            <Bookmark size={22} className={post.isSaved ? 'fill-current' : ''} />
           </button>
         </div>
       </div>
@@ -865,7 +853,7 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
       onClick={onClick}
       className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
     >
-      <div className='relative h-40'>
+      <div className='relative h-48'>
         <img
           src={quest.coverImageUrl as any || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600'}
           alt={quest.title}
@@ -895,4 +883,3 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
 };
 
 export default AccountPage;
-

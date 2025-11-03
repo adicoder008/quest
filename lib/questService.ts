@@ -1,4 +1,4 @@
-// lib/questService.ts - UPDATED with simplified cover image handling
+// lib/questService.ts - Updated with multi-size image handling
 
 import {
   doc,
@@ -24,7 +24,6 @@ import { Quest } from '@/app/types';
 import { compressAndUploadImage } from '@/lib/imageService';
 import { createPost } from './postService';
 
-// Define types for clarity
 type QuestRole = 'owner' | 'editor' | 'viewer';
 
 export interface TripData {
@@ -130,9 +129,15 @@ const questService = {
 
   /**
    * Core quest creation with transaction
-   * FIXED: Now uses single compressed image URL (same as posts)
+   * Updated to handle single image URL
    */
-  async createQuest(uid: string, questData: any, itineraryData?: any, coverImageFile?: File, flowCards?: FlowCardState[]) {
+  async createQuest(
+    uid: string, 
+    questData: any, 
+    itineraryData?: any, 
+    coverImageFile?: File, 
+    flowCards?: FlowCardState[]
+  ) {
     console.log('createQuest called with:', { uid, questData });
     
     const questCollectionRef = collection(db, 'quest');
@@ -146,21 +151,18 @@ const questService = {
     const userRef = doc(db, 'users', uid);
 
     try {
-      // FIXED: Upload cover image using the same compression as posts
+      // Upload cover image - single URL
       let coverImageUrl: string | null = null;
       if (coverImageFile) {
         try {
-          // This returns a single compressed URL (same as posts)
-          const imageUrls = await compressAndUploadImage(
+          coverImageUrl = await compressAndUploadImage(
             coverImageFile, 
             'quest-covers', 
             uid
           );
-          coverImageUrl = imageUrls.compressedUrl;
           console.log('Cover image uploaded:', coverImageUrl);
         } catch (error) {
           console.error('Error uploading cover image:', error);
-          // Decide if you want to fail the whole quest creation or just proceed without an image
         }
       }
 
@@ -169,7 +171,7 @@ const questService = {
         const questDocument = {
           ...questData,
           itinerary: itineraryData || null,
-          coverImageUrl: coverImageUrl || null, // Single URL, same as posts
+          coverImageUrl: coverImageUrl, // Single URL string
           flowCards: flowCards || [],
           owner: uid,
           id: questId,
@@ -342,7 +344,7 @@ const questService = {
 
   /**
    * Posts a quest to the public feed
-   * FIXED: Now handles single compressed image URL (same as posts)
+   * Updated to handle single image URL
    */
   async postQuestToFeed(
     questId: string, 
@@ -390,7 +392,6 @@ const questService = {
       // 4. Handle new cover image upload (if provided)
       if (coverImageFile) {
         try {
-          // FIXED: Upload using same compression as posts
           finalCoverImageUrl = await compressAndUploadImage(
             coverImageFile, 
             'quest-covers', 
@@ -423,7 +424,7 @@ const questService = {
           userName: userName,
           userProfilePic: userProfilePic,
           text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
-          photoUrl: finalCoverImageUrl!, // Single compressed URL
+          photoUrl: finalCoverImageUrl, // Single URL
           postType: 'quest_completion',
           questContext: {
             questId: questId,
