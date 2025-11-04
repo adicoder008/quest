@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "render:quest": "node scripts/autoRender.js",
-    "render:manual": "node scripts/renderQuestVideo.js",
-    "remotion:studio": "remotion studio remotion/Root.tsx",
-    "remotion:render": "remotion render remotion/Root.tsx"
+    "remotion:studio": "remotion studio remotion/Root.tsx"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
