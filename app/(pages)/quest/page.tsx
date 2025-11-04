@@ -245,8 +245,8 @@ const QuestPage = () => {
   }, [user, loading, router]);
 
   const steps = [
-    { title: "Where are you going?", key: "destination" },
-    { title: "When are you traveling?", key: "dates" },
+    { title: "Where did you travel?", key: "destination" },
+    { title: "When did you travel?", key: "dates" },
   ];
 
   const handleDestinationChange = (destination: string, placeData?: PlaceData) => {
@@ -453,30 +453,32 @@ const QuestPage = () => {
                 </div>
               )}
 
-              {currentStepData.key === 'dates' && (
+                {currentStepData.key === 'dates' && ( 
                 <div className="grid grid-cols-2 gap-6 max-w-2xl">
                   <div>
-                    <label className="block text-base text-gray-400 mb-3">Select Start Date</label>
-                    <input
-                      type="date"
-                      value={tripData.startDate}
-                      onChange={(e) => updateTripData('startDate', e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
-                    />
+                  <label className="block text-base text-gray-400 mb-3">Select Start Date</label>
+                  <input
+                    type="date"
+                    value={tripData.startDate}
+                    onChange={(e) => updateTripData('startDate', e.target.value)}
+                    min="2019-01-01"
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+                  />
                   </div>
                   <div>
-                    <label className="block text-base text-gray-400 mb-3">Select End Date</label>
-                    <input
-                      type="date"
-                      value={tripData.endDate}
-                      onChange={(e) => updateTripData('endDate', e.target.value)}
-                      min={tripData.startDate || new Date().toISOString().split('T')[0]}
-                      className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
-                    />
+                  <label className="block text-base text-gray-400 mb-3">Select End Date</label>
+                  <input
+                    type="date"
+                    value={tripData.endDate}
+                    onChange={(e) => updateTripData('endDate', e.target.value)}
+                    min={tripData.startDate || "2019-01-01"}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+                  />
                   </div>
                 </div>
-              )}
+                )}
             </div>
 
             <div className="flex gap-6">
