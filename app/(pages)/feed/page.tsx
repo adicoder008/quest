@@ -13,10 +13,9 @@ import { User as UserType, Post } from '@/app/types/index';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '@/hooks/useResponsive';
-import CreatePost from '@/components/Feed_old/CreatePost';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
-import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
+import { FaPlus, FaHeart,FaHeartbeat, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
@@ -1258,7 +1257,7 @@ const handleFollow = async (targetUserId: string) => {
                 isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
               }`}
             >
-              <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
             
@@ -1697,7 +1696,7 @@ const MobilePostCard = ({
             isLiked ? 'text-red-500' : 'text-gray-400'
           }`}
         >
-          <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
           <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
         

@@ -9,6 +9,7 @@ import { addComment } from '@/lib/postService';
 import { savePost, unsavePost, sharePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
 import { Settings, Edit2, Calendar, SlidersHorizontal, HelpCircle, MapPin, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from 'lucide-react';
+import { FaHeartbeat } from 'react-icons/fa';
 import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
@@ -824,7 +825,7 @@ const PostCard: React.FC<{
               onClick={handleLikeClick}
               className={`flex items-center gap-2 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
             >
-              <Heart size={22} className={liked ? 'fill-current' : ''} />
+              <FaHeartbeat size={22} className={liked ? 'fill-current' : ''} />
               <span className='text-sm font-medium'>{post.likeCount || 0}</span>
             </button>
             <button 
