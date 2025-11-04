@@ -383,7 +383,7 @@ const EditProfilePage = () => {
                     className='w-full bg-[#292929] text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-[#EA6100] focus:outline-none transition-colors'
                     placeholder='Your display name'
                   />
-                  <p className='text-gray-500 text-sm mt-1'>{formData.displayName.length}/50 characters</p>
+                  <p className='text-gray-500 text-sm mt-1'>{(formData.displayName ?? '').length}/50 characters</p>
                 </div>
 
                 <div>
@@ -409,7 +409,7 @@ const EditProfilePage = () => {
                     className='w-full bg-[#292929] text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-[#EA6100] focus:outline-none transition-colors'
                     placeholder='e.g., Adventure Seeker, Travel Photographer'
                   />
-                  <p className='text-gray-500 text-sm mt-1'>{formData.title.length}/60 characters</p>
+                  <p className='text-gray-500 text-sm mt-1'>{(formData.title ?? '').length}/60 characters</p>
                 </div>
 
                 <div>
@@ -423,7 +423,7 @@ const EditProfilePage = () => {
                     className='w-full bg-[#292929] text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-[#EA6100] focus:outline-none transition-colors resize-none'
                     placeholder='Tell us about yourself...'
                   />
-                  <p className='text-gray-500 text-sm mt-1'>{formData.bio.length}/300 characters</p>
+                  <p className='text-gray-500 text-sm mt-1'>{(formData.bio ?? '').length}/300 characters</p>
                 </div>
 
                 <div>
