@@ -13,6 +13,8 @@ import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, update
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
 import NavBar from '@/components/Nav';
+import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList, getFollowersList } from '@/lib/followService';
+
 
 const styles = `
   .scrollbar-hide {
@@ -75,6 +77,8 @@ const PublicProfilePage = () => {
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
+ const [followersCount, setFollowersCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
@@ -84,6 +88,12 @@ const PublicProfilePage = () => {
         try {
           const data = await getUserData(profileUserId);
           setProfileUser(data as UserData);
+
+          const following = await getFollowingList(profileUserId);
+          const followers = await getFollowersList(profileUserId);
+
+          setFollowingCount(following.length);
+          setFollowersCount(followers.length);
 
           if (authUser && data?.followers) {
             setIsFollowing(data.followers.includes(authUser.uid));
@@ -160,20 +170,23 @@ const PublicProfilePage = () => {
       if (isFollowing) {
         await unfollowUser(currentUser.uid, profileUserId);
         setIsFollowing(false);
-        setProfileUser(prev => prev ? {
-          ...prev,
-          followers: prev.followers?.filter(id => id !== currentUser.uid) || []
-        } : null);
+        setFollowersCount(prev => Math.max(0, prev - 1));
       } else {
         await followUser(currentUser.uid, profileUserId);
         setIsFollowing(true);
-        setProfileUser(prev => prev ? {
-          ...prev,
-          followers: [...(prev.followers || []), currentUser.uid]
-        } : null);
+        setFollowersCount(prev => prev + 1);
       }
+       const data = await getUserData(profileUserId);
+    setProfileUser(data as UserData);
+    
+    // Optionally refresh counts from database
+    const followers = await getFollowersList(profileUserId);
+    setFollowersCount(followers.length);
     } catch (error) {
       console.error('Error toggling follow:', error);
+      const followers = await getFollowersList(profileUserId);
+      setFollowersCount(followers.length);
+      setIsFollowing(followers.includes(currentUser.uid));
     }
   };
 
@@ -383,13 +396,13 @@ const PublicProfilePage = () => {
                   </div>
                   <div>
                     <div className='text-xl lg:text-2xl font-bold text-white'>
-                      {profileUser.followers?.length || 0}
+                      {followersCount}
                     </div>
                     <div className='text-gray-400 text-sm'>Followers</div>
                   </div>
                   <div>
                     <div className='text-xl lg:text-2xl font-bold text-white'>
-                      {profileUser.following?.length || 0}
+                      {followingCount}
                     </div>
                     <div className='text-gray-400 text-sm'>Following</div>
                   </div>

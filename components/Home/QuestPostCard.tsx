@@ -1,10 +1,11 @@
 // File: components/Feed/QuestPostCard.tsx
-// YouTube Shorts style Quest post for feed
+// YouTube Shorts style Quest post for feed - WITH FOLLOW FUNCTIONALITY
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, Bookmark, MoreVertical , HeartPulse} from 'lucide-react';
-import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark} from 'react-icons/fa';
+import { Heart, MessageCircle, Share2, Bookmark, MoreVertical, HeartPulse, UserPlus, UserCheck } from 'lucide-react';
+import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
+import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
 
 interface QuestPostCardProps {
   post: {
@@ -23,7 +24,6 @@ interface QuestPostCardProps {
       questId: string;
       questTitle: string;
       description: string;
-
     };
   };
   currentUser: any;
@@ -33,6 +33,8 @@ interface QuestPostCardProps {
   onSave: () => void;
   onMenu: () => void;
   isSaved?: boolean;
+  followingList?: string[];
+  onFollow?: (userId: string) => void;
 }
 
 export const QuestPostCard = ({
@@ -43,14 +45,34 @@ export const QuestPostCard = ({
   onShare,
   onSave,
   onMenu,
-  isSaved = false
+  isSaved = false,
+  followingList = [],
+  onFollow
 }: QuestPostCardProps) => {
   const router = useRouter();
   const isLiked = post.likedBy?.includes(currentUser?.uid);
+  
+  // 🔥 FOLLOW FUNCTIONALITY
+  const authorId = post.uid;
+  const isFollowingUser = followingList?.includes(authorId) || false;
+  const isOwnPost = currentUser?.uid === authorId;
 
   const handleQuestClick = () => {
     if (post.questContext?.questId) {
       router.push(`/quest/${post.questContext.questId}`);
+    }
+  };
+
+  const handleFollowClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (!currentUser?.uid || !authorId || authorId === currentUser.uid) {
+      return;
+    }
+    
+    if (onFollow) {
+      onFollow(authorId);
     }
   };
 
@@ -69,25 +91,58 @@ export const QuestPostCard = ({
 
   return (
     <article className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-4">
-      {/* Post Header */}
+      {/* Post Header - WITH FOLLOW BUTTON */}
       <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
           <img
             src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => router.push(`/profile/${authorId}`)}
           />
-          <div>
-            <h3 className="text-white font-medium text-sm">{post.userName}</h3>
-            <p className="text-gray-400 text-xs">{formatTime(post.createdAt)}</p>
+          <div className="flex-1">
+            <h3 
+              className="text-white font-medium text-sm cursor-pointer hover:underline" 
+              onClick={() => router.push(`/profile/${authorId}`)}
+            >
+              {post.userName}
+            </h3>
+            <p className="text-gray-400 text-xs">Shared a Quest · {formatTime(post.createdAt)}</p>
           </div>
         </div>
-        <button
-          onClick={onMenu}
-          className="p-2 hover:bg-gray-800 rounded-full transition-colors"
-        >
-          <MoreVertical size={20} className="text-gray-400" />
-        </button>
+
+        {/* 🔥 FOLLOW BUTTON + MENU */}
+        <div className="flex items-center gap-2">
+          {!isOwnPost && onFollow && (
+            <button
+              onClick={handleFollowClick}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                isFollowingUser
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+              }`}
+            >
+              {isFollowingUser ? (
+                <div className="flex items-center gap-1">
+                  <UserCheck size={16} />
+                  <span>Following</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <UserPlus size={16} />
+                  <span>Follow</span>
+                </div>
+              )}
+            </button>
+          )}
+          
+          <button
+            onClick={onMenu}
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+          >
+            <MoreVertical size={20} className="text-gray-400" />
+          </button>
+        </div>
       </div>
 
       {/* Quest Description */}
@@ -116,7 +171,7 @@ export const QuestPostCard = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
 
         {/* Quest Title at Bottom - YouTube Shorts Style */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 ">
+        <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="flex items-end justify-between">
             <div className="flex-1">
               <h2 className="text-white font-bold text-xl md:text-2xl drop-shadow-lg">
@@ -128,8 +183,6 @@ export const QuestPostCard = ({
                 </p>
               )}
             </div>
-
-           
 
             {/* View Quest Button */}
             <button
@@ -164,7 +217,7 @@ export const QuestPostCard = ({
 
             <button
               onClick={onComment}
-              className="flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
               <FaRegCommentDots size={22} />
               <span className="text-sm font-medium">{post.commentCount || 0}</span>
@@ -172,7 +225,7 @@ export const QuestPostCard = ({
 
             <button
               onClick={onShare}
-              className="flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
               <FaShareSquare size={22} />
               <span className="text-sm font-medium">{post.shareCount || 0}</span>
@@ -182,10 +235,14 @@ export const QuestPostCard = ({
           <button
             onClick={onSave}
             className={`transition-colors ${
-              isSaved ? 'text-orange-500' : 'text-gray-400 hover:text-orange-500'
+              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
             }`}
           >
-            <FaRegBookmark size={22} className={isSaved ? 'fill-current' : ''} />
+            {isSaved ? (
+              <FaBookmark size={22} className="fill-current" />
+            ) : (
+              <FaRegBookmark size={22} />
+            )}
           </button>
         </div>
       </div>
@@ -193,7 +250,7 @@ export const QuestPostCard = ({
   );
 };
 
-// Mobile version - even more YouTube Shorts style
+// Mobile version - even more YouTube Shorts style WITH FOLLOW
 export const MobileQuestPostCard = ({
   post,
   currentUser,
@@ -202,10 +259,17 @@ export const MobileQuestPostCard = ({
   onShare,
   onSave,
   onMenu,
-  isSaved = false
+  isSaved = false,
+  followingList = [],
+  onFollow
 }: QuestPostCardProps) => {
   const router = useRouter();
   const isLiked = post.likedBy?.includes(currentUser?.uid);
+  
+  // 🔥 FOLLOW FUNCTIONALITY
+  const authorId = post.uid;
+  const isFollowingUser = followingList?.includes(authorId) || false;
+  const isOwnPost = currentUser?.uid === authorId;
 
   const handleQuestClick = () => {
     if (post.questContext?.questId) {
@@ -213,21 +277,74 @@ export const MobileQuestPostCard = ({
     }
   };
 
+  const handleFollowClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (!currentUser?.uid || !authorId || authorId === currentUser.uid) {
+      return;
+    }
+    
+    if (onFollow) {
+      onFollow(authorId);
+    }
+  };
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   return (
     <article className="bg-black border-b border-gray-800">
-      {/* User Info */}
+      {/* User Info - WITH FOLLOW BUTTON */}
       <div className="flex items-center justify-between p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <img
             src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
-            className="w-8 h-8 rounded-full object-cover"
+            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+            onClick={() => router.push(`/profile/${authorId}`)}
           />
-          <span className="text-white font-medium text-sm">{post.userName}</span>
+          <div className="flex-1 min-w-0">
+            <span 
+              className="text-white font-medium text-sm cursor-pointer hover:underline truncate block"
+              onClick={() => router.push(`/profile/${authorId}`)}
+            >
+              {post.userName}
+            </span>
+            <p className="text-gray-400 text-xs truncate">
+              Shared a Quest · {formatTime(post.createdAt)}
+            </p>
+          </div>
         </div>
-        <button onClick={onMenu} className="p-2">
-          <MoreVertical size={18} className="text-gray-400" />
-        </button>
+
+        {/* 🔥 FOLLOW BUTTON + MENU */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isOwnPost && onFollow && (
+            <button
+              onClick={handleFollowClick}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                isFollowingUser
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-[#F7CEB0] text-black'
+              }`}
+            >
+              {isFollowingUser ? 'Following' : 'Follow'}
+            </button>
+          )}
+          
+          <button onClick={onMenu} className="p-2 flex-shrink-0">
+            <MoreVertical size={18} className="text-gray-400" />
+          </button>
+        </div>
       </div>
 
       {/* Description */}
@@ -247,6 +364,9 @@ export const MobileQuestPostCard = ({
           src={post.photoUrl || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800'}
           alt={post.questContext?.questTitle}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800';
+          }}
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
@@ -254,8 +374,13 @@ export const MobileQuestPostCard = ({
         {/* Quest Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h2 className="text-white font-bold text-xl drop-shadow-lg mb-1">
-            {post.questContext?.questTitle}
+            {post.questContext?.questTitle || 'Amazing Adventure'}
           </h2>
+          {post.questContext?.description && (
+            <p className="text-gray-200 text-sm drop-shadow-md line-clamp-2 mb-2">
+              {post.questContext.description}
+            </p>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -271,18 +396,38 @@ export const MobileQuestPostCard = ({
       {/* Actions */}
       <div className="flex items-center justify-between p-3 border-t border-gray-800">
         <div className="flex items-center gap-5">
-          <button onClick={onLike} className={isLiked ? 'text-red-500' : 'text-gray-400'}>
+          <button 
+            onClick={onLike} 
+            className={`transition-colors ${
+              isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+            }`}
+          >
             <HeartPulse size={24} className={isLiked ? 'fill-current' : ''} />
           </button>
-          <button onClick={onComment} className="text-gray-400">
+          <button 
+            onClick={onComment} 
+            className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          >
             <FaRegCommentDots size={24} />
           </button>
-          <button onClick={onShare} className="text-gray-400">
+          <button 
+            onClick={onShare} 
+            className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
+          >
             <FaShareSquare size={24} />
           </button>
         </div>
-        <button onClick={onSave} className={isSaved ? 'text-orange-500' : 'text-gray-400'}>
-          <FaBookmark size={24} className={isSaved ? 'fill-current' : ''} />
+        <button 
+          onClick={onSave} 
+          className={`transition-colors ${
+            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+          }`}
+        >
+          {isSaved ? (
+            <FaBookmark size={24} className="fill-current" />
+          ) : (
+            <FaRegBookmark size={24} />
+          )}
         </button>
       </div>
     </article>

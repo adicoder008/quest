@@ -14,6 +14,8 @@ import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, update
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
 import NavBar from '@/components/Nav';
+import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
+
 
 const styles = `
   .scrollbar-hide {
@@ -87,6 +89,8 @@ const AccountPage = () => {
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
   const [savedQuests, setSavedQuests] = useState<Quest[]>([]);
   const [loadingQuests, setLoadingQuests] = useState(false);
+  const [followingList, setFollowingList] = useState<string[]>([]);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -97,6 +101,9 @@ const AccountPage = () => {
         try {
           const data = await getUserData(currentUser.uid);
           setUserData(data as UserData);
+
+          const following = await getFollowingList(currentUser.uid);
+        setFollowingList(following);
 
           const userBadges = await getUserBadges(currentUser.uid);
           setBadges(userBadges.slice(0, 3));
@@ -404,7 +411,7 @@ const AccountPage = () => {
                 </div>
                 <div>
                   <div className='text-xl lg:text-2xl font-bold text-white'>
-                    {userData?.following?.length || 0}
+                    {followingList.length}
                   </div>
                   <div className='text-gray-400 text-sm'>Following</div>
                 </div>
