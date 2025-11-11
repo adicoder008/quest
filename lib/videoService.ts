@@ -34,7 +34,7 @@ export const videoService = {
       // Reset credits if it's a new day
       if (lastReset !== today) {
         await updateDoc(userRef, {
-          'videoCredits.count': 4,
+          'videoCredits.count': 2,
           'videoCredits.lastReset': new Date().toISOString()
         });
         
@@ -44,7 +44,7 @@ export const videoService = {
         
         return {
           canGenerate: true,
-          remaining: 4,
+          remaining: 2,
           resetAt: tomorrow
         };
       }
