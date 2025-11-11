@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda';
+import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda/client';
 
 // For production, you'll use Remotion Lambda
 // For development, we'll simulate the process
