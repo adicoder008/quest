@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!, 'base64').toString('utf-8')
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_K!, 'base64').toString('utf-8')
   );
   
   admin.initializeApp({
