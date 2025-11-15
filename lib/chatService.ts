@@ -52,6 +52,8 @@ export const chatService = {
       text: string;
       authorName: string;
       authorPhoto?: string;
+      replyTo?: string;
+      mentions?: string[];
     }
   ) {
     try {
@@ -74,13 +76,25 @@ export const chatService = {
 
       // Add message
       const messagesRef = collection(db, 'chats', chatId, 'messages');
-      await addDoc(messagesRef, {
+      const newMessage: any = {
         uid: messageData.uid,
         text: messageData.text,
         authorName: messageData.authorName,
         authorPhoto: messageData.authorPhoto || '',
         createdAt: serverTimestamp(),
-      });
+      };
+
+      // Add reply data if replying
+      if (messageData.replyTo) {
+        newMessage.replyTo = messageData.replyTo;
+      }
+
+      // Add mentions if any
+      if (messageData.mentions && messageData.mentions.length > 0) {
+        newMessage.mentions = messageData.mentions;
+      }
+
+      await addDoc(messagesRef, newMessage);
 
       // Update lastMessage on chat
       await updateDoc(chatRef, {
@@ -92,6 +106,9 @@ export const chatService = {
         },
         updatedAt: serverTimestamp()
       });
+
+      // Increment unread count for other members
+      await this.incrementUnreadCount(chatId, messageData.uid, chatData.members);
 
       // Send notifications to other members
       try {
@@ -316,10 +333,157 @@ export const chatService = {
       const chatRef = doc(db, 'chats', chatId);
       await updateDoc(chatRef, {
         [`readBy.${userId}`]: serverTimestamp(),
+        [`unreadCount.${userId}`]: 0,
       });
     } catch (error) {
       console.error('Error marking messages as read:', error);
       // Don't throw - this is not critical
+    }
+  },
+
+  /**
+   * Sets typing status for a user in a chat.
+   */
+  async setTypingStatus(chatId: string, userId: string, isTyping: boolean) {
+    try {
+      const chatRef = doc(db, 'chats', chatId);
+      await updateDoc(chatRef, {
+        [`typing.${userId}`]: isTyping ? serverTimestamp() : null,
+      });
+    } catch (error) {
+      console.error('Error setting typing status:', error);
+    }
+  },
+
+  /**
+   * Adds a reaction to a message.
+   */
+  async addReaction(chatId: string, messageId: string, userId: string, emoji: string) {
+    try {
+      const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+      const messageSnap = await getDoc(messageRef);
+
+      if (!messageSnap.exists()) {
+        throw new Error("Message does not exist");
+      }
+
+      const messageData = messageSnap.data();
+      const reactions = messageData.reactions || {};
+
+      if (!reactions[emoji]) {
+        reactions[emoji] = [];
+      }
+
+      if (!reactions[emoji].includes(userId)) {
+        reactions[emoji].push(userId);
+      }
+
+      await updateDoc(messageRef, { reactions });
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Removes a reaction from a message.
+   */
+  async removeReaction(chatId: string, messageId: string, userId: string, emoji: string) {
+    try {
+      const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+      const messageSnap = await getDoc(messageRef);
+
+      if (!messageSnap.exists()) {
+        throw new Error("Message does not exist");
+      }
+
+      const messageData = messageSnap.data();
+      const reactions = messageData.reactions || {};
+
+      if (reactions[emoji]) {
+        reactions[emoji] = reactions[emoji].filter((id: string) => id !== userId);
+        if (reactions[emoji].length === 0) {
+          delete reactions[emoji];
+        }
+      }
+
+      await updateDoc(messageRef, { reactions });
+    } catch (error) {
+      console.error('Error removing reaction:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Pins a message in a chat.
+   */
+  async pinMessage(chatId: string, messageId: string) {
+    try {
+      const chatRef = doc(db, 'chats', chatId);
+      const chatSnap = await getDoc(chatRef);
+
+      if (!chatSnap.exists()) {
+        throw new Error("Chat does not exist");
+      }
+
+      const chatData = chatSnap.data();
+      const pinnedMessages = chatData.pinnedMessages || [];
+
+      if (!pinnedMessages.includes(messageId)) {
+        pinnedMessages.push(messageId);
+        await updateDoc(chatRef, { pinnedMessages });
+      }
+    } catch (error) {
+      console.error('Error pinning message:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Unpins a message in a chat.
+   */
+  async unpinMessage(chatId: string, messageId: string) {
+    try {
+      const chatRef = doc(db, 'chats', chatId);
+      const chatSnap = await getDoc(chatRef);
+
+      if (!chatSnap.exists()) {
+        throw new Error("Chat does not exist");
+      }
+
+      const chatData = chatSnap.data();
+      const pinnedMessages = chatData.pinnedMessages || [];
+
+      const updatedPinnedMessages = pinnedMessages.filter((id: string) => id !== messageId);
+      await updateDoc(chatRef, { pinnedMessages: updatedPinnedMessages });
+    } catch (error) {
+      console.error('Error unpinning message:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Increments unread count for users in a chat (except sender).
+   */
+  async incrementUnreadCount(chatId: string, senderId: string, members: string[]) {
+    try {
+      const chatRef = doc(db, 'chats', chatId);
+      const chatSnap = await getDoc(chatRef);
+
+      if (!chatSnap.exists()) return;
+
+      const chatData = chatSnap.data();
+      const unreadCount = chatData.unreadCount || {};
+
+      members.forEach((memberId: string) => {
+        if (memberId !== senderId) {
+          unreadCount[memberId] = (unreadCount[memberId] || 0) + 1;
+        }
+      });
+
+      await updateDoc(chatRef, { unreadCount });
+    } catch (error) {
+      console.error('Error incrementing unread count:', error);
     }
   },
 };
