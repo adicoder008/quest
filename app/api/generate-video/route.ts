@@ -1,13 +1,12 @@
-// app/api/generate-video/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { db, storage } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage, admin } from '@/lib/firebaseAdmin';
+import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda/client';
+const IS_PRODUCTION = true; 
 
-// For production, you'll use Remotion Lambda
-// For development, we'll simulate the process
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const REMOTION_FUNCTION_NAME = process.env.REMOTION_LAMBDA_FUNCTION_NAME!;
+const REMOTION_REGION = process.env.REMOTION_AWS_REGION as any;
 
+const serverTimestamp = admin.firestore.FieldValue.serverTimestamp;
 export async function POST(request: NextRequest) {
   try {
     const { requestId } = await request.json();
@@ -19,11 +18,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get video request data
-    const requestRef = doc(db, 'videoRequests', requestId);
-    const requestDoc = await getDoc(requestRef);
+    // Admin SDK Firestore syntax
+    const requestRef = db.collection('videoRequests').doc(requestId);
+    const requestDoc = await requestRef.get();
 
-    if (!requestDoc.exists()) {
+    if (!requestDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'Video request not found' },
         { status: 404 }
@@ -31,87 +30,35 @@ export async function POST(request: NextRequest) {
     }
 
     const requestData = requestDoc.data();
-
-    // Update status to processing
-    await updateDoc(requestRef, {
-      status: 'processing',
-      progress: 10,
-      updatedAt: serverTimestamp()
-    });
+    if (!requestData) {
+        return NextResponse.json(
+            { success: false, error: 'Video request data is empty' },
+            { status: 404 }
+        );
+    }
 
     if (IS_PRODUCTION) {
-      // PRODUCTION: Use Remotion Lambda
-      // You'll need to set up Remotion Lambda and get credentials
-      // https://www.remotion.dev/docs/lambda/setup
-      
-      const { renderMediaOnLambda, getRenderProgress } = await import('@remotion/lambda');
-      
+      // --- PRODUCTION: Start Remotion Lambda Render ---
       try {
-        // Start render on Lambda
         const renderResponse = await renderMediaOnLambda({
-          region: process.env.REMOTION_AWS_REGION as any,
-          functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
+          region: REMOTION_REGION,
+          functionName: REMOTION_FUNCTION_NAME,
           composition: 'QuestVideo',
           serveUrl: process.env.REMOTION_SERVE_URL!,
           codec: 'h264',
           inputProps: requestData.questData,
-          privacy: 'public'
+          privacy: 'public',
+          concurrency: 8 
         });
 
-        // Poll for progress
-        const checkProgress = async () => {
-          try {
-            const progress = await getRenderProgress({
-              renderId: renderResponse.renderId,
-              bucketName: renderResponse.bucketName,
-              functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
-              region: process.env.REMOTION_AWS_REGION as any
-            });
-
-            // Update progress in Firestore
-            if (progress.overallProgress < 1) {
-              await updateDoc(requestRef, {
-                progress: Math.round(progress.overallProgress * 100),
-                updatedAt: serverTimestamp()
-              });
-
-              // Continue polling
-              setTimeout(checkProgress, 2000);
-            } else if (progress.done && progress.outputFile) {
-              // Video is complete
-              // Upload to Firebase Storage
-              const videoBuffer = await fetch(progress.outputFile).then(r => r.arrayBuffer());
-              const videoRef = ref(storage, `quest-videos/${requestData.questId}/${Date.now()}.mp4`);
-              await uploadBytes(videoRef, videoBuffer);
-              const videoUrl = await getDownloadURL(videoRef);
-
-              // Update request with completed video
-              await updateDoc(requestRef, {
-                status: 'completed',
-                videoUrl,
-                progress: 100,
-                completedAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-              });
-
-              // Update quest with video URL
-              const questRef = doc(db, 'quest', requestData.questId);
-              await updateDoc(questRef, {
-                videoUrl,
-                videoStatus: 'completed',
-                updatedAt: serverTimestamp()
-              });
-            } else if (progress.fatalErrorEncountered) {
-              throw new Error(progress.errors?.[0]?.message || 'Video rendering failed');
-            }
-          } catch (error) {
-            console.error('Error checking progress:', error);
-            throw error;
-          }
-        };
-
-        // Start progress polling
-        checkProgress();
+        // Admin SDK Firestore syntax
+        await requestRef.update({
+          status: 'processing',
+          progress: 10,
+          updatedAt: serverTimestamp(),
+          renderId: renderResponse.renderId,
+          bucketName: renderResponse.bucketName
+        });
 
         return NextResponse.json({
           success: true,
@@ -121,8 +68,8 @@ export async function POST(request: NextRequest) {
 
       } catch (error: any) {
         console.error('Remotion Lambda error:', error);
-        
-        await updateDoc(requestRef, {
+        // Admin SDK Firestore syntax
+        await requestRef.update({
           status: 'failed',
           error: error.message || 'Video generation failed',
           updatedAt: serverTimestamp()
@@ -135,23 +82,17 @@ export async function POST(request: NextRequest) {
       }
 
     } else {
-      // DEVELOPMENT: Simulate video generation
+      // --- DEVELOPMENT: Simulate video generation ---
       console.log('🎬 Simulating video generation for development...');
       console.log('Quest Data:', requestData.questData);
-
-      // Simulate progress updates
+      
       for (let progress = 20; progress <= 100; progress += 20) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await updateDoc(requestRef, {
-          progress,
-          updatedAt: serverTimestamp()
-        });
       }
-
-      // In development, use a placeholder video URL
       const placeholderVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-
-      await updateDoc(requestRef, {
+      
+      // Admin SDK Firestore syntax
+      await requestRef.update({
         status: 'completed',
         videoUrl: placeholderVideoUrl,
         progress: 100,
@@ -159,8 +100,8 @@ export async function POST(request: NextRequest) {
         updatedAt: serverTimestamp()
       });
 
-      const questRef = doc(db, 'quest', requestData.questId);
-      await updateDoc(questRef, {
+      const questRef = db.collection('quest').doc(requestData.questId);
+      await questRef.update({
         videoUrl: placeholderVideoUrl,
         videoStatus: 'completed',
         updatedAt: serverTimestamp()
@@ -175,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error: any) {
-    console.error('Error in video generation API:', error);
+    console.error('Error in POST /api/generate-video:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }
@@ -183,7 +124,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Check video status
+// ========================================================================
+// GET: Check Video Status
+// ========================================================================
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -196,10 +139,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const requestRef = doc(db, 'videoRequests', requestId);
-    const requestDoc = await getDoc(requestRef);
+    // Admin SDK Firestore syntax
+    const requestRef = db.collection('videoRequests').doc(requestId);
+    const requestDoc = await requestRef.get();
 
-    if (!requestDoc.exists()) {
+    if (!requestDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'Video request not found' },
         { status: 404 }
@@ -207,19 +151,122 @@ export async function GET(request: NextRequest) {
     }
 
     const data = requestDoc.data();
+    if (!data) {
+        return NextResponse.json(
+            { success: false, error: 'Video request data is empty' },
+            { status: 404 }
+        );
+    }
+    
+    // Convert Timestamps to ISO strings for JSON serialization
+    const createdAt = (data.createdAt as admin.firestore.Timestamp)?.toDate().toISOString();
+    const completedAt = (data.completedAt as admin.firestore.Timestamp)?.toDate().toISOString();
 
-    return NextResponse.json({
-      success: true,
-      status: data.status,
-      videoUrl: data.videoUrl,
-      progress: data.progress || 0,
-      error: data.error,
-      createdAt: data.createdAt?.toDate().toISOString(),
-      completedAt: data.completedAt?.toDate().toISOString()
-    });
+    // If status is NOT processing, just return the data from Firestore
+    if (data.status !== 'processing') {
+      return NextResponse.json({
+        success: true,
+        status: data.status,
+        videoUrl: data.videoUrl,
+        progress: data.progress || 0,
+        error: data.error,
+        createdAt: createdAt,
+        completedAt: completedAt
+      });
+    }
+
+    // --- Status is 'processing', so we must check Remotion ---
+    if (!IS_PRODUCTION) {
+        // This 'else' block will not be reached if IS_PRODUCTION is true
+        return NextResponse.json({ success: true, status: 'processing', progress: data.progress });
+    }
+
+    // --- Production: Check progress with Remotion Lambda ---
+    try {
+      if (!data.renderId || !data.bucketName) {
+        throw new Error('Missing renderId or bucketName in Firestore document');
+      }
+
+      const progress = await getRenderProgress({
+        renderId: data.renderId,
+        bucketName: data.bucketName,
+        functionName: REMOTION_FUNCTION_NAME,
+        region: REMOTION_REGION
+      });
+
+      // 1. Still Rendering
+      if (progress.overallProgress < 1 && !progress.fatalErrorEncountered) {
+        const newProgress = Math.round(progress.overallProgress * 100);
+        if (data.progress !== newProgress) {
+          // Admin SDK Firestore syntax
+          await requestRef.update({
+            progress: newProgress,
+            updatedAt: serverTimestamp()
+          });
+        }
+        return NextResponse.json({ success: true, status: 'processing', progress: newProgress });
+      }
+
+      // 2. Render is Done!
+      if (progress.done && progress.outputFile) {
+        const videoBuffer = await fetch(progress.outputFile).then(r => r.arrayBuffer());
+        
+        // Admin SDK Storage syntax
+        const videoRef = storage.file(`quest-videos/${data.questId}/${requestId}.mp4`);
+        
+        // Save the file
+        await videoRef.save(Buffer.from(videoBuffer));
+        
+        // Make the file public so it's viewable
+        await videoRef.makePublic();
+        const videoUrl = videoRef.publicUrl(); // Get the public URL
+
+        // Admin SDK Firestore syntax
+        await requestRef.update({
+          status: 'completed',
+          videoUrl,
+          progress: 100,
+          completedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+
+        const questRef = db.collection('quest').doc(data.questId);
+        await questRef.update({
+          videoUrl,
+          videoStatus: 'completed',
+          updatedAt: serverTimestamp()
+        });
+
+        return NextResponse.json({ success: true, status: 'completed', videoUrl, progress: 100 });
+      }
+      
+      // 3. Render Failed
+      if (progress.fatalErrorEncountered) {
+        const errorMsg = progress.errors?.[0]?.message || 'Video rendering failed';
+        // Admin SDK Firestore syntax
+        await requestRef.update({
+          status: 'failed',
+          error: errorMsg,
+          updatedAt: serverTimestamp()
+        });
+        return NextResponse.json({ success: true, status: 'failed', error: errorMsg });
+      }
+
+      // Fallback
+      return NextResponse.json({ success: true, status: 'processing', progress: data.progress });
+
+    } catch (error: any) {
+      console.error('Error checking progress:', error);
+      return NextResponse.json({
+        success: true,
+        status: data.status,
+        progress: data.progress,
+        error: 'Failed to check render progress: ' + error.message
+      });
+    }
 
   } catch (error: any) {
-    console.error('Error checking video status:', error);
+    console.error('Error in GET /api/generate-video:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }

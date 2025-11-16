@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, Key } from 'react';
+import React, { useState, useEffect, Key, useRef } from 'react';
 import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck, Home, Calendar, User, Bell, Mail, Settings, LogOut, UserPlus, UserCheck } from 'lucide-react';
-import { subscribeToPosts, addComment, followUser, unfollowUser, savePost, unsavePost, sharePost, reportPost, deletePost } from '@/lib/postService';
+import { subscribeToPosts, addComment, sharePost, reportPost, deletePost, savePost, unsavePost } from '@/lib/postService';
+import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
 import { getCurrentUserData } from '@/lib/authService';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -12,19 +13,15 @@ import { User as UserType, Post } from '@/app/types/index';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '@/hooks/useResponsive';
-import CreatePost from '@/components/Feed_old/CreatePost';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
-import { FaPlus, FaHeart, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
+import { FaPlus, FaHeart,FaHeartbeat, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
 import { getUserBadges, getLevelInfo } from '../../../lib/firebaseSerive';
-import { getFollowingList } from '@/lib/followService';
-
-// Import the new NavBar component
 import NavBar from '@/components/Nav';
 
 // Helper function to generate username from display name
@@ -33,7 +30,7 @@ const generateUsername = (displayName: string | null | undefined): string => {
   return displayName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '');
 };
 
-// FIXED: New component for the post creation button and modal logic with responsive styles
+// Create Post Trigger Component
 const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -72,11 +69,12 @@ const ResponsiveFeedPage = () => {
   return <MobileFeedPage />;
 };
 
-// FIXED: RIGHT SIDEBAR with proper responsive behavior - hidden on mobile/tablet, visible on desktop
+// RIGHT SIDEBAR
 const RightSidebar = ({ user, userData }: any) => {
   const [badges, setBadges] = useState<any[]>([]);
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
+  const [followingList, setFollowingList] = useState<string[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -90,6 +88,10 @@ const RightSidebar = ({ user, userData }: any) => {
         const xp = userData?.totalXP || 0;
         const level = getLevelInfo(xp);
         setLevelInfo(level);
+
+        // Get following list
+        const following = await getFollowingList(user.uid);
+        setFollowingList(following);
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -100,40 +102,52 @@ const RightSidebar = ({ user, userData }: any) => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      query(collection(db, 'users'), orderBy('followers', 'desc')),
+      query(collection(db, 'users'), orderBy('followersCount', 'desc')),
       (snapshot) => {
-        const usersData = snapshot.docs.map(docc => ({
-          id: docc.id,
-          ...docc.data(),
-          photoURL: docc.data().photoURL || '/default-avatar.png',
-          followers: docc.data().followers || []
-        }));
+        const usersData = snapshot.docs
+          .map(docc => ({
+            id: docc.id,
+            ...docc.data(),
+            photoURL: docc.data().photoURL || '/default-avatar.png',
+            followers: docc.data().followers || [],
+            followersCount: docc.data().followersCount || 0
+          }))
+          .filter(u => u.id !== user?.uid); // Don't show yourself
+        
         setPopularUsers(usersData.slice(0, 4));
       }
     );
     
     return () => unsubscribe();
-  }, []);
+  }, [user?.uid]);
 
-  const handleFollow = async (uid: string) => {
-    if (!user?.uid || uid === user.uid) return;
+  const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid || targetUserId === user.uid) return;
     
     try {
-      const userToFollow = popularUsers.find(u => u.id === uid);
-      const isFollowing = userToFollow?.followers?.includes(user.uid);
+      const isFollowing = followingList.includes(targetUserId);
       
+      // Optimistically update UI
+      setFollowingList(prev => 
+        isFollowing 
+          ? prev.filter(id => id !== targetUserId)
+          : [...prev, targetUserId]
+      );
+
       if (isFollowing) {
-        await unfollowUser(user.uid, uid);
+        await unfollowUserService(user.uid, targetUserId);
       } else {
-        await followUser(user.uid, uid);
+        await followUserService(user.uid, targetUserId);
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
+      // Revert optimistic update
+      const following = await getFollowingList(user.uid);
+      setFollowingList(following);
     }
   };
 
   return (
-    // FIXED: Hidden on screens smaller than 1280px (xl), only shows on large desktop
     <div className="hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
       {/* User Profile Card */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
@@ -235,35 +249,38 @@ const RightSidebar = ({ user, userData }: any) => {
         <div className="space-y-3">
           {popularUsers.map((traveler) => (
             <div key={traveler.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push(`/profile/${traveler.id}`)}>
+              <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/profile/${traveler.id}`)}>
                 <img 
                   src={traveler.photoURL} 
                   alt={traveler.displayName}
-                  className="w-10 h-10 rounded-full object-cover"
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                 />
-                <div>
-                  <h5 className="text-white text-sm font-medium hover:underline">
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-white text-sm font-medium hover:underline truncate">
                     {traveler.displayName}
                   </h5>
-                  <p className="text-gray-400 text-xs">
-                    @{generateUsername(traveler.displayName)}
+                  <p className="text-gray-400 text-xs truncate">
+                    {traveler.followersCount} followers
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => handleFollow(traveler.id)}
-                className={`text-xs px-3 py-1 rounded-full transition-colors ${
-                  traveler.followers?.includes(user?.uid)
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFollow(traveler.id);
+                }}
+                className={`text-xs px-3 py-1 rounded-full transition-colors flex-shrink-0 ml-2 ${
+                  followingList.includes(traveler.id)
                     ? 'bg-gray-700 text-white hover:bg-gray-600' 
                     : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
                 }`}
               >
-                {traveler.followers?.includes(user?.uid) ? 'Following' : 'Follow'}
+                {followingList.includes(traveler.id) ? 'Following' : 'Follow'}
               </button>
             </div>
           ))}
         </div>
-        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline">
+        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline w-full text-left">
           Explore more
         </button>
       </div>
@@ -271,12 +288,36 @@ const RightSidebar = ({ user, userData }: any) => {
   );
 };
 
-// Professional Post Menu Component
-const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
+// IMPROVED POST MENU - Shows near the post
+const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
   const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (anchorRef?.current && menuRef.current) {
+      const anchorRect = anchorRef.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      
+      // Position below and to the left of the anchor
+      let top = anchorRect.bottom + 8;
+      let right = window.innerWidth - anchorRect.right;
+      
+      // Adjust if menu would go off-screen
+      if (top + menuRect.height > window.innerHeight) {
+        top = anchorRect.top - menuRect.height - 8;
+      }
+      
+      if (right + menuRect.width > window.innerWidth) {
+        right = 16;
+      }
+      
+      setPosition({ top, right });
+    }
+  }, [anchorRef]);
 
   const handleCopyLink = () => {
     const postUrl = `${window.location.origin}/post/${post.id}`;
@@ -317,8 +358,8 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
 
   if (showReportModal) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-        <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6">
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={() => setShowReportModal(false)}>
+        <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white">Report Post</h3>
             <button 
@@ -378,69 +419,69 @@ const PostMenu = ({ post, user, onClose, onDelete, onReport }: any) => {
   }
 
   return (
-    <div
-      className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <>
       <div
-        className="bg-gray-900 rounded-xl w-full max-w-sm border border-gray-700 overflow-hidden shadow-xl"
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+      />
+      <div
+        ref={menuRef}
+        style={{ 
+          position: 'fixed',
+          top: `${position.top}px`,
+          right: `${position.right}px`,
+        }}
+        className="bg-gray-900 rounded-xl w-64 border border-gray-700 overflow-hidden shadow-2xl z-50"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-gray-700">
-          <h3 className="text-lg font-bold text-white">Post Options</h3>
-        </div>
-
         <div className="py-2">
           <button
             onClick={handleCopyLink}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
           >
-            <Copy size={20} className="text-gray-400" />
-            <span>Copy Link</span>
+            <Copy size={18} className="text-gray-400" />
+            <span className="text-sm">Copy Link</span>
           </button>
 
           {isOwnPost ? (
             <>
               <button
-                onClick={() => {/* Edit functionality can be added later */}}
+                onClick={() => {/* Edit functionality */}}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
               >
-                <Edit size={20} className="text-gray-400" />
-                <span>Edit Post</span>
+                <Edit size={18} className="text-gray-400" />
+                <span className="text-sm">Edit Post</span>
               </button>
+
+              <div className="border-t border-gray-800 my-1" />
 
               <button
                 onClick={handleDelete}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
               >
-                <Trash2 size={20} />
-                <span>Delete Post</span>
+                <Trash2 size={18} />
+                <span className="text-sm">Delete Post</span>
               </button>
             </>
           ) : (
-            <button
-              onClick={() => setShowReportModal(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
-            >
-              <Flag size={20} />
-              <span>Report Post</span>
-            </button>
+            <>
+              <div className="border-t border-gray-800 my-1" />
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
+              >
+                <Flag size={18} />
+                <span className="text-sm">Report Post</span>
+              </button>
+            </>
           )}
         </div>
-
-        <div className="p-3 border-t border-gray-700">
-          <button
-            onClick={onClose}
-            className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-700 transition-colors font-medium"
-          >
-            Cancel
-          </button>
-        </div>
       </div>
-    </div>
+    </>
   );
 };
 
+// Share Modal
 const ShareModal = ({ post, onClose }: any) => {
   const postUrl = `${window.location.origin}/post/${post.id}`;
 
@@ -557,7 +598,7 @@ const ShareModal = ({ post, onClose }: any) => {
   );
 };
 
-// Inline Comments Component for Desktop
+// Inline Comments Component
 const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<any[]>([]);
@@ -623,7 +664,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
     try {
       await onCommentSubmit(post.id, commentText);
       setCommentText('');
-      loadComments(); // Refresh comments
+      loadComments();
     } catch (error) {
       console.error('Error submitting comment:', error);
     }
@@ -657,7 +698,6 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
 
       {showComments && (
         <div className="space-y-3">
-          {/* Comment Input */}
           <form onSubmit={handleSubmit} className="flex items-start gap-3">
             <img 
               src={user?.photoURL || '/default-avatar.png'} 
@@ -687,7 +727,6 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
             </div>
           </form>
 
-          {/* Comments List */}
           {loading ? (
             <div className="text-center py-4">
               <div className="text-gray-400 text-sm">Loading comments...</div>
@@ -730,7 +769,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   );
 };
 
-// FIXED: DESKTOP FEED COMPONENT with responsive layout
+// DESKTOP FEED COMPONENT
 const Feed = () => {
   const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -738,39 +777,45 @@ const Feed = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
   const router = useRouter();
   
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [followingList, setFollowingList] = useState<string[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser({
-          uid: currentUser.uid,
-          displayName: currentUser.displayName ?? undefined,
-          email: currentUser.email ?? undefined,
-          photoURL: currentUser.photoURL ?? undefined
-        });
-        
-        try {
-          const userDetails = await getCurrentUserData();
-          setUserData(userDetails);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      } else {
-        setUser(null);
-        setUserData(null);
-      }
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    if (currentUser) {
+      setUser({
+        uid: currentUser.uid,
+        displayName: currentUser.displayName ?? undefined,
+        email: currentUser.email ?? undefined,
+        photoURL: currentUser.photoURL ?? undefined
+      });
       
-      setLoading(false);
-    });
+      try {
+        const userDetails = await getCurrentUserData();
+        setUserData(userDetails);
+        
+        // 🔥 ADD THESE 2 LINES
+        const following = await getFollowingList(currentUser.uid);
+        setFollowingList(following);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    } else {
+      setUser(null);
+      setUserData(null);
+    }
     
-    return () => unsubscribe();
-  }, []);
+    setLoading(false);
+  });
+  
+  return () => unsubscribe();
+}, []);
 
   useEffect(() => {
     const loadInitialPosts = async () => {
@@ -999,14 +1044,40 @@ const Feed = () => {
     }
   };
 
-  const handleFollowInPost = async (authorId: string) => {
-    if (!user?.uid || authorId === user.uid) return;
+  // 🔥 ADD THIS ENTIRE FUNCTION
+const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid || !targetUserId || targetUserId === user.uid) {
+      console.error('Invalid follow attempt', { 
+        currentUserId: user?.uid, 
+        targetUserId 
+      });
+      return;
+    }
     
     try {
-      await followUser(user.uid, authorId);
-      // Optionally update local state to reflect the follow
+      const isFollowing = followingList.includes(targetUserId);
+      
+      // Optimistically update UI
+      setFollowingList(prev => 
+        isFollowing 
+          ? prev.filter(id => id !== targetUserId)
+          : [...prev, targetUserId]
+      );
+
+      if (isFollowing) {
+        await unfollowUserService(user.uid, targetUserId);
+      } else {
+        await followUserService(user.uid, targetUserId);
+      }
+      
+      // Refresh user data to update counts
+      const userDetails = await getCurrentUserData();
+      setUserData(userDetails);
     } catch (error) {
-      console.error('Error following user:', error);
+      console.error('Error toggling follow:', error);
+      // Revert optimistic update
+      const following = await getFollowingList(user.uid);
+      setFollowingList(following);
     }
   };
 
@@ -1034,107 +1105,13 @@ const Feed = () => {
   const DesktopPost = ({ post, user }: { post: any, user: UserType | null }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
     const isSaved = post.isSaved;
-    const [isFollowingUser, setIsFollowingUser] = useState(true);
-    const [checkingFollow, setCheckingFollow] = useState(true);
     const authorId = post.author?.id || post.uid;
+    const isFollowingUser = followingList.includes(authorId);
+    const isOwnPost = user?.uid === authorId;
 
-    // useEffect(() => {
-    //   const checkFollowStatus = async () => {
-    //     if (!user?.uid || !authorId || user.uid === authorId) {
-    //       setCheckingFollow(false);
-    //       return;
-    //     }
-        
-    //     try {
-    //       const followerDocRef = doc(db, 'users', authorId, 'followers', user.uid);
-    //       const followerDoc = await getDoc(followerDocRef);
-    //       setIsFollowingUser(followerDoc.exists());
-    //     } catch (error) {
-    //       console.error('Error checking follow status:', error);
-    //     } finally {
-    //       setCheckingFollow(false);
-    //     }
-    //   };
-
-    //   checkFollowStatus();
-    // }, [user?.uid, authorId]);
-
-    useEffect(() => {
-
-    const checkFollowStatus = async () => {
-      // 1. Initial Checks
-      if (!user?.uid || !authorId || user.uid === authorId) {
-        setCheckingFollow(false);
-        return;
-      }
-      
-      try {
-        // 2. Fetch the current user's 'following' array
-        const followingList = await getFollowingList(user.uid);
-
-        // 3. Check if the authorId is in the list
-        const isFollowing = followingList.includes(authorId);
-        
-        // TEMPORARY LOG: Check what the helper function actually returned
-        console.log("Following List Retrieved:", followingList);
-        console.log("Author ID to check:", authorId);
-
-        setIsFollowingUser(isFollowing);
-        // setIsFollowingUser(true);
-
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-      } finally {
-        setCheckingFollow(false);
-      }
-    };
-
-    checkFollowStatus();
-    
-}, [user?.uid, authorId]); // Dependencies are correct
-
-    const handleFollowClick = async () => {
-        if (!user?.uid || !authorId || authorId === user.uid) {
-          console.error('Invalid user IDs for follow operation');
-          return;
-        }
-
-        try {
-          if (isFollowingUser) {
-            await unfollowUser(user.uid, authorId);
-            setIsFollowingUser(false);
-          } else {
-            await followUser(user.uid, authorId);
-            setIsFollowingUser(true);
-          }
-        } catch (error) {
-          console.error('Error toggling follow:', error);
-        }
-      };
-
-    const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
-    const questData = post.questData || post.questContext;
     const postText = post.content?.text || post.text;
     const postImages = post.content?.images || post.photoUrls || [];
-    const initialPostImage = postImages.length > 0 ? postImages[0] : '';
-    const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
     const [currentImageIdx, setCurrentImageIdx] = useState(0);
-
-    useEffect(() => {
-        const resolveQuestImage = async () => {
-            if (isQuestPost && !finalPostImage && questData?.questId && user?.uid) {
-                try {
-                    const questDoc = await questService.getQuest(user.uid, questData.questId);
-                    if (questDoc && questDoc.coverImageUrl) {
-                        setFinalPostImage(questDoc.coverImageUrl);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch fallback quest cover image:", error);
-                }
-            }
-        };
-        resolveQuestImage();
-    }, [post.id, isQuestPost, finalPostImage, questData?.questId, user?.uid]);
 
     if (post.postType === 'quest_completion' || post.questContext) {
       return (
@@ -1164,139 +1141,6 @@ const Feed = () => {
       );
     }
 
-    if (isQuestPost) {
-      return (
-        <article className="border bg-gray-900 mb-4 rounded-xl border-gray-700 overflow-hidden">
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3 flex-1">
-              <img 
-                src={post.author.avatar} 
-                alt={post.author.name} 
-                className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => router.push(`/profile/${post.author.id}`)}
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.author.id}`)}>
-                    {post.author.name}
-                  </h3>
-                  {!checkingFollow && user?.uid !== post.author.id && (
-                    <button
-                      onClick={handleFollowClick}
-                      className={`text-xs px-2 py-1 rounded-full transition-colors ${
-                        isFollowingUser
-                          ? 'bg-gray-700 text-white hover:bg-gray-600'
-                          : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
-                      }`}
-                    >
-                      {isFollowingUser ? <UserCheck size={14} /> : <UserPlus size={14} />}
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-gray-400 text-xs">@{generateUsername(post.author.name)}</p>
-                  <span className="text-gray-400 text-xs">·</span>
-                  <p className="text-gray-400 text-xs">Shared a Quest · {formatTime(post.metadata.createdAt)}</p>
-                </div>
-              </div>
-            </div>
-            <button onClick={() => setSelectedPostForMenu(post)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {postText && (
-            <p className="px-4 pb-3 text-white text-sm">{postText}</p>
-          )}
-
-          {postImages && postImages.length > 0 && (
-            <div className="px-4 pb-3 relative">
-              <img
-                src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]} 
-                alt={`Post content ${currentImageIdx + 1}`}
-                className="w-full rounded-lg object-contain max-h-[500px] bg-gray-800"
-              />
-              
-              {postImages.length > 1 && (
-                <>
-                  <button 
-                    onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                    </svg>
-                  </button>
-                  <button 
-                    onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </button>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {postImages.map((_: any, index: number) => (
-                      <div 
-                        key={index}
-                        className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="border-t border-gray-700 px-4 py-3">
-            <div className="flex items-center gap-6">
-              <button 
-                onClick={() => handleLike(post.id)}
-                className={`flex items-center gap-2 transition-colors ${
-                  isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-                }`}
-              >
-                <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-                <span className="text-sm font-medium">{post.stats.likes || 0}</span>
-              </button>
-              
-              <button 
-                onClick={() => handleCommentSubmit(post.id, '')}
-                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
-              >
-                <FaRegCommentDots className="w-5 h-5" />
-                <span className="text-sm font-medium">{post.stats.comments || 0}</span>
-              </button>
-              
-              <button 
-                onClick={() => handleShare(post.id)}
-                className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
-              >
-                <FaShareSquare className="w-5 h-5" />
-                <span className="text-sm font-medium">{post.stats.shares || 0}</span>
-              </button>
-
-              <button 
-                onClick={() => handleSave(post.id)}
-                className={`ml-auto transition-colors ${
-                  isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-                }`}
-              >
-                {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Inline Comments */}
-          <InlineComments 
-            post={post} 
-            user={user} 
-            onCommentSubmit={handleCommentSubmit}
-          />
-        </article>
-      );
-    }
-
     return (
       <article className="border bg-gray-900 mb-4 rounded-xl border-gray-700 overflow-hidden">
         <div className="flex items-center justify-between p-4">
@@ -1312,18 +1156,6 @@ const Feed = () => {
                 <h3 className="text-base font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.author.id}`)}>
                   {post.author.name}
                 </h3>
-                {!checkingFollow && user?.uid !== post.author.id && (
-                  <button
-                    onClick={handleFollowClick}
-                    className={`text-xs px-2 py-1 rounded-full transition-colors ${
-                      isFollowingUser
-                        ? 'bg-gray-700 text-white hover:bg-gray-600'
-                        : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
-                    }`}
-                  >
-                    {isFollowingUser ? <UserCheck size={14} /> : <UserPlus size={14} />}
-                  </button>
-                )}
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-gray-400 text-xs">@{generateUsername(post.author.name)}</p>
@@ -1332,12 +1164,46 @@ const Feed = () => {
               </div>
             </div>
           </div>
-          <button 
-            onClick={() => setSelectedPostForMenu(post)}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
-          >
-            <MoreHorizontal className="w-5 h-5 text-gray-400" />
-          </button>
+          
+          <div className="flex items-center gap-2">
+            {!isOwnPost && (
+              <button
+                onClick={() => handleFollow(authorId)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  isFollowingUser
+                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                }`}
+              >
+                {isFollowingUser ? (
+                  <div className="flex items-center gap-1">
+                    <UserCheck size={16} />
+                    <span>Following</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <UserPlus size={16} />
+                    <span>Follow</span>
+                  </div>
+                )}
+              </button>
+            )}
+            
+            <button 
+              ref={(el) => {
+                if (selectedPostForMenu?.id === post.id) {
+                  setMenuAnchorRef(el);
+                }
+              }}
+              onClick={(e) => {
+                setMenuAnchorRef(e.currentTarget);
+                setSelectedPostForMenu(post);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+            >
+              <MoreHorizontal className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {postText && (
@@ -1391,7 +1257,7 @@ const Feed = () => {
                 isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
               }`}
             >
-              <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
             
@@ -1422,7 +1288,6 @@ const Feed = () => {
           </div>
         </div>
 
-        {/* Inline Comments */}
         <InlineComments 
           post={post} 
           user={user} 
@@ -1443,19 +1308,8 @@ const Feed = () => {
         onSignOut={handleSignOut}
       />
 
-      {/* FIXED: Responsive layout with proper margins */}
-      {/* On mobile: no margins, On tablet/desktop without sidebar: left margin only, On large desktop: both margins */}
       <main className="md:ml-[280px] xl:mr-[380px] min-h-screen bg-black">
         <div className="max-w-2xl mx-auto md:border-x border-gray-700 min-h-screen">
-          {/* <div className="border-b border-gray-700">
-            <div className="p-4 bg-black">
-              <h1 className="text-xl md:text-2xl font-medium text-white bg-black">
-                New day, <span className="text-[#EA6100]"> new Quest</span> — let's go! 
-              </h1>
-            </div>
-            <CreatePostTrigger user={user} />
-          </div> */}
-          
           <div className="p-4">
             {initialLoading ? (
               <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
@@ -1509,15 +1363,20 @@ const Feed = () => {
         </div>
       )}
 
-      {selectedPostForMenu && (
+      {selectedPostForMenu && menuAnchorRef && (
         <PostMenu
           post={selectedPostForMenu}
           user={user}
-          onClose={() => setSelectedPostForMenu(null)}
+          onClose={() => {
+            setSelectedPostForMenu(null);
+            setMenuAnchorRef(null);
+          }}
           onDelete={() => {
             setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
             setSelectedPostForMenu(null);
+            setMenuAnchorRef(null);
           }}
+          anchorRef={menuAnchorRef}
         />
       )}
 
@@ -1531,8 +1390,7 @@ const Feed = () => {
   );
 };
 
-// Mobile components remain the same but with updated icons
-// Mobile components remain the same but with updated icons
+// Mobile Post Card Component
 const MobilePostCard = ({ 
   post, 
   currentUser, 
@@ -1540,116 +1398,24 @@ const MobilePostCard = ({
   onComment, 
   onSave, 
   onShare, 
-  onMenuClick 
+  onMenuClick,
+  followingList,
+  onFollow
 }: any) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [isFollowingUser, setIsFollowingUser] = useState(false);
-  const [checkingFollow, setCheckingFollow] = useState(true);
   const router = useRouter();
 
   const isLiked = post.likedBy?.includes(currentUser.uid);
   const isSaved = post.isSaved;
   const authorId = post.uid;
+  const isFollowingUser = followingList.includes(authorId);
+  const isOwnPost = currentUser?.uid === authorId;
 
-  // useEffect(() => {
-  //   const checkFollowStatus = async () => {
-  //     if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
-  //       setCheckingFollow(false);
-  //       return;
-  //     }
-      
-  //     try {
-  //       const followerDocRef = doc(db, 'users', authorId, 'followers', currentUser.uid);
-  //       const followerDoc = await getDoc(followerDocRef);
-  //       setIsFollowingUser(followerDoc.exists());
-  //     } catch (error) {
-  //       console.error('Error checking follow status:', error);
-  //     } finally {
-  //       setCheckingFollow(false);
-  //     }
-  //   };
-
-  //   checkFollowStatus();
-  // }, [currentUser?.uid, authorId]);
-
-  // Assuming getFollowingList is imported and setCheckingFollow/setIsFollowingUser are states
-useEffect(() => {
-    const checkFollowStatus = async () => {
-        
-        if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
-            setCheckingFollow(false);
-            return;
-        }
-        
-        try {
-            // 🛑 CHANGE 🛑: Use the helper to read the 'following' array field
-            const followingList = await getFollowingList(currentUser.uid); 
-
-            // Check if the authorId is included in the array
-            const isFollowing = followingList.includes(authorId); 
-            
-            setIsFollowingUser(isFollowing);
-
-        } catch (error) {
-            console.error('Error checking follow status:', error);
-        } finally {
-            setCheckingFollow(false);
-        }
-    };
-
-    checkFollowStatus();
-    
-}, [currentUser?.uid, authorId]);
-
-  const handleFollowClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (!currentUser?.uid || !authorId || currentUser.uid === authorId) {
-      console.error('Invalid user IDs for follow action', { 
-        currentUserId: currentUser?.uid, 
-        authorId 
-      });
-      return;
-    }
-
-    try {
-      if (isFollowingUser) {
-        await unfollowUser(currentUser.uid, authorId);
-        setIsFollowingUser(false);
-      } else {
-        await followUser(currentUser.uid, authorId);
-        setIsFollowingUser(true);
-      }
-    } catch (error) {
-      console.error('Error toggling follow:', error);
-    }
-  };
-
-  const isQuestPost = post.postType === 'quest' || post.postType === 'quest_completion';
-  const questData = post.questData || post.questContext;
-  const initialPostImage = post.photoUrl;
-  const [finalPostImage, setFinalPostImage] = useState(initialPostImage);
   const postImages = post.imageUrls || post.photoUrls || (post.photoUrl ? [post.photoUrl] : []);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
-  
-  useEffect(() => {
-    const resolveQuestImage = async () => {
-        if (isQuestPost && !finalPostImage && questData?.questId && currentUser?.uid) {
-            try {
-                const questDoc = await questService.getQuest(currentUser.uid, questData.questId);
-                if (questDoc && questDoc.coverImageUrl) {
-                    setFinalPostImage(questDoc.coverImageUrl);
-                }
-            } catch (error) {
-                console.error("Failed to fetch fallback quest cover image:", error);
-            }
-        }
-    };
-    resolveQuestImage();
-  }, [post.id, isQuestPost, finalPostImage, questData?.questId, currentUser?.uid]);
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
@@ -1731,7 +1497,6 @@ useEffect(() => {
   };
  
   if (post.postType === 'quest_completion' || post.questContext) {
-    // FIX: Wrap in a fragment and add the comment modal logic
     return (
       <>
         <MobileQuestPostCard
@@ -1828,205 +1593,7 @@ useEffect(() => {
       </>
     );
   }
-  if (isQuestPost) {
-    return (
-      <article className="border-b border-gray-800 bg-black p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3 flex-1">
-            <img 
-              src={post.userProfilePic || '/default-avatar.png'} 
-              alt={post.userName}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => router.push(`/profile/${post.uid}`)}
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.uid}`)}>
-                  {post.userName}
-                </h3>
-                {!checkingFollow && currentUser?.uid !== post.uid && (
-                  <button
-                    onClick={handleFollowClick}
-                    className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
-                      isFollowingUser
-                      ? 'bg-gray-700 text-white'
-                      : 'bg-[#F7CEB0] text-black'
-                    }`}
-                  >
-                    {isFollowingUser ? <UserCheck size={12} /> : <UserPlus size={12} />}
-                    <span className="whitespace-nowrap">
-                      {isFollowingUser ? 'Following' : 'Follow'}
-                    </span>
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
-                <span className="text-xs text-gray-400">·</span>
-                <p className="text-xs text-gray-400">Shared a Quest · {formatTime(post.createdAt)}</p>
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={onMenuClick}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
-          >
-            <MoreHorizontal className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
 
-        {post.text && (
-          <p className="text-white text-sm mb-3">{post.text}</p>
-        )}
-
-        {postImages && postImages.length > 0 && (
-          <div className="mb-3 relative rounded-lg overflow-hidden">
-            <img
-              src={postImages[currentImageIdx]?.large || postImages[currentImageIdx]}
-              alt={`Post content ${currentImageIdx + 1}`}
-              className="w-full object-contain max-h-[70vh] bg-gray-800"
-            />
-            
-            {postImages.length > 1 && (
-              <>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                  </svg>
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                  </svg>
-                </button>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                  {postImages.map((_: any, index: number) => (
-                    <div 
-                      key={index}
-                      className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-2 border-t border-gray-800">
-          <button 
-            onClick={onLike}
-            className={`flex items-center gap-2 transition-colors ${
-              isLiked ? 'text-red-500' : 'text-gray-400'
-            }`}
-          >
-            <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span className="text-xs font-medium">{post.likeCount || 0}</span>
-          </button>
-          
-          <button 
-            onClick={handleToggleComments}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
-          >
-            <FaRegCommentDots className="w-5 h-5" />
-            <span className="text-xs font-medium">{post.commentCount || 0}</span>
-          </button>
-          
-          <button 
-            onClick={onShare}
-            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
-          >
-            <FaShareSquare className="w-5 h-5" />
-            <span className="text-xs font-medium">{post.shareCount || 0}</span>
-          </button>
-
-          <button 
-            onClick={onSave}
-            className={`transition-colors ${
-              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-            }`}
-          >
-            {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {showComments && (
-          <div className="mt-4 pt-4 border-t border-gray-800">
-            <form onSubmit={handleSubmitComment} className="mb-4">
-              <div className="flex items-start gap-2">
-                <img 
-                  src={currentUser.photoURL || '/default-avatar.png'} 
-                  alt="Your profile"
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                />
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Add a comment..."
-                    className="w-full bg-gray-900 text-white px-3 py-2 pr-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!commentText.trim()}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                      commentText.trim() 
-                        ? 'text-[#F7CEB0]' 
-                        : 'text-gray-600'
-                    }`}
-                  >
-                    <Send size={16} />
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            {loadingComments ? (
-              <div className="text-center py-4">
-                <div className="text-gray-400 text-sm">Loading comments...</div>
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-gray-400 text-sm">No comments yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex items-start gap-2">
-                    <img 
-                      src={comment.author.avatar} 
-                      alt={comment.author.name}
-                      className="w-7 h-7 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => router.push(`/profile/${comment.author.uid}`)}
-                    />
-                    <div className="flex-1">
-                      <div className="bg-gray-900 rounded-lg p-2">
-                        <h4 className="text-xs font-medium text-white mb-1 cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
-                          {comment.author.name}
-                        </h4>
-                        <p className="text-xs text-gray-300">{comment.text}</p>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1 ml-2">
-                        {formatTime(comment.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </article>
-    );
-  }
-
-  // This is the default card for regular posts
   return (
     <article className="border-b border-gray-800 bg-black p-4">
       <div className="flex items-center justify-between mb-3">
@@ -2042,20 +1609,6 @@ useEffect(() => {
               <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.authorId}`)}>
                 {post.userName}
               </h3>
-              {!checkingFollow && currentUser?.uid !== post.uid && (
-                <button
-                  onClick={handleFollowClick}
-                  className={`ml-auto flex items-center gap-2 text-xs px-2 py-0.5 rounded-full transition-colors ${
-                    isFollowingUser
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-black text-white border border-black'
-                  }`}
-                >
-                  <span className="whitespace-nowrap">
-                    {isFollowingUser ? 'Following' : 'Follow'}
-                  </span>
-                </button>
-              )}
             </div>
             <div className="flex items-center gap-1">
               <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
@@ -2066,12 +1619,31 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        <button 
-          onClick={onMenuClick}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
-        >
-          <MoreHorizontal className="w-5 h-5 text-gray-400" />
-        </button>
+        
+        <div className="flex items-center gap-2">
+          {!isOwnPost && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onFollow(authorId);
+              }}
+              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                isFollowingUser
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-[#F7CEB0] text-black'
+              }`}
+            >
+              {isFollowingUser ? 'Following' : 'Follow'}
+            </button>
+          )}
+          
+          <button 
+            onClick={onMenuClick}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
+          >
+            <MoreHorizontal className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
       </div>
 
       {post.text && (
@@ -2124,7 +1696,7 @@ useEffect(() => {
             isLiked ? 'text-red-500' : 'text-gray-400'
           }`}
         >
-          <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
           <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
         
@@ -2225,7 +1797,7 @@ useEffect(() => {
   );
 };
 
-// FIXED: Mobile Feed Page with responsive header
+// MOBILE FEED PAGE
 const MobileFeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2233,6 +1805,7 @@ const MobileFeedPage = () => {
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [followingList, setFollowingList] = useState<string[]>([]);
   
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -2245,6 +1818,11 @@ const MobileFeedPage = () => {
           const userData = await getCurrentUserData();
           setUser(userData);
           setUserData(userData);
+          
+          // Load following list
+          const following = await getFollowingList(authUser.uid);
+          setFollowingList(following);
+          
         } catch (error) {
           console.error('Error getting user data:', error);
           setUser({
@@ -2312,7 +1890,7 @@ const MobileFeedPage = () => {
       
       const postsData = result.posts.map(post => ({
         id: post.id,
-        authorId: post.uid,
+        authorId: post.uid || post.authorId,
         uid: post.uid,
         userName: post.userName || post.author.name,
         userProfilePic: post.userProfilePic || post.author.avatar,
@@ -2494,6 +2072,43 @@ const MobileFeedPage = () => {
     }
   };
 
+  // 🔥 ADD THIS ENTIRE FUNCTION
+const handleFollow = async (targetUserId: string) => {
+  if (!user?.uid || !targetUserId || targetUserId === user.uid) {
+    console.error('Invalid follow attempt', { 
+      currentUserId: user?.uid, 
+      targetUserId 
+    });
+    return;
+  }
+  
+  try {
+    const isFollowing = followingList.includes(targetUserId);
+    
+    // Optimistically update UI
+    setFollowingList(prev => 
+      isFollowing 
+        ? prev.filter(id => id !== targetUserId)
+        : [...prev, targetUserId]
+    );
+
+    if (isFollowing) {
+      await unfollowUserService(user.uid, targetUserId);
+    } else {
+      await followUserService(user.uid, targetUserId);
+    }
+    
+    // Silently refresh user data in background
+    const userDetails = await getCurrentUserData();
+    setUserData(userDetails);
+  } catch (error) {
+    console.error('Error toggling follow:', error);
+    // Revert optimistic update on error
+    const following = await getFollowingList(user.uid);
+    setFollowingList(following);
+  }
+};
+
   if (!user && !loading) {
     return (
       <div className="w-full min-h-screen bg-black text-white flex items-center justify-center">
@@ -2522,7 +2137,6 @@ const MobileFeedPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
-      {/* FIXED: Sticky header with proper responsive styling */}
       <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-700">
         <Header /> 
         
@@ -2553,6 +2167,8 @@ const MobileFeedPage = () => {
                 onSave={() => handleSavePost(post.id)}
                 onShare={() => handleSharePost(post.id)}
                 onMenuClick={() => setSelectedPostForMenu(post)}
+                followingList={followingList}
+                onFollow={handleFollow}
               />
             ))}
 
@@ -2584,6 +2200,7 @@ const MobileFeedPage = () => {
             setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
             setSelectedPostForMenu(null);
           }}
+          anchorRef={null}
         />
       )}
 

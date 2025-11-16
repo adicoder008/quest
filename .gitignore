@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/remotion
+/components/Feed_old
+/scripts
 /.pnp
 .pnp.*
 .yarn/*

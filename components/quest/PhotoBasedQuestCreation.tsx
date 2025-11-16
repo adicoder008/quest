@@ -287,7 +287,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           title: `Day ${group.day} in ${destination}`,
           activities: group.photos.map((photo, idx) => ({
             timeSlot: getTimeSlot(idx),
-            time: getTimeForSlot(getTimeSlot(idx), idx % 3),
+            time: getTimeSlot(idx),
             title: photo.title || `Stop ${idx + 1}`,
             description: photo.description || '',
             location: photo.location ? {
