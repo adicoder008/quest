@@ -15,12 +15,17 @@ import {
   DollarSign,
   Car,
   Info,
-  Camera
+  Camera,
+  Users
 } from 'lucide-react';
 import { compressAndUploadImage } from '@/lib/imageService';
 import questService from '@/lib/questService';
 import { extractLocationFromPhoto } from '@/lib/exifExtractor';
 import LocationSearchModal from './LocationSearchModal';
+import AddOnQuestPersonModal, { OnQuestPersonData } from './AddOnQuestPersonModal';
+import onQuestPeopleService, { CreateOnQuestPersonData } from '@/lib/onQuestPeopleService';
+import { OnQuestPersonReview } from '@/lib/onQuestPeopleService';
+
 interface PhotoWithMetadata {
   id: string;
   file: File;
@@ -40,11 +45,13 @@ interface PhotoWithMetadata {
   transportMode?: string;
   isCollapsed?: boolean;
 }
+
 interface DayGrouping {
   day: number;
   date: string;
   photos: PhotoWithMetadata[];
 }
+
 interface PhotoQuestCreationProps {
   userId: string;
   destination: string;
@@ -52,6 +59,7 @@ interface PhotoQuestCreationProps {
   endDate: string;
   onBack: () => void;
 }
+
 const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   userId,
   destination,
@@ -60,7 +68,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   onBack
 }) => {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<'upload' | 'organize' | 'cover'>('upload');
+  const [currentStep, setCurrentStep] = useState<'upload' | 'organize' | 'contacts' | 'cover'>('upload');
   const [photos, setPhotos] = useState<PhotoWithMetadata[]>([]);
   const [dayGroups, setDayGroups] = useState<DayGrouping[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(1);
@@ -73,10 +81,14 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   const [newCoverImage, setNewCoverImage] = useState<File | null>(null);
   const [newCoverPreview, setNewCoverPreview] = useState<string | null>(null);
   const [showWarning, setShowWarning] = useState(false);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [questContacts, setQuestContacts] = useState<OnQuestPersonData[]>([]);
   const photoRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
   const start = new Date(startDate);
   const end = new Date(endDate);
   const dayCount = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1);
+
   React.useEffect(() => {
     const groups: DayGrouping[] = Array.from({ length: dayCount }, (_, i) => {
       const currentDate = new Date(start);
@@ -89,6 +101,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
     });
     setDayGroups(groups);
   }, [dayCount, startDate]);
+
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
    
@@ -100,6 +113,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       }
       return true;
     });
+
     const newPhotosPromises = validFiles.map(async (file) => {
       const preview = URL.createObjectURL(file);
       const photoId = `${Date.now()}-${Math.random().toString(36)}`;
@@ -123,6 +137,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         isCollapsed: false
       };
     });
+
     const newPhotos = await Promise.all(newPhotosPromises);
     setPhotos(prev => [...prev, ...newPhotos]);
    
@@ -132,6 +147,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       setTimeout(() => setExifToast({ show: false, count: 0 }), 4000);
     }
   }, []);
+
   const uploadPhotos = async () => {
     setUploading(true);
    
@@ -161,9 +177,11 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         return { ...photo, uploadStatus: 'error' as const };
       }
     });
+
     await Promise.all(uploadPromises);
     setUploading(false);
   };
+
   const removePhoto = (photoId: string) => {
     setPhotos(prev => {
       const photo = prev.find(p => p.id === photoId);
@@ -175,30 +193,37 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       ...group,
       photos: group.photos.filter(p => p.id !== photoId)
     })));
+
     if (selectedCoverPhotoId === photoId) {
       setSelectedCoverPhotoId(null);
     }
   };
+
   const assignPhotoToDay = (photoId: string) => {
     const photoToMove = photos.find(p => p.id === photoId);
     if (!photoToMove) return;
+
     const updatedPhoto = { ...photoToMove, dayAssigned: selectedDay, isCollapsed: false };
     setPhotos(prev => prev.map(p =>
       p.id === photoId ? updatedPhoto : p
     ));
+
     setDayGroups(prev => {
       const newGroups = prev.map(group => ({
         ...group,
         photos: group.photos.filter(p => p.id !== photoId)
       }));
+
       const targetGroup = newGroups.find(g => g.day === selectedDay);
      
       if (targetGroup) {
         targetGroup.photos.push(updatedPhoto);
       }
+
       return newGroups;
     });
   };
+
   const updatePhotoDetails = (photoId: string, updates: Partial<PhotoWithMetadata>) => {
     setPhotos(prev => prev.map(p =>
       p.id === photoId ? { ...p, ...updates } : p
@@ -209,6 +234,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       photos: group.photos.map(p => p.id === photoId ? { ...p, ...updates } : p)
     })));
   };
+
   const isCurrentDayValid = () => {
     const currentDayPhotos = dayGroups[selectedDay - 1]?.photos || [];
     if (currentDayPhotos.length === 0) return true;
@@ -219,48 +245,71 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       photo.description?.trim()
     );
   };
+
   const handleNext = async () => {
-    if (!isCurrentDayValid()) {
-      setShowWarning(true);
-      setTimeout(() => setShowWarning(false), 4000);
-      return;
-    }
-    if (selectedDay < dayCount) {
-      setSelectedDay(selectedDay + 1);
-    } else {
-      // Go to cover selection
+    if (currentStep === 'organize') {
+      if (!isCurrentDayValid()) {
+        setShowWarning(true);
+        setTimeout(() => setShowWarning(false), 4000);
+        return;
+      }
+      
+      if (selectedDay < dayCount) {
+        setSelectedDay(selectedDay + 1);
+      } else {
+        // Move to contacts step
+        setCurrentStep('contacts');
+      }
+    } else if (currentStep === 'contacts') {
+      // Move to cover selection
       setCurrentStep('cover');
-      // Auto-select first photo if none selected
       if (!selectedCoverPhotoId && photos.length > 0) {
         setSelectedCoverPhotoId(photos[0].id);
       }
     }
   };
+
   const handlePrevious = () => {
     if (currentStep === 'cover') {
+      setCurrentStep('contacts');
+    } else if (currentStep === 'contacts') {
       setCurrentStep('organize');
-      setSelectedDay(dayCount); // Go back to last day
+      setSelectedDay(dayCount);
     } else if (selectedDay > 1) {
       setSelectedDay(selectedDay - 1);
     } else {
       setCurrentStep('upload');
     }
   };
+
+  const handleAddContact = async (data: OnQuestPersonData) => {
+    setQuestContacts(prev => [...prev, data]);
+    setShowAddContactModal(false);
+  };
+
+  const handleRemoveContact = (index: number) => {
+    setQuestContacts(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleNewCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) {
       alert('Image too large. Maximum size is 10MB.');
       return;
     }
+
     setNewCoverImage(file);
     setNewCoverPreview(URL.createObjectURL(file));
-    setSelectedCoverPhotoId(null); // Deselect existing photos
+    setSelectedCoverPhotoId(null);
   };
+
   const handleCreateQuest = async () => {
     setCreating(true);
    
@@ -271,15 +320,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         if (idx < 9) return 'Evening';
         return 'Night';
       };
-      const getTimeForSlot = (slot: string, idx: number) => {
-        switch(slot) {
-          case 'Morning': return `${6 + idx}:00`;
-          case 'Afternoon': return `${12 + idx}:00`;
-          case 'Evening': return `${17 + idx}:00`;
-          case 'Night': return `${20 + idx}:00`;
-          default: return '12:00';
-        }
-      };
+
       const itineraryData = {
         days: dayGroups.map(group => ({
           day: group.day,
@@ -305,6 +346,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           }))
         }))
       };
+
       const questPayload = {
         destination,
         startDate,
@@ -316,7 +358,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         budget: 0,
         title: `Trip to ${destination}`
       };
-      // Determine cover image
+
       let coverImageFile: File | undefined;
       if (newCoverImage) {
         coverImageFile = newCoverImage;
@@ -326,6 +368,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       } else if (photos.length > 0) {
         coverImageFile = photos[0].file;
       }
+
       const result = await questService.createQuest(
         userId,
         questPayload,
@@ -335,6 +378,15 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       );
      
       if (result.success && result.questId) {
+        // Add all contacts to the quest
+        for (const contact of questContacts) {
+          await onQuestPeopleService.addOnQuestPerson({
+            ...contact,
+            questId: result.questId,
+            userId: userId,
+          });
+        }
+        
         router.push(`/quest/${result.questId}`);
       } else {
         throw new Error('Failed to create quest');
@@ -346,6 +398,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       setCreating(false);
     }
   };
+
   if (creating) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -360,12 +413,14 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       </div>
     );
   }
+
   const renderUploadStep = () => (
     <div className="max-w-4xl mx-auto pb-32 px-4 sm:px-0">
       <div className="mb-6 sm:mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Upload Your Travel Photos</h2>
         <p className="text-sm sm:text-base text-gray-400">Upload all the photos from your trip to {destination}</p>
       </div>
+
       <label className="block mb-6 sm:mb-8">
         <div className="border-2 border-dashed border-gray-600 rounded-2xl p-8 sm:p-12 text-center hover:border-orange-500 transition-colors cursor-pointer bg-gray-900/50">
           <Upload className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
@@ -380,6 +435,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           />
         </div>
       </label>
+
       {photos.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -403,6 +459,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
               </button>
             )}
           </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {photos.map(photo => (
               <div key={photo.id} className="relative group">
@@ -429,6 +486,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                     <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" />
                   )}
                 </div>
+
                 <button
                   onClick={() => removePhoto(photo.id)}
                   className="absolute top-2 right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -442,9 +500,11 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       )}
     </div>
   );
+
   const renderOrganizeStep = () => {
     const currentDayPhotos = dayGroups[selectedDay - 1]?.photos || [];
     const unassignedPhotos = photos.filter(p => !p.dayAssigned && p.uploadStatus === 'success');
+
     return (
       <div className="max-w-6xl mx-auto pb-32 px-4 sm:px-0">
         <div className="mb-6 sm:mb-8">
@@ -460,6 +520,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             })}
           </p>
         </div>
+
         <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs sm:text-sm text-gray-400">Quest Progress</span>
@@ -474,8 +535,9 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             />
           </div>
         </div>
-                {unassignedPhotos.length > 0 && (
-          <div className="bg-gray-900 rounded-2xl p-4 sm:p-6">
+
+        {unassignedPhotos.length > 0 && (
+          <div className="bg-gray-900 rounded-2xl p-4 sm:p-6 mb-6">
             <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
               Add Photos to This Day ({unassignedPhotos.length} remaining)
             </h3>
@@ -500,15 +562,17 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             </div>
           </div>
         )}
+
         <div className="bg-gray-900 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
             Photos for This Day ({currentDayPhotos.length})
           </h3>
+
           {currentDayPhotos.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
               <ImageIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-4" />
               <p className="text-sm sm:text-base text-gray-400">No photos added yet</p>
-              <p className="text-xs sm:text-sm text-gray-500 mt-2">Select photos from below</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2">Select photos from above</p>
             </div>
           ) : (
             <div className="space-y-4 sm:space-y-6">
@@ -543,6 +607,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                         <Trash2 className="w-3 h-3 text-white" />
                       </button>
                     </div>
+
                     {photo.isCollapsed ? (
                       <div className="flex-1 space-y-2">
                         <h4 className="text-white font-medium text-sm sm:text-base">{photo.title}</h4>
@@ -589,6 +654,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                             {photo.location?.name || 'Click to search location...'}
                           </button>
                         </div>
+
                         <div>
                           <label className="flex items-center gap-2 text-white font-medium mb-2 text-xs sm:text-sm">
                             <Info className="w-4 h-4 text-blue-500" />
@@ -602,6 +668,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                             className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-orange-500 focus:outline-none text-xs sm:text-sm"
                           />
                         </div>
+
                         <div>
                           <label className="text-white font-medium mb-2 block text-xs sm:text-sm">
                             Description <span className="text-red-500">*</span>
@@ -614,6 +681,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                             className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-orange-500 focus:outline-none resize-none text-xs sm:text-sm"
                           />
                         </div>
+
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="flex items-center gap-2 text-white font-medium mb-2 text-xs">
@@ -647,6 +715,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                             </select>
                           </div>
                         </div>
+
                         <button
                           onClick={() => {
                             updatePhotoDetails(photo.id, { isCollapsed: true });
@@ -675,13 +744,84 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       </div>
     );
   };
+
+  const renderContactsStep = () => (
+    <div className="max-w-4xl mx-auto pb-32 px-4 sm:px-0">
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Add Helpful Contacts (Optional)</h2>
+        <p className="text-sm sm:text-base text-gray-400">
+          Save contacts of people who helped during your journey - guides, restaurants, hotels, etc.
+        </p>
+      </div>
+
+      {questContacts.length === 0 ? (
+        <div className="bg-gray-900 rounded-2xl p-12 text-center">
+          <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-10 h-10 text-gray-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-white mb-2">No Contacts Added</h3>
+          <p className="text-gray-400 mb-6">
+            Add helpful contacts from your journey to share with other travelers
+          </p>
+          <button
+            onClick={() => setShowAddContactModal(true)}
+            className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors inline-flex items-center gap-2"
+          >
+            <Users className="w-5 h-5" />
+            Add Your First Contact
+          </button>
+          <p className="text-sm text-gray-500 mt-4">You can skip this step and add contacts later</p>
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">
+              {questContacts.length} contact{questContacts.length !== 1 ? 's' : ''} added
+            </h3>
+            <button
+              onClick={() => setShowAddContactModal(true)}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Add Another
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {questContacts.map((contact, idx) => (
+              <div key={idx} className="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
+                <div className="flex-1">
+                  <h4 className="text-white font-semibold">{contact.name}</h4>
+                  <p className="text-sm text-gray-400 capitalize">{contact.serviceType} • {contact.category}</p>
+                  <p className="text-sm text-gray-500 mt-1">{contact.location.name}</p>
+                </div>
+                <button
+                  onClick={() => handleRemoveContact(idx)}
+                  className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AddOnQuestPersonModal
+        isOpen={showAddContactModal}
+        onClose={() => setShowAddContactModal(false)}
+        onAdd={handleAddContact}
+      />
+    </div>
+  );
+
   const renderCoverStep = () => (
     <div className="max-w-4xl mx-auto pb-32 px-4 sm:px-0">
       <div className="mb-6 sm:mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Choose Cover Image</h2>
         <p className="text-sm sm:text-base text-gray-400">Select a photo or upload a new one as your quest cover</p>
       </div>
-      {/* New Cover Image Upload */}
+
       <div className="mb-6 sm:mb-8">
         <label className="block cursor-pointer">
           <div className="border-2 border-dashed border-gray-600 rounded-2xl p-6 sm:p-8 text-center hover:border-orange-500 transition-colors bg-gray-900/50">
@@ -696,6 +836,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             />
           </div>
         </label>
+
         {newCoverPreview && (
           <div className="mt-4 relative">
             <img
@@ -718,7 +859,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           </div>
         )}
       </div>
-      {/* Existing Photos Grid */}
+
       {!newCoverImage && (
         <div>
           <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Or Select from Uploaded Photos</h3>
@@ -748,13 +889,14 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       )}
     </div>
   );
+
   return (
     <div className="min-h-screen bg-black text-white py-4 sm:py-8">
       {currentStep === 'upload' && renderUploadStep()}
       {currentStep === 'organize' && renderOrganizeStep()}
+      {currentStep === 'contacts' && renderContactsStep()}
       {currentStep === 'cover' && renderCoverStep()}
      
-      {/* Fixed Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-gray-800 z-50 safe-bottom">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex justify-between items-center gap-3">
@@ -798,11 +940,20 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">Choose Cover</span>
-                    <span className="sm:hidden">Cover</span>
+                    <span className="hidden sm:inline">Add Contacts</span>
+                    <span className="sm:hidden">Next</span>
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
+              </button>
+            ) : currentStep === 'contacts' ? (
+              <button
+                onClick={handleNext}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors flex items-center gap-2 text-sm sm:text-base"
+              >
+                <span className="hidden sm:inline">Choose Cover</span>
+                <span className="sm:hidden">Next</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             ) : (
               <button
@@ -817,6 +968,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           </div>
         </div>
       </div>
+
       <LocationSearchModal
         isOpen={showLocationModal}
         onClose={() => {
@@ -886,4 +1038,5 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
     </div>
   );
 };
+
 export default PhotoBasedQuestCreation;

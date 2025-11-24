@@ -195,6 +195,55 @@ export interface CreatePostData {
   };
 }
 
+export interface OnQuestPerson {
+  id: string;
+  name: string;
+  serviceType: 'food' | 'accommodation' | 'transport' | 'fun' | 'emergency' | 'police' | 'guide' | 'other';
+  category: string; // e.g., "Restaurant", "Hotel", "Taxi Service"
+  location: {
+    name: string;
+    coordinates: { lat: number; lng: number };
+    placeId?: string;
+  };
+  contact: {
+    phone: string;
+    email?: string;
+    website?: string;
+    whatsapp?: string;
+  };
+  rating: number;
+  reviewCount: number;
+  priceRange?: '$' | '$$' | '$$$' | '$$$$';
+  description: string;
+  photos: string[];
+  verified: boolean;
+  featured: boolean;
+  commissionRate: number; // Platform commission
+  tags: string[];
+  operatingHours?: {
+    [day: string]: { open: string; close: string } | 'closed';
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+export interface QuestTransaction {
+  id: string;
+  questId: string;
+  date: string; // Activity date
+  serviceType: 'food' | 'accommodation' | 'transport' | 'activity' | 'other';
+  providerId?: string; // Reference to OnQuestPerson
+  providerName: string;
+  description: string;
+  location: string;
+  cost: number;
+  status: 'planned' | 'booked' | 'completed' | 'cancelled';
+  bookingReference?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 export interface CommentData {
   uid: string;
   userName: string;

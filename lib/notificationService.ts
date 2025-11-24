@@ -347,3 +347,31 @@ export const notifyQuestInvite = async (
     actionUrl: `/quest/${questId}`
   });
 };
+
+export const notifyMention = async (
+  chatId: string,
+  chatName: string,
+  mentionerId: string,
+  mentionerName: string,
+  mentionerPhoto: string,
+  messageText: string,
+  mentionedUserIds: string[]
+) => {
+  const promises = mentionedUserIds
+    .filter(id => id !== mentionerId)
+    .map(recipientId =>
+      createNotification({
+        recipientId,
+        type: 'mention',
+        senderId: mentionerId,
+        senderName: mentionerName,
+        senderPhoto: mentionerPhoto,
+        title: 'Mentioned in Chat',
+        message: `${mentionerName} mentioned you: ${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}`,
+        chatId,
+        actionUrl: `/chats?chatId=${chatId}`
+      })
+    );
+
+  await Promise.all(promises);
+};

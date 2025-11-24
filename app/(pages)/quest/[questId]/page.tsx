@@ -21,6 +21,7 @@ import { arrayRemove, arrayUnion, doc, getDoc, increment, updateDoc } from 'fire
 import { db, storage } from '../../../../lib/firebase.js';
 import { VideoGenerationModal } from '@/components/quest/VideoGenerationModal';
 import { Video } from 'lucide-react';
+import OnQuestPeopleSection from '@/components/quest/OnQuestPeopleSection';
 
 
 interface ActivityLocation {
@@ -1147,6 +1148,13 @@ const QuestViewPage = () => {
                 )}
               </div>
             ))}
+
+            <div className="mt-8">
+              <OnQuestPeopleSection 
+                quest={displayQuest} 
+                userId={user?.uid || ''} 
+              />
+            </div>
             
             {/* Extra padding at bottom */}
             <div className="h-20"></div>
