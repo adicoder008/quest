@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import Nav from '@/components/Nav'
+import Nav from '@/components/LeftSideNav'
 import Hero from '@/components/Hero'
 import HowItWorks from '@/components/HowItWorks'
 import Mid from '@/components/Mid'

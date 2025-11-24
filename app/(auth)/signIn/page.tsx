@@ -118,7 +118,7 @@ const page = () => {
           onClick={handleGoogleSignIn}
         >
           <img src="google.png" alt="Google" className="w-6 h-6" />
-          <span className="font-medium text-black">Log in with Google</span>
+          <span className="font-medium text-black cursor-pointer">Log in with Google</span>
         </button>
 
         {/* Email Login */}
@@ -127,7 +127,7 @@ const page = () => {
         //   onClick={() => setAuthStep('email-signin')}
         >
           <img src="mail.png" alt="Email" className="w-6 h-6" />
-          <span className="font-medium text-black">Log in with Email ID</span>
+          <span className="font-medium text-black cursor-pointer">Log in with Email ID</span>
         </button>
 
         <div id="recaptcha-container"></div>

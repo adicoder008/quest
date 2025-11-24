@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { CSSProperties, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
@@ -7,7 +7,7 @@ import { MapPin, Calendar, Users, Plane, Train, Bus, Car, Ship, DollarSign, Arro
 import questService from '@/lib/questService';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
-import Navbar from '@/components/Nav';
+import Navbar from '@/components/LeftSideNav';
 
 interface PlaceData {
   coordinates: { lat: number; lng: number };
@@ -98,6 +98,10 @@ const useGooglePlaces = () => {
 
   return { predictions, loading, searchPlaces, getPlaceDetails, clearPredictions: () => setPredictions([]) };
 };
+
+const DESKTOP_MAIN_WIDTH = 60; // percentage of viewport width used for desktop content
+const LEFT_NAV_WIDTH = 280;
+const SIDEBAR_GAP = 5;
 
 // Location Search Component
 const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, onLocationSelected?: (value: string) => void, placeholder: string }) => {
@@ -338,7 +342,7 @@ const AITripPlannerPage = () => {
 
   if (questLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className=" min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <div className="mt-4">
@@ -388,15 +392,27 @@ const AITripPlannerPage = () => {
   }
 
   const currentStepData = steps[currentStep];
+  const containerStartExpression = `calc((100vw - (${LEFT_NAV_WIDTH}px + ${SIDEBAR_GAP}px + ${DESKTOP_MAIN_WIDTH}vw)) / 2)`;
+  const mainLeftExpression = `calc(${containerStartExpression} + ${LEFT_NAV_WIDTH + SIDEBAR_GAP}px)`;
+  const desktopMainStyle: CSSProperties = {
+    width: `${DESKTOP_MAIN_WIDTH}vw`,
+    marginLeft: mainLeftExpression,
+    marginRight: 'auto',
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Desktop Layout */}
-      <div className="hidden md:block">
-        <Navbar user={null} onSignOut={function (): void {
-          throw new Error('Function not implemented.');
-        } } />
-        <div className="max-w-4xl mx-auto px-8 py-6">
+      <div className="hidden md:block relative min-h-screen">
+        <Navbar
+          user={null}
+          onSignOut={function (): void {
+            throw new Error('Function not implemented.');
+          }}
+          style={{ left: containerStartExpression, right: 'auto', width: `${LEFT_NAV_WIDTH}px` }}
+        />
+        <div className="relative min-h-screen" style={desktopMainStyle}>
+          <div className="border-x border-gray-800 min-h-screen px-8 py-6">
           {/* Progress bar */}
           <div className="mb-12">
             <div className="flex justify-between mb-3">
@@ -605,6 +621,7 @@ const AITripPlannerPage = () => {
               {currentStep === steps.length - 1 ? 'Generate Quest' : 'Next'}
               <ArrowRight className="w-5 h-5" />
             </button>
+          </div>
           </div>
         </div>
       </div>

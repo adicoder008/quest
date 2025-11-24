@@ -2,10 +2,10 @@
 // File: components/Nav.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { CSSProperties, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, Search,User, Bell, Mail, Icon, Settings, LogOut, Menu } from 'lucide-react';
-import { IoPlanet } from 'react-icons/io5';
+
 
 interface User {
   uid?: string;
@@ -14,40 +14,43 @@ interface User {
 }
 
 interface NavBarProps {
-  // Accept either the Firebase auth User or your app's User type to avoid type mismatch
   user: import('firebase/auth').User | import('@/app/types/index').User | null;
   onSignOut: () => void;
+  className?: string;
+  style?: CSSProperties;
 }
-const OnQuestIcon = () => (
+
+type NavItem = {
+  icon: React.ComponentType<any>;
+  label: string;
+  route: string;
+};
+const OnQuestIcon = ({ isActive }: { isActive: boolean }) => (
   <img
     src="/oq_logo.svg"
-    className="w-6 h-6 filter invert"
+    className={`w-6 h-6 ${isActive ? '' : 'filter invert'}`}
     alt="OnQuest Icon"
   />
 );
 
 const AITripPlannerIcon = () => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        className="w-6 h-6"
-    >
-        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-        <circle cx="12" cy="10" r="3"/>
-        <path d="m12 2-1.09 2.22 2.22 1.09L14.22 3 12 2Z"/>
-        <path d="M18 5.89 16.91 8.11 19.13 9.2 20 7l-2-1.11Z"/>
-        <path d="m6 5.89 1.09 2.22-2.22 1.09L3.78 7 6 5.89Z"/>
-    </svg>
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+    />
+  </svg>
 );
 
-const NavBar = ({ user, onSignOut }: NavBarProps) => {
+const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
   const router = useRouter();
   const [activeRoute, setActiveRoute] = useState('feed');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -78,30 +81,31 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
     }
   }, []);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { icon: Home, label: 'Feed', route: 'feed' },
     { icon: Search, label: 'Explore', route: 'explore' },
-    { 
+    {
       icon: OnQuestIcon,
       label: 'Quest',
-      route: 'quest' 
+      route: 'quest',
     },
     { 
-      icon: IoPlanet,
+      icon: AITripPlannerIcon,
       label: 'AI Trip Planner',
       route: 'aitrip' 
     },
     { icon: Bell, label: 'Notifications', route: 'notifications' },
     { icon: Mail, label: 'Messages', route: 'chats' },
-    { icon: User, label: 'Profile', route: 'profile' },
+    { icon: User, label: 'Profile', route: 'account' },
     { icon: Settings, label: 'Settings', route: 'settings' },
   ];
 
   const handleNavClick = (route: string) => {
     setActiveRoute(route);
     if (route === 'explore') router.push('/explore');
-    else if (route === 'profile') router.push(`/account`);
+    else if (route === 'account') router.push(`/account`);
     else if (route === 'quest') router.push('/quest');
+    else if (route === 'aitrip') router.push('/aitrip');
     else if (route === 'settings') router.push('/settings');
     else if (route === 'notifications') router.push('/notifications');
     else if (route === 'chats') router.push('/chats');
@@ -113,8 +117,8 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
     <aside 
       className={`fixed left-0 top-0 h-screen border-r border-gray-700 bg-black p-4 flex flex-col transition-all duration-300 z-50 ${
         isExpanded ? 'w-[280px]' : 'w-[80px]'
-      }`
-      }
+      } ${className}`}
+      style={style}
       aria-label="Main navigation"
     >
       <div className=" flex items-center justify-between">
@@ -135,22 +139,27 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
       </div>
 
       <nav className="flex-1 space-y-2" role="navigation">
+
         {navItems.map((item) => {
-          const Icon = item.icon as any;
           const isActive = activeRoute === item.route;
+          const Icon = item.icon;
           return (
             <button
               key={item.route}
               onClick={() => handleNavClick(item.route)}
-              className={`w-full flex items-center gap-4 px-4 py-2 rounded-full transition-colors relative group ${ 
+              className={`w-full flex items-center gap-4 px-2 py-2 rounded-full transition-colors relative group ${ 
                 isActive 
                   ? 'bg-[#ff6900] text-black font-medium' 
                   : 'text-white hover:bg-gray-900'
               }`}
               title={!isExpanded ? item.label : ''}
             >
-              <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
-                <Icon />
+              <span className="shrink-0 w-6 h-6 flex items-center justify-center">
+                {item.route === 'quest' ? (
+                  <OnQuestIcon isActive={isActive} />
+                ) : (
+                  <Icon />
+                )}
               </span>
               {isExpanded && <span className="text-lg">{item.label}</span>}
 
@@ -172,7 +181,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
                 <img 
                   src={user?.photoURL || '/default-avatar.png'} 
                   alt={user?.displayName || 'User'}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                  className="w-10 h-10 rounded-full object-cover shrink-0"
                 />
                 <div className="flex-1 overflow-hidden">
                   <p className="text-white text-sm font-medium truncate">
@@ -185,7 +194,7 @@ const NavBar = ({ user, onSignOut }: NavBarProps) => {
               </div>
               <button
                 onClick={onSignOut}
-                className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-900 flex-shrink-0"
+                className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-900 shrink-0"
                 aria-label="Sign out"
               >
                 <LogOut className="w-5 h-5" />

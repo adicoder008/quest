@@ -96,6 +96,7 @@ export interface QuestContext {
   category?: string;
   xpEarned?: number;
   difficulty?: 'easy' | 'normal' | 'hard';
+  location?: string;
 }
 
 export interface Post {

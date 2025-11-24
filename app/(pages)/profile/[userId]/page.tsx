@@ -43,12 +43,18 @@ import {
 } from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
+<<<<<<< HEAD
 import NavBar from '@/components/Nav';
 import {
   followUser as followUserService,
   unfollowUser as unfollowUserService,
   getFollowingList,
 } from '@/lib/followService';
+=======
+import NavBar from '@/components/LeftSideNav';
+import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList, getFollowersList } from '@/lib/followService';
+
+>>>>>>> devgambo
 
 const styles = `
   .scrollbar-hide {

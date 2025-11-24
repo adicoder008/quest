@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { CSSProperties, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -14,8 +14,12 @@ import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
-import NavBar from '@/components/Nav';
+import NavBar from '@/components/LeftSideNav';
 import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
+
+const DESKTOP_MAIN_WIDTH = 60; // percentage of viewport width used for main content
+const LEFT_NAV_WIDTH = 280;
+const SIDEBAR_GAP = 5;
 
 
 const styles = `
@@ -329,15 +333,32 @@ const AccountPage = () => {
     );
   }
 
+  const containerStartExpression = `calc((100vw - (${LEFT_NAV_WIDTH}px + ${SIDEBAR_GAP}px + ${DESKTOP_MAIN_WIDTH}vw)) / 2)`;
+  const mainLeftExpression = `calc(${containerStartExpression} + ${LEFT_NAV_WIDTH + SIDEBAR_GAP}px)`;
+  const layoutStyles = `
+    @media (min-width: 1024px) {
+      .account-desktop-main {
+        width: ${DESKTOP_MAIN_WIDTH}vw;
+        margin-left: ${mainLeftExpression};
+        margin-right: auto;
+      }
+    }
+  `;
+
   return (
-    <div className='min-h-screen bg-[#121212]'>
+    <div className='min-h-screen bg-black'>
       <style>{styles}</style>
+      <style jsx>{layoutStyles}</style>
       
       <div className="hidden lg:block">
-        <NavBar user={user} onSignOut={handleSignOut} />
+        <NavBar
+          user={user}
+          onSignOut={handleSignOut}
+          style={{ left: containerStartExpression, right: 'auto', width: `${LEFT_NAV_WIDTH}px` }}
+        />
       </div>
       
-      <div className='lg:ml-[280px]'>
+      <div className='account-desktop-main lg:relative'>
         <div className='max-w-7xl mx-auto'>
           {/* Profile Header */}
           <div className='relative'>
