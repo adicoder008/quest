@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Key, useRef } from 'react';
-import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, MapPin, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck, Home, Calendar, User, Bell, Mail, Settings, LogOut, UserPlus, UserCheck } from 'lucide-react';
+import { Plus, MessageCircle, Heart, Bookmark, Search, MoreHorizontal, X, Send, Share2, Flag, Trash2, Edit, Copy, BookmarkCheck, Home, Calendar, User, Bell, Mail, Settings, LogOut, UserPlus, UserCheck } from 'lucide-react';
 import { subscribeToPosts, addComment, sharePost, reportPost, deletePost, savePost, unsavePost } from '@/lib/postService';
 import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
 import { getCurrentUserData } from '@/lib/authService';
@@ -21,8 +21,15 @@ import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
-import { getUserBadges, getLevelInfo } from '../../../lib/firebaseSerive';
-import NavBar from '@/components/Nav';
+import RightSidebar from '@/components/RightSidebar/page';
+import NavBar from '@/components/LeftSideNav';
+
+const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
+const LEFT_NAV_WIDTH = 280;
+const RIGHT_SIDEBAR_WIDTH = 380;
+const SIDEBAR_GAP = 0;
+
+const TRIP_BANNER_SRC = '/Green%20Modern%20Travel%20YouTube%20Banner%20.svg';
 
 // Helper function to generate username from display name
 const generateUsername = (displayName: string | null | undefined): string => {
@@ -43,7 +50,7 @@ const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
                     onClick={() => setShowCreateModal(true)}
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
                 >
-                    <Plus className="text-[#F7CEB0] w-5 h-5 flex-shrink-0" />
+                    <Plus className="text-[#F7CEB0] w-5 h-5 shrink-0" />
                     <span className="text-gray-300 text-sm md:text-base">What's on your mind?</span>
                 </button>
             </div>
@@ -67,225 +74,6 @@ const ResponsiveFeedPage = () => {
   }
   
   return <MobileFeedPage />;
-};
-
-// RIGHT SIDEBAR
-const RightSidebar = ({ user, userData }: any) => {
-  const [badges, setBadges] = useState<any[]>([]);
-  const [levelInfo, setLevelInfo] = useState<any>(null);
-  const [popularUsers, setPopularUsers] = useState<any[]>([]);
-  const [followingList, setFollowingList] = useState<string[]>([]);
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.uid) return;
-
-      try {
-        const userBadges = await getUserBadges(user.uid);
-        setBadges(userBadges.slice(0, 3));
-
-        const xp = userData?.totalXP || 0;
-        const level = getLevelInfo(xp);
-        setLevelInfo(level);
-
-        // Get following list
-        const following = await getFollowingList(user.uid);
-        setFollowingList(following);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
-  }, [user, userData]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      query(collection(db, 'users'), orderBy('followersCount', 'desc')),
-      (snapshot) => {
-        const usersData = snapshot.docs
-          .map(docc => ({
-            id: docc.id,
-            ...docc.data(),
-            photoURL: docc.data().photoURL || '/default-avatar.png',
-            followers: docc.data().followers || [],
-            followersCount: docc.data().followersCount || 0
-          }))
-          .filter(u => u.id !== user?.uid); // Don't show yourself
-        
-        setPopularUsers(usersData.slice(0, 4));
-      }
-    );
-    
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  const handleFollow = async (targetUserId: string) => {
-    if (!user?.uid || targetUserId === user.uid) return;
-    
-    try {
-      const isFollowing = followingList.includes(targetUserId);
-      
-      // Optimistically update UI
-      setFollowingList(prev => 
-        isFollowing 
-          ? prev.filter(id => id !== targetUserId)
-          : [...prev, targetUserId]
-      );
-
-      if (isFollowing) {
-        await unfollowUserService(user.uid, targetUserId);
-      } else {
-        await followUserService(user.uid, targetUserId);
-      }
-    } catch (error) {
-      console.error('Error toggling follow:', error);
-      // Revert optimistic update
-      const following = await getFollowingList(user.uid);
-      setFollowingList(following);
-    }
-  };
-
-  return (
-    <div className="hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
-      {/* User Profile Card */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
-        <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
-        
-        <div className="px-4 pb-4">
-          <img 
-            src={user?.photoURL || '/default-avatar.png'} 
-            alt={user?.displayName}
-            className="w-20 h-20 rounded-full border-4 border-gray-900 -mt-10 mb-3 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => router.push(`/profile/${user?.uid}`)}
-          />
-          
-          <h3 className="text-white text-lg font-bold mb-1 cursor-pointer hover:underline" onClick={() => router.push(`/profile/${user?.uid}`)}>
-            {user?.displayName || 'User'}
-          </h3>
-          <p className="text-gray-400 text-sm mb-3">
-            @{generateUsername(user?.displayName)}
-          </p>
-          
-          {userData?.bio && (
-            <p className="text-gray-300 text-sm mb-3 line-clamp-2">
-              {userData.bio}
-            </p>
-          )}
-
-          {/* Stats */}
-          <div className="flex gap-4 mb-4">
-            <div>
-              <span className="text-white font-bold">{userData?.followingCount || 0}</span>
-              <span className="text-gray-400 text-sm ml-1">Following</span>
-            </div>
-            <div>
-              <span className="text-white font-bold">{userData?.followersCount || 0}</span>
-              <span className="text-gray-400 text-sm ml-1">Followers</span>
-            </div>
-          </div>
-
-          {/* Level Progress */}
-          {levelInfo && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[#F7CEB0] font-medium text-sm">
-                  {levelInfo.currentLevel.name}
-                </span>
-                {levelInfo.nextLevel && (
-                  <span className="text-gray-400 text-xs">
-                    {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
-                  </span>
-                )}
-              </div>
-              <div className="w-full bg-gray-800 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2 rounded-full transition-all"
-                  style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-
-          {/* Badges */}
-          {badges.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-white font-medium text-sm">Earned Badges</h4>
-                <button 
-                  onClick={() => router.push(`/profile/${user?.uid}#badges`)}
-                  className="text-[#F7CEB0] text-xs hover:underline"
-                >
-                  View All
-                </button>
-              </div>
-              <div className="flex gap-2">
-                {badges.map(badge => (
-                  <div 
-                    key={badge.id}
-                    className="bg-[#F8EBE2] rounded-lg p-2 flex flex-col items-center min-w-[70px]"
-                    title={badge.description}
-                  >
-                    <img 
-                      src={badge.iconUrl} 
-                      alt={badge.name}
-                      className="w-10 h-10 object-contain mb-1"
-                    />
-                    <span className="text-[#402B09] text-[10px] font-semibold text-center">
-                      {badge.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Popular Travelers */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-        <h4 className="text-white font-medium text-base mb-4">Popular Travelers</h4>
-        <div className="space-y-3">
-          {popularUsers.map((traveler) => (
-            <div key={traveler.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/profile/${traveler.id}`)}>
-                <img 
-                  src={traveler.photoURL} 
-                  alt={traveler.displayName}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <h5 className="text-white text-sm font-medium hover:underline truncate">
-                    {traveler.displayName}
-                  </h5>
-                  <p className="text-gray-400 text-xs truncate">
-                    {traveler.followersCount} followers
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFollow(traveler.id);
-                }}
-                className={`text-xs px-3 py-1 rounded-full transition-colors flex-shrink-0 ml-2 ${
-                  followingList.includes(traveler.id)
-                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
-                }`}
-              >
-                {followingList.includes(traveler.id) ? 'Following' : 'Follow'}
-              </button>
-            </div>
-          ))}
-        </div>
-        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline w-full text-left">
-          Explore more
-        </button>
-      </div>
-    </div>
-  );
 };
 
 // IMPROVED POST MENU - Shows near the post
@@ -702,7 +490,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
             <img 
               src={user?.photoURL || '/default-avatar.png'} 
               alt="Your profile"
-              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              className="w-8 h-8 rounded-full object-cover shrink-0"
             />
             <div className="flex-1 relative">
               <input
@@ -742,7 +530,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
                   <img 
                     src={comment.author.avatar} 
                     alt={comment.author.name}
-                    className="w-6 h-6 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="w-6 h-6 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => router.push(`/profile/${comment.author.uid}`)}
                   />
                   <div className="flex-1">
@@ -775,6 +563,10 @@ const Feed = () => {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPerformed, setSearchPerformed] = useState(false);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
@@ -785,6 +577,7 @@ const Feed = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [followingList, setFollowingList] = useState<string[]>([]);
+  const isShowingSearchResults = searchPerformed && searchQuery.trim().length > 0;
 
   useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -817,6 +610,42 @@ const Feed = () => {
   return () => unsubscribe();
 }, []);
 
+  const withSavedStatus = (incomingPosts: any[]) =>
+    incomingPosts.map((post) => ({
+      ...post,
+      isSaved: userData?.savedPosts?.includes(post.id) || false,
+    }));
+
+  const resetSearch = () => {
+    setSearchPerformed(false);
+    setSearchResults([]);
+  };
+
+  const handleNameSearch = async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      resetSearch();
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const result = await getPaginatedPosts(null, 50);
+      const normalizedQuery = trimmedQuery.toLowerCase();
+      const matches = result.posts.filter((post) => {
+        const authorName = post.author?.name || post.userName || post.metadata?.authorName || '';
+        return authorName.toLowerCase().includes(normalizedQuery);
+      });
+
+      setSearchResults(withSavedStatus(matches));
+      setSearchPerformed(true);
+    } catch (error) {
+      console.error('Error searching posts by name:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadInitialPosts = async () => {
       if (!userData) return;
@@ -825,10 +654,7 @@ const Feed = () => {
         setInitialLoading(true);
         const result = await getPaginatedPosts(null, 5);
         
-        const postsWithSavedStatus = result.posts.map(post => ({
-          ...post,
-          isSaved: userData?.savedPosts?.includes(post.id) || false
-        }));
+        const postsWithSavedStatus = withSavedStatus(result.posts);
         
         setPosts(postsWithSavedStatus);
         setLastVisible(result.lastVisible);
@@ -850,10 +676,7 @@ const Feed = () => {
       setLoadingMore(true);
       const result = await getPaginatedPosts(lastVisible, 5);
       
-      const postsWithSavedStatus = result.posts.map(post => ({
-        ...post,
-        isSaved: userData?.savedPosts?.includes(post.id) || false
-      }));
+      const postsWithSavedStatus = withSavedStatus(result.posts);
       
       setPosts(prev => [...prev, ...postsWithSavedStatus]);
       setLastVisible(result.lastVisible);
@@ -1102,6 +925,16 @@ const handleFollow = async (targetUserId: string) => {
     }
   };
 
+  const totalFixedWidth = LEFT_NAV_WIDTH + RIGHT_SIDEBAR_WIDTH + SIDEBAR_GAP * 2;
+  const containerStartExpression = `calc((100vw - (${totalFixedWidth}px + ${DESKTOP_MAIN_WIDTH}vw)) / 2)`;
+  const mainLeftExpression = `calc(${containerStartExpression} + ${LEFT_NAV_WIDTH + SIDEBAR_GAP}px)`;
+  const rightSidebarLeftExpression = `calc(${containerStartExpression} + ${LEFT_NAV_WIDTH + SIDEBAR_GAP}px + ${DESKTOP_MAIN_WIDTH}vw + ${SIDEBAR_GAP}px)`;
+  const mainWidthStyle: React.CSSProperties = {
+    width: `${DESKTOP_MAIN_WIDTH}vw`,
+    marginLeft: mainLeftExpression,
+    marginRight: 'auto',
+  };
+
   const DesktopPost = ({ post, user }: { post: any, user: UserType | null }) => {
     const isLiked = post.stats?.likedBy?.includes(user?.uid);
     const isSaved = post.isSaved;
@@ -1306,20 +1139,98 @@ const handleFollow = async (targetUserId: string) => {
       <NavBar 
         user={user} 
         onSignOut={handleSignOut}
+        style={{ 
+          left: containerStartExpression, 
+          right: 'auto',
+          width: `${LEFT_NAV_WIDTH}px`
+        }}
       />
 
-      <main className="md:ml-[280px] xl:mr-[380px] min-h-screen bg-black">
+      <main 
+        className="relative min-h-screen bg-black"
+        style={mainWidthStyle}
+      >
         <div className="max-w-2xl mx-auto md:border-x border-gray-700 min-h-screen">
           <div className="p-4">
-            {initialLoading ? (
+            <div className="space-y-4 mb-6">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleNameSearch();
+                    }
+                  }}
+                  placeholder="Search travelers by name..."
+                  className="w-full bg-gray-900 text-white pl-12 pr-12 py-3 rounded-full border border-gray-700 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm md:text-base"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      resetSearch();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => router.push('/aitrip')}
+                className="w-full flex justify-center"
+                aria-label="Plan your AI-powered trip"
+              >
+                <img
+                  src={TRIP_BANNER_SRC}
+                  alt="Plan your next adventure with AI"
+                  loading="lazy"
+                  className="w-full max-w-full rounded-xl border border-gray-800 hover:opacity-95 transition-opacity cursor-pointer"
+                />
+              </button>
+            </div>
+
+            {isShowingSearchResults ? (
+              <>
+                {searchLoading ? (
+                  <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
+                    <div className="text-gray-400">Searching travelers...</div>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((post) => (
+                    <DesktopPost key={post.id} post={post} user={user} />
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg">No travelers matched “{searchQuery}”.</div>
+                    <div className="text-gray-500 text-sm mt-2">Try a different name.</div>
+                  </div>
+                )}
+              </>
+            ) : initialLoading ? (
               <div className="border bg-gray-900 p-6 rounded-xl border-gray-700 text-center">
                 <div className="text-gray-400">Loading posts...</div>
               </div>
             ) : (
               <>
-                {posts.map((post) => (
-                  <DesktopPost key={post.id} post={post} user={user} />
-                ))}
+                {posts.length > 0 ? (
+                  posts.map((post) => (
+                    <DesktopPost key={post.id} post={post} user={user} />
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg">No posts yet</div>
+                    <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
+                  </div>
+                )}
 
                 {hasMore && (
                   <div id="scroll-sentinel" className="py-4">
@@ -1336,20 +1247,21 @@ const handleFollow = async (targetUserId: string) => {
                     <p className="text-gray-400">You've reached the end!</p>
                   </div>
                 )}
-
-                {posts.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 text-lg">No posts yet</div>
-                    <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>
-                  </div>
-                )}
               </>
             )}
           </div>
         </div>
       </main>
 
-      <RightSidebar user={user} userData={userData} />
+      <RightSidebar 
+        user={user} 
+        userData={userData} 
+        style={{
+          left: rightSidebarLeftExpression,
+          right: 'auto',
+          width: `${RIGHT_SIDEBAR_WIDTH}px`
+        }}
+      />
 
       {user && (
         <div className="fixed bottom-6 right-6 z-50"> 
@@ -1530,7 +1442,7 @@ const MobilePostCard = ({
                 <img 
                   src={currentUser.photoURL || '/default-avatar.png'} 
                   alt="Your profile"
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  className="w-8 h-8 rounded-full object-cover shrink-0"
                 />
                 <div className="flex-1 relative">
                   <input
@@ -1570,7 +1482,7 @@ const MobilePostCard = ({
                     <img 
                       src={comment.author.avatar} 
                       alt={comment.author.name}
-                      className="w-7 h-7 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="w-7 h-7 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => router.push(`/profile/${comment.author.uid}`)}
                     />
                     <div className="flex-1">
@@ -1733,7 +1645,7 @@ const MobilePostCard = ({
               <img 
                 src={currentUser.photoURL || '/default-avatar.png'} 
                 alt="Your profile"
-                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                className="w-8 h-8 rounded-full object-cover shrink-0"
               />
               <div className="flex-1 relative">
                 <input
@@ -1773,7 +1685,7 @@ const MobilePostCard = ({
                   <img 
                     src={comment.author.avatar} 
                     alt={comment.author.name}
-                    className="w-7 h-7 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="w-7 h-7 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => router.push(`/profile/${comment.author.uid}`)}
                   />
                   <div className="flex-1">
@@ -1806,10 +1718,71 @@ const MobileFeedPage = () => {
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const [followingList, setFollowingList] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Post[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPerformed, setSearchPerformed] = useState(false);
   
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const isShowingSearchResults = searchPerformed && searchQuery.trim().length > 0;
+
+  const updateMobileCollections = (postId: string, updater: (post: Post) => Post) => {
+    setPosts(prev => prev.map(post => (post.id === postId ? updater(post) : post)));
+    setSearchResults(prev => prev.map(post => (post.id === postId ? updater(post) : post)));
+  };
+
+  const formatPostForMobile = (post: any) => ({
+    id: post.id,
+    authorId: post.uid || post.authorId,
+    uid: post.uid,
+    userName: post.userName || post.author?.name,
+    userProfilePic: post.userProfilePic || post.author?.avatar,
+    text: post.text || post.content?.text || '',
+    photoUrl: post.photoUrl || post.content?.images?.[0] || '',
+    imageUrls: post.content?.images || (post.photoUrl ? [post.photoUrl] : []) || [],
+    location: post.location || post.metadata?.location || '',
+    createdAt: post.createdAt || post.metadata?.createdAt,
+    likeCount: post.likeCount ?? post.stats?.likes ?? 0,
+    commentCount: post.commentCount ?? post.stats?.comments ?? 0,
+    shareCount: post.shareCount ?? post.stats?.shares ?? 0,
+    likedBy: post.likedBy || post.stats?.likedBy || [],
+    isSaved: userData?.savedPosts?.includes(post.id) || false,
+    postType: post.postType || 'regular',
+    questData: post.questData || post.questContext || null,
+    questContext: post.questContext || null,
+  });
+
+  const resetSearch = () => {
+    setSearchPerformed(false);
+    setSearchResults([]);
+  };
+
+  const handleMobileNameSearch = async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      resetSearch();
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const result = await getPaginatedPosts(null, 50);
+      const normalizedQuery = trimmedQuery.toLowerCase();
+      const matches = result.posts.filter((post) => {
+        const authorName = post.author?.name || post.userName || post.metadata?.authorName || '';
+        return authorName.toLowerCase().includes(normalizedQuery);
+      });
+
+      setSearchResults(matches.map(formatPostForMobile));
+      setSearchPerformed(true);
+    } catch (error) {
+      console.error('Error searching travelers:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
@@ -1848,27 +1821,8 @@ const MobileFeedPage = () => {
       try {
         setLoading(true);
         const result = await getPaginatedPosts(null, 5);
-        
-        const postsData = result.posts.map(post => ({
-          id: post.id,
-          authorId: post.uid,
-          uid: post.uid,
-          userName: post.userName || post.author.name,
-          userProfilePic: post.userProfilePic || post.author.avatar,
-          text: post.text || post.content?.text || '',
-          photoUrl: post.photoUrl || post.content?.images?.[0] || '',
-          imageUrls: post.content?.images || (post.photoUrl ? [post.photoUrl] : []) || [],
-          location: post.location || post.metadata?.location || '',
-          createdAt: post.createdAt || post.metadata?.createdAt,
-          likeCount: post.likeCount ?? post.stats?.likes ?? 0,
-          commentCount: post.commentCount ?? post.stats?.comments ?? 0,
-          shareCount: post.shareCount ?? post.stats?.shares ?? 0,
-          likedBy: post.likedBy || post.stats?.likedBy || [],
-          isSaved: userData?.savedPosts?.includes(post.id) || false,
-          postType: post.postType || 'regular',
-          questData: post.questData || post.questContext || null,
-        }));
-        
+        const postsData = result.posts.map(formatPostForMobile);
+
         setPosts(postsData);
         setLastVisible(result.lastVisible);
         setHasMore(result.hasMore);
@@ -1887,27 +1841,8 @@ const MobileFeedPage = () => {
     try {
       setLoadingMore(true);
       const result = await getPaginatedPosts(lastVisible, 5);
-      
-      const postsData = result.posts.map(post => ({
-        id: post.id,
-        authorId: post.uid || post.authorId,
-        uid: post.uid,
-        userName: post.userName || post.author.name,
-        userProfilePic: post.userProfilePic || post.author.avatar,
-        text: post.text || post.content?.text || '',
-        photoUrl: post.photoUrl || post.content?.images?.[0] || '',
-        imageUrls: post.content?.images || (post.photoUrl ? [post.photoUrl] : []) || [],
-        location: post.location || post.metadata?.location || '',
-        createdAt: post.createdAt || post.metadata?.createdAt,
-        likeCount: post.likeCount ?? post.stats?.likes ?? 0,
-        commentCount: post.commentCount ?? post.stats?.comments ?? 0,
-        shareCount: post.shareCount ?? post.stats?.shares ?? 0,
-        likedBy: post.likedBy || post.stats?.likedBy || [],
-        isSaved: userData?.savedPosts?.includes(post.id) || false,
-        postType: post.postType || 'regular',
-        questData: post.questData || post.questContext || null,
-      }));
-      
+      const postsData = result.posts.map(formatPostForMobile);
+
       setPosts(prev => [...prev, ...postsData]);
       setLastVisible(result.lastVisible);
       setHasMore(result.hasMore);
@@ -1919,6 +1854,8 @@ const MobileFeedPage = () => {
   };
 
   useEffect(() => {
+    if (isShowingSearchResults) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore) {
@@ -1938,29 +1875,25 @@ const MobileFeedPage = () => {
         observer.unobserve(sentinel);
       }
     };
-  }, [hasMore, loadingMore, lastVisible]);
+  }, [hasMore, loadingMore, lastVisible, isShowingSearchResults]);
 
   const handleLikePost = async (postId: string) => {
     if (!user?.uid) return;
     
     try {
-      const post = posts.find(p => p.id === postId);
+      const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
       if (!post) return;
       
       const isLiked = post.likedBy?.includes(user.uid);
       const postRef = firestoreDoc(db, 'posts', postId);
       
-      setPosts(prev => prev.map(p => 
-        p.id === postId 
-          ? {
-              ...p,
-              likeCount: isLiked ? (p.likeCount || 1) - 1 : (p.likeCount || 0) + 1,
-              likedBy: isLiked 
-                ? (p.likedBy || []).filter((uid: string) => uid !== user.uid)
-                : [...(p.likedBy || []), user.uid]
-            }
-          : p
-      ));
+      updateMobileCollections(postId, (p) => ({
+        ...p,
+        likeCount: isLiked ? (p.likeCount || 1) - 1 : (p.likeCount || 0) + 1,
+        likedBy: isLiked 
+          ? (p.likedBy || []).filter((uid: string) => uid !== user.uid)
+          : [...(p.likedBy || []), user.uid],
+      }));
       
       if (isLiked) {
         await updateDoc(postRef, {
@@ -1978,15 +1911,11 @@ const MobileFeedPage = () => {
       const postDoc = await getDoc(firestoreDoc(db, 'posts', postId));
       if (postDoc.exists()) {
         const data = postDoc.data();
-        setPosts(prev => prev.map(p => 
-          p.id === postId 
-            ? {
-                ...p,
-                likeCount: data.likeCount || 0,
-                likedBy: data.likedBy || []
-              }
-            : p
-        ));
+        updateMobileCollections(postId, (p) => ({
+          ...p,
+          likeCount: data.likeCount || 0,
+          likedBy: data.likedBy || [],
+        }));
       }
     }
   };
@@ -1995,12 +1924,10 @@ const MobileFeedPage = () => {
     if (!user?.uid) return;
     
     try {
-      const post = posts.find(p => p.id === postId);
+      const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
       const isSaved = post?.isSaved;
       
-      setPosts(prev => prev.map(p => 
-        p.id === postId ? { ...p, isSaved: !isSaved } : p
-      ));
+      updateMobileCollections(postId, (p) => ({ ...p, isSaved: !isSaved }));
       
       if (isSaved) {
         await unsavePost(postId, user.uid);
@@ -2009,25 +1936,22 @@ const MobileFeedPage = () => {
       }
     } catch (error) {
       console.error('Error toggling save:', error);
-      setPosts(prev => prev.map(p => 
-        p.id === postId ? { ...p, isSaved: !p.isSaved } : p
-      ));
+      updateMobileCollections(postId, (p) => ({ ...p, isSaved: !p.isSaved }));
     }
   };
 
   const handleSharePost = async (postId: string) => {
-    const post = posts.find(p => p.id === postId);
+    const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
     if (post) {
       setSelectedPostForShare(post);
       
       if (user?.uid) {
         try {
           await sharePost(postId, user.uid);
-          setPosts(prev => prev.map(p => 
-            p.id === postId 
-              ? { ...p, shareCount: (p.shareCount || 0) + 1 }
-              : p
-          ));
+          updateMobileCollections(postId, (p) => ({
+            ...p,
+            shareCount: (p.shareCount || 0) + 1,
+          }));
         } catch (error) {
           console.error('Error sharing post:', error);
         }
@@ -2046,29 +1970,26 @@ const MobileFeedPage = () => {
         text: commentText.trim()
       });
       
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, commentCount: (post.commentCount || 0) + 1 }
-          : post
-      ));
+      updateMobileCollections(postId, (post) => ({
+        ...post,
+        commentCount: (post.commentCount || 0) + 1,
+      }));
 
       const postRef = firestoreDoc(db, 'posts', postId);
       const postDoc = await getDoc(postRef);
       if (postDoc.exists()) {
         const data = postDoc.data();
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, commentCount: data.commentCount || 0 }
-            : post
-        ));
+        updateMobileCollections(postId, (post) => ({
+          ...post,
+          commentCount: data.commentCount || 0,
+        }));
       }
     } catch (error) {
       console.error('Error adding comment:', error);
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, commentCount: Math.max(0, (post.commentCount || 1) - 1) }
-          : post
-      ));
+      updateMobileCollections(postId, (post) => ({
+        ...post,
+        commentCount: Math.max(0, (post.commentCount || 1) - 1),
+      }));
     }
   };
 
@@ -2149,8 +2070,80 @@ const handleFollow = async (targetUserId: string) => {
       
       <CreatePostTrigger user={user} />
 
+      <div className="px-4 pt-4 space-y-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleMobileNameSearch();
+              }
+            }}
+            placeholder="Search travelers by name..."
+            className="w-full bg-gray-900 text-white pl-12 pr-12 py-3 rounded-full border border-gray-800 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                resetSearch();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => window.location.href = '/aitrip'}
+          className="w-full flex justify-center"
+          aria-label="Plan your AI-powered trip"
+        >
+          <img
+            src={TRIP_BANNER_SRC}
+            alt="Plan your next adventure with AI"
+            loading="lazy"
+            className="w-full max-w-full rounded-xl border border-gray-800 hover:opacity-95 transition-opacity cursor-pointer"
+          />
+        </button>
+      </div>
+
       <div className="pb-20">
-        {posts.length === 0 ? (
+        {isShowingSearchResults ? (
+          searchLoading ? (
+            <div className="text-center py-12 px-4">
+              <div className="text-gray-400 text-base">Searching travelers...</div>
+            </div>
+          ) : searchResults.length > 0 ? (
+            searchResults.map((post) => (
+              <MobilePostCard
+                key={post.id}
+                post={post}
+                currentUser={user!}
+                onLike={() => handleLikePost(post.id)}
+                onComment={(text: string) => handleAddComment(post.id, text)}
+                onSave={() => handleSavePost(post.id)}
+                onShare={() => handleSharePost(post.id)}
+                onMenuClick={() => setSelectedPostForMenu(post)}
+                followingList={followingList}
+                onFollow={handleFollow}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12 px-4">
+              <div className="text-gray-400 text-base">No travelers matched “{searchQuery}”.</div>
+              <div className="text-gray-500 text-sm mt-2">Try a different name.</div>
+            </div>
+          )
+        ) : posts.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className="text-gray-400 text-base">No posts yet</div>
             <div className="text-gray-500 text-sm mt-2">Be the first to share something!</div>

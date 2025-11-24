@@ -12,7 +12,7 @@ import { IoChevronForward } from "react-icons/io5";
 import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
-import NavBar from '@/components/Nav';
+import NavBar from '@/components/LeftSideNav';
 import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList, getFollowersList } from '@/lib/followService';
 
 

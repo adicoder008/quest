@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, CheckCheck } from 'lucide-react';
+import { Bell, Check, Trash2, CheckCheck, ArrowBigLeft, ChevronLeft } from 'lucide-react';
 import { 
   subscribeToNotifications, 
   markAsRead, 
@@ -97,7 +97,9 @@ export default function NotificationsPage() {
         <div className="max-w-4xl mx-auto p-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Bell size={28} />
+            <button onClick={() => router.back()}>
+            <ChevronLeft/>
+            </button>
               Notifications
               {unreadCount > 0 && (
                 <span className="text-sm bg-red-500 text-white px-2 py-1 rounded-full">
