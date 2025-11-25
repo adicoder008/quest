@@ -175,7 +175,7 @@ export const QuestPostCard = ({
           <div className="flex items-end justify-between">
             <div className="flex-1">
               <h2 className="text-white font-bold text-xl md:text-2xl drop-shadow-lg">
-                {post.questContext?.questTitle || 'Amazing Adventure'}
+                {post.questContext?.questTitle || 'Untitled Quest'}
               </h2>
               {post.questContext?.description && (
                 <p className="text-gray-200 text-sm mt-1 drop-shadow-md line-clamp-2">
@@ -374,7 +374,7 @@ export const MobileQuestPostCard = ({
         {/* Quest Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h2 className="text-white font-bold text-xl drop-shadow-lg mb-1">
-            {post.questContext?.questTitle || 'Amazing Adventure'}
+            {post.questContext?.questTitle || 'Untitled Quest'}
           </h2>
           {post.questContext?.description && (
             <p className="text-gray-200 text-sm drop-shadow-md line-clamp-2 mb-2">

@@ -6,7 +6,7 @@ import { auth, db, storage } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ArrowLeft, Camera, X, Loader2 } from 'lucide-react';
-import NavBar from '@/components/Nav';
+import NavBar from '@/components/LeftSideNav';
 import Footer from '@/components/phoneComponents/Footer';
 import Image from 'next/image';
 

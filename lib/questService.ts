@@ -1,5 +1,3 @@
-// lib/questService.ts - Updated with multi-size image handling
-
 import {
   doc,
   getDoc,
@@ -20,9 +18,12 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { getAuth } from 'firebase/auth'; // Import getAuth for security checks
 import { Quest } from '@/app/types';
 import { compressAndUploadImage } from '@/lib/imageService';
 import { createPost } from './postService';
+import { awardQuestSubmissionQPs } from '@/lib/qpService';
+import { updateQuestBadgeProgress } from '@/lib/badgeService';
 
 type QuestRole = 'owner' | 'editor' | 'viewer';
 
@@ -60,10 +61,10 @@ const questService = {
    */
   async generateQuest(questData: TripData): Promise<GenerateQuestResponse> {
     console.log('generateQuest called with:', questData);
-    
+
     try {
       const { uid, ...questDataWithoutUid } = questData;
-      
+
       if (!uid) {
         throw new Error('User UID is required');
       }
@@ -82,7 +83,7 @@ const questService = {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to generate itinerary from API');
       }
@@ -109,17 +110,17 @@ const questService = {
   async getDestinationSuggestions(destination: string): Promise<string[]> {
     try {
       const response = await fetch(`/api/destination-suggestions/${encodeURIComponent(destination)}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch destination suggestions');
       }
-      
+
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to get suggestions');
       }
-      
+
       return result.suggestions || [];
     } catch (error) {
       console.error('Error fetching destination suggestions:', error);
@@ -132,18 +133,17 @@ const questService = {
    * Updated to handle single image URL
    */
   async createQuest(
-    uid: string, 
-    questData: any, 
-    itineraryData?: any, 
-    coverImageFile?: File, 
+    uid: string,
+    questData: any,
+    itineraryData?: any,
+    coverImageFile?: File,
     flowCards?: FlowCardState[]
   ) {
     console.log('createQuest called with:', { uid, questData });
-    
+
     const questCollectionRef = collection(db, 'quest');
     const newQuestRef = doc(questCollectionRef);
     const questId = newQuestRef.id;
-
     const chatCollectionRef = collection(db, 'chats');
     const newChatRef = doc(chatCollectionRef);
     const chatId = newChatRef.id;
@@ -156,8 +156,8 @@ const questService = {
       if (coverImageFile) {
         try {
           coverImageUrl = await compressAndUploadImage(
-            coverImageFile, 
-            'quest-covers', 
+            coverImageFile,
+            'quest-covers',
             uid
           );
           console.log('Cover image uploaded:', coverImageUrl);
@@ -185,7 +185,7 @@ const questService = {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
-        
+
         console.log('Creating quest document:', questDocument);
         transaction.set(newQuestRef, questDocument);
 
@@ -226,7 +226,7 @@ const questService = {
       if (!questSnap.exists()) {
         throw new Error('Quest not found');
       }
-      
+
       const questData = questSnap.data();
       if (!questData.isPublic && (!questData.members || !questData.members[uid])) {
         throw new Error('You do not have permission to view this quest.');
@@ -238,7 +238,7 @@ const questService = {
       throw error;
     }
   },
-    
+
   /**
    * Fetches a single quest document by its ID, without user permission checks
    */
@@ -275,17 +275,17 @@ const questService = {
       const questsToFetch = questIds.slice(0, 30);
       const questsRef = collection(db, 'quest');
       const q = query(
-        questsRef, 
+        questsRef,
         where('__name__', 'in', questsToFetch),
       );
-      
+
       const querySnapshot = await getDocs(q);
       let quests: Quest[] = [];
-      
+
       querySnapshot.forEach((doc) => {
         quests.push({ id: doc.id, ...doc.data() } as Quest);
       });
-      
+
       quests.sort((a, b) => {
         const aTimestamp =
           a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
@@ -297,7 +297,7 @@ const questService = {
             : (typeof b.createdAt === 'string' ? Date.parse(b.createdAt) / 1000 : 0);
         return bTimestamp - aTimestamp;
       });
-      
+
       return quests;
     } catch (error) {
       console.error('Error fetching user quests:', error);
@@ -324,17 +324,17 @@ const questService = {
       const questsToFetch = savedQuestIds.slice(0, 30);
       const questsRef = collection(db, 'quest');
       const q = query(
-        questsRef, 
+        questsRef,
         where('__name__', 'in', questsToFetch),
       );
-      
+
       const querySnapshot = await getDocs(q);
       let quests: Quest[] = [];
-      
+
       querySnapshot.forEach((doc) => {
         quests.push({ id: doc.id, ...doc.data() } as Quest);
       });
-      
+
       return quests;
     } catch (error) {
       console.error('Error fetching user saved quests:', error);
@@ -344,15 +344,25 @@ const questService = {
 
   /**
    * Posts a quest to the public feed
-   * Updated to handle single image URL
+   * Updated to fix permission errors and handle cover image logic
    */
   async postQuestToFeed(
-    questId: string, 
-    uid: string, 
+    questId: string,
+    uid: string,
     visibility: 'public' | 'private',
-    coverImageFile?: File | null
+    coverImageFile?: File | null,
+    existingCoverUrl?: string | null // NEW PARAM: Pass existing URL if user selected one without uploading new file
   ): Promise<{ success: boolean; error?: string; postId?: string }> {
     try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      // 0. SECURITY CHECK: Synchronize UI state with Auth state
+      // This prevents the permission mismatch error
+      if (!currentUser || currentUser.uid !== uid) {
+        throw new Error('Authentication mismatch: You can only post quests you own while logged in.');
+      }
+
       const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
 
@@ -362,23 +372,23 @@ const questService = {
 
       const questData = questSnap.data();
 
-      // 1. Check permissions
+      // 1. Check permissions (Client Side Validation)
       if (questData.members?.[uid] !== 'owner') {
         throw new Error('Only the quest owner can post to the feed.');
       }
 
       // 2. Prevent duplicate posting for public quests
       if (visibility === 'public' && questData.isPostedToFeed) {
-        return { 
-          success: false, 
-          error: 'This quest has already been posted to the feed.' 
+        return {
+          success: false,
+          error: 'This quest has already been posted to the feed.'
         };
       }
 
       // 3. Fetch user data
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
-      
+
       if (!userSnap.exists()) {
         throw new Error('User not found');
       }
@@ -387,14 +397,15 @@ const questService = {
       const userName = userData.displayName || 'Anonymous';
       const userProfilePic = userData.photoURL || '';
 
+      // 4. Determine Final Cover Image URL
+      // Priority: 1. New File Upload -> 2. Explicit Existing URL (selected in UI) -> 3. Current DB Value
       let finalCoverImageUrl = questData.coverImageUrl || null;
 
-      // 4. Handle new cover image upload (if provided)
       if (coverImageFile) {
         try {
           finalCoverImageUrl = await compressAndUploadImage(
-            coverImageFile, 
-            'quest-covers', 
+            coverImageFile,
+            'quest-covers',
             uid
           );
           console.log('New cover image uploaded:', finalCoverImageUrl);
@@ -402,6 +413,10 @@ const questService = {
           console.error('Error uploading new cover image:', error);
           throw new Error('Failed to upload cover image');
         }
+      } else if (existingCoverUrl) {
+        // Fix for "default cover getting posted": 
+        // If no file is uploaded but a specific URL was chosen in UI, use it.
+        finalCoverImageUrl = existingCoverUrl;
       }
 
       // 5. Enforce image for public posts
@@ -423,8 +438,8 @@ const questService = {
           uid: uid,
           userName: userName,
           userProfilePic: userProfilePic,
-          text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'An amazing adventure awaits!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
-          photoUrl: finalCoverImageUrl, // Single URL
+          text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'Untitled QUest!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
+          photoUrl: finalCoverImageUrl,
           postType: 'quest_completion',
           questContext: {
             questId: questId,
@@ -438,9 +453,9 @@ const questService = {
 
       // 7. Update the quest document
       await updateDoc(questRef, {
-        coverImageUrl: finalCoverImageUrl, // Single URL
+        coverImageUrl: finalCoverImageUrl, // Ensures the chosen image (new or existing) is saved
         isPublic: visibility === 'public',
-        isPostedToFeed: visibility === 'public' ? true : questData.isPostedToFeed,
+        isPostedToFeed: visibility === 'public' ? true : (questData.isPostedToFeed || false),
         associatedPostId: postId || questData.associatedPostId || null,
         updatedAt: serverTimestamp()
       });
@@ -448,9 +463,9 @@ const questService = {
       return { success: true, postId };
     } catch (error) {
       console.error('Error posting quest to feed:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to post quest' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to post quest'
       };
     }
   },
@@ -467,16 +482,16 @@ const questService = {
         orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const quests: Quest[] = [];
-      
+
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-        
+
         let ownerName = 'Anonymous';
         let ownerPhoto = '';
-        
+
         if (data.owner) {
           try {
             const userDoc = await getDoc(doc(db, 'users', data.owner));
@@ -489,7 +504,7 @@ const questService = {
             console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
           }
         }
-        
+
         quests.push({
           id: docSnap.id,
           ...data,
@@ -497,7 +512,7 @@ const questService = {
           ownerPhoto
         } as unknown as Quest);
       }
-      
+
       return quests;
     } catch (error) {
       console.error('Error fetching public quests:', error);
@@ -514,7 +529,7 @@ const questService = {
       const questSnap = await getDoc(questRef);
 
       if (!questSnap.exists()) throw new Error('Quest not found.');
-      
+
       const questData = questSnap.data();
       const userRole = questData.members?.[uid];
 
@@ -526,14 +541,14 @@ const questService = {
         ...updatedData,
         updatedAt: serverTimestamp()
       });
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error updating quest:', error);
       throw error;
     }
   },
-  
+
   /**
    * AI Itinerary Generation (Placeholder)
    */
@@ -541,7 +556,7 @@ const questService = {
     console.log('Generating AI itinerary for:', questData);
     return { days: [], generated: true };
   },
-  
+
   /**
    * Create blank itinerary structure for manual creation
    */
@@ -549,7 +564,7 @@ const questService = {
     const startDate = new Date(questData.startDate);
     const endDate = new Date(questData.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
+
     const blankDays = Array.from({ length: days }, (_, i) => {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
@@ -560,7 +575,7 @@ const questService = {
         activities: []
       };
     });
-    
+
     return {
       days: blankDays,
       generated: false,

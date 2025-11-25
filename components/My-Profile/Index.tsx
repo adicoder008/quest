@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from "react";
-import Navbar from "@/components/Nav";
+import Navbar from "@/components/LeftSideNav";
 import ProfileHeader from "./profile/ProfileHeader";
 import AboutSection from "./profile/AboutSection";
 import BadgesSection from "./profile/BadgesSection";
@@ -14,6 +14,10 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../lib/firebase.js";
 import { getCurrentUserData } from "@/lib/authService.js";
 import { getUserXPHistory, XP_VALUES } from "@/lib/xpService";
+
+const PROFILE_DESKTOP_MAIN_WIDTH = 62;
+const PROFILE_LEFT_NAV_WIDTH = 280;
+const PROFILE_SIDEBAR_GAP = 16;
 
 interface UserData {
   uid: string;
@@ -67,14 +71,39 @@ useEffect(() => {
 }, []);
 
 
-  // if (loading || !userData) return <div>Loading...</div>;
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  const totalFixedWidth = PROFILE_LEFT_NAV_WIDTH + PROFILE_SIDEBAR_GAP;
+  const containerStartExpression = `calc((100vw - (${PROFILE_LEFT_NAV_WIDTH}px + ${PROFILE_DESKTOP_MAIN_WIDTH}vw + ${PROFILE_SIDEBAR_GAP}px)) / 2)`;
+  const mainLeftExpression = `calc(${containerStartExpression} + ${PROFILE_LEFT_NAV_WIDTH + PROFILE_SIDEBAR_GAP}px)`;
+  const mainWidthStyle: React.CSSProperties = {
+    width: `${PROFILE_DESKTOP_MAIN_WIDTH}vw`,
+    marginLeft: mainLeftExpression,
+    marginRight: 'auto',
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
-      <Navbar user={null} onSignOut={function (): void {
-        throw new Error("Function not implemented.");
-      } } />
-      <div className="flex flex-1 px-12 gap-4 pt-4 max-w-[1440px] mx-auto w-full max-md:flex-col">
+    <div className="min-h-screen bg-black text-white relative overflow-x-hidden">
+      <Navbar 
+        user={user} 
+        onSignOut={handleSignOut}
+        style={{
+          left: containerStartExpression,
+          right: 'auto',
+          width: `${PROFILE_LEFT_NAV_WIDTH}px`,
+        }}
+      />
+      <main 
+        className="relative min-h-screen"
+        style={mainWidthStyle}
+      >
+      <div className="flex flex-1 px-12 gap-4 pt-4 max-w-[1440px] mx-auto w-full max-md:flex-col text-black">
         <div className="flex-1">
           <ProfileHeader />
           <AboutSection />
@@ -96,6 +125,7 @@ useEffect(() => {
           </div>
         </aside>
       </div>
+      </main>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import Navbar from "@/components/Nav";
+import Navbar from "@/components/LeftSideNav";
 import MainLayout from "./MainLayout";
 import PostCreator from "./PostCreator";
 import TextPost from "./TextPost";
@@ -8,7 +8,7 @@ import SponsoredPost from "./SponsoredPost";
 import EventPost from "./EventPost";
 import UpcomingEvents from "./UpcomingEvents";
 import TrendingTravelers from "./TrendingTravelers";
-import Nav from "../Nav";
+import Nav from "../LeftSideNav";
 
 const Index: React.FC = () => {
   // Orange post right content
