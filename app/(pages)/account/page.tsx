@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
-import { getGamificationData, getRankInfo } from '@/lib/gamificationService';
+import { getUserGamificationData, calculateRankInfo } from '@/lib/qpService';
 import { addComment } from '@/lib/postService';
 import { savePost, unsavePost, sharePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
@@ -145,8 +145,8 @@ const AccountPage = () => {
           setBadges(userBadges.slice(0, 3));
 
           // Updated gamification logic
-          const gData = await getGamificationData(currentUser.uid);
-          const rankInfo = getRankInfo(gData);
+          const gData = await getUserGamificationData(currentUser.uid);
+          const rankInfo = calculateRankInfo(gData);
           setGamificationInfo(rankInfo);
 
           await fetchUserPosts(currentUser.uid);

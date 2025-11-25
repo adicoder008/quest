@@ -16,9 +16,9 @@ import NavBar from '@/components/LeftSideNav';
 import { getCurrentUserData } from '@/lib/authService';
 import { getUserBadges } from '@/lib/firebaseSerive';
 import {
-  getGamificationData,
-  getRankInfo,
-} from '@/lib/gamificationService';
+  getUserGamificationData,
+  calculateRankInfo,
+} from '@/lib/qpService';
 import useResponsive from '@/hooks/useResponsive';
 
 // Helper function to generate username
@@ -45,8 +45,8 @@ const ExploreRightSidebar = ({ user, userData }: any) => {
         const userBadges = await getUserBadges(user.uid);
         setBadges(userBadges.slice(0, 3));
 
-        const gData = await getGamificationData(user.uid);
-        setRankInfo(getRankInfo(gData));
+        const gData = await getUserGamificationData(user.uid);
+        setRankInfo(calculateRankInfo(gData));
       } catch (error) {
         console.error('Error fetching user data:', error);
       }

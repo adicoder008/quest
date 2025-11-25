@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import {
-  getGamificationData,
-  getRankInfo,
+  getUserGamificationData,
+  calculateRankInfo,
   getMasterGuideLeaderboard,
   getUserQPHistory,
   RANKS,
@@ -56,7 +56,7 @@ const GamificationHub = () => {
           
           const [mainData, gData, board, history] = await Promise.all([
             getCurrentUserData(),
-            getGamificationData(currentUser.uid),
+            getUserGamificationData(currentUser.uid),
             getMasterGuideLeaderboard(),
             getUserQPHistory(currentUser.uid, 10),
           ]);
