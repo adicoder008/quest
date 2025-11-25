@@ -32,7 +32,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import NavBar from '@/components/Nav';
+import NavBar from '@/components/LeftSideNav';
 import Footer from '@/components/phoneComponents/Footer';
 
 const GamificationHub = () => {

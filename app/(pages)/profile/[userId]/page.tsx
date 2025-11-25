@@ -5,8 +5,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
 import { getGamificationData, getRankInfo } from '@/lib/gamificationService';
-import { addComment } from '@/lib/postService';
-import { savePost, unsavePost, sharePost } from '@/lib/postService';
+import { savePost, unsavePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
 import {
   Settings,
@@ -15,16 +14,11 @@ import {
   SlidersHorizontal,
   HelpCircle,
   MapPin,
-  Heart,
   MessageCircle,
   Share2,
   Bookmark,
   MoreHorizontal,
   Trophy,
-  Award,
-  Flame,
-  Zap,
-  Target,
 } from 'lucide-react';
 import { FaHeartbeat } from 'react-icons/fa';
 import { IoChevronForward } from 'react-icons/io5';
@@ -43,18 +37,9 @@ import {
 } from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
-<<<<<<< HEAD
-import NavBar from '@/components/Nav';
-import {
-  followUser as followUserService,
-  unfollowUser as unfollowUserService,
-  getFollowingList,
-} from '@/lib/followService';
-=======
 import NavBar from '@/components/LeftSideNav';
-import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList, getFollowersList } from '@/lib/followService';
+import { getFollowingList } from '@/lib/followService';
 
->>>>>>> devgambo
 
 const styles = `
   .scrollbar-hide {
@@ -294,12 +279,12 @@ const AccountPage = () => {
         posts.map((post) =>
           post.id === postId
             ? {
-                ...post,
-                likedBy: isLiked
-                  ? post.likedBy?.filter((id) => id !== user.uid)
-                  : [...(post.likedBy || []), user.uid],
-                likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1,
-              }
+              ...post,
+              likedBy: isLiked
+                ? post.likedBy?.filter((id) => id !== user.uid)
+                : [...(post.likedBy || []), user.uid],
+              likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1,
+            }
             : post
         );
 
@@ -479,7 +464,7 @@ const AccountPage = () => {
 
               {/* Gamification Preview */}
               {gamificationInfo && (
-                <div 
+                <div
                   className='mt-6 bg-[#1a1a1a] rounded-xl p-5 cursor-pointer hover:bg-[#292929] transition-colors border border-gray-800'
                   onClick={() => navigateTo('/gamification')}
                 >
@@ -526,7 +511,7 @@ const AccountPage = () => {
                       <span className='text-[#EA6100]'>{Math.round(gamificationInfo.qpProgress * 100)}%</span>
                     </div>
                     <div className='w-full bg-gray-700 rounded-full h-2'>
-                      <div 
+                      <div
                         className='bg-gradient-to-r from-[#EA6100] to-[#ff9a50] h-2 rounded-full transition-all'
                         style={{ width: `${gamificationInfo.qpProgress * 100}%` }}
                       ></div>
@@ -574,21 +559,19 @@ const AccountPage = () => {
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActivePostTab('your-posts')}
-                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                        activePostTab === 'your-posts'
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activePostTab === 'your-posts'
                           ? 'bg-[#EA6100] text-black'
                           : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
+                        }`}
                     >
                       Your Posts ({yourPosts.length})
                     </button>
                     <button
                       onClick={() => setActivePostTab('saved-posts')}
-                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                        activePostTab === 'saved-posts'
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activePostTab === 'saved-posts'
                           ? 'bg-[#EA6100] text-black'
                           : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
+                        }`}
                     >
                       Saved Posts ({savedPosts.length})
                     </button>
@@ -680,31 +663,28 @@ const AccountPage = () => {
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActiveQuestTab('public-quests')}
-                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                        activeQuestTab === 'public-quests'
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'public-quests'
                           ? 'bg-[#EA6100] text-black'
                           : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
+                        }`}
                     >
                       Public
                     </button>
                     <button
                       onClick={() => setActiveQuestTab('private-quests')}
-                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                        activeQuestTab === 'private-quests'
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'private-quests'
                           ? 'bg-[#EA6100] text-black'
                           : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
+                        }`}
                     >
                       Private
                     </button>
                     <button
                       onClick={() => setActiveQuestTab('saved-quests')}
-                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                        activeQuestTab === 'saved-quests'
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'saved-quests'
                           ? 'bg-[#EA6100] text-black'
                           : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
+                        }`}
                     >
                       Saved Quests
                     </button>
@@ -970,9 +950,8 @@ const PostCard: React.FC<{
           <div className='flex items-center gap-4'>
             <button
               onClick={handleLikeClick}
-              className={`flex items-center gap-2 transition-colors ${
-                liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-              }`}
+              className={`flex items-center gap-2 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                }`}
             >
               <FaHeartbeat size={22} className={liked ? 'fill-current' : ''} />
               <span className='text-sm font-medium'>{post.likeCount || 0}</span>
@@ -995,9 +974,8 @@ const PostCard: React.FC<{
           </div>
           <button
             onClick={handleSaveClick}
-            className={`transition-colors ${
-              post.isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
-            }`}
+            className={`transition-colors ${post.isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+              }`}
           >
             <Bookmark size={22} className={post.isSaved ? 'fill-current' : ''} />
           </button>

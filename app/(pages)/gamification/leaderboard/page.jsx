@@ -7,7 +7,7 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { getUserKudosLeaderboard } from '@/lib/kudosService';
 import { ArrowLeft, Trophy, Crown, Medal, Star, TrendingUp, Flame } from 'lucide-react';
 // import { RankBadge } from '@/components/gamification/RankComponents';
-import NavBar from '@/components/Nav';
+import NavBar from '@/components/LeftSideNav';
 import Footer from '@/components/phoneComponents/Footer';
 
 const LeaderboardPage = () => {
