@@ -1,219 +1,234 @@
-'use client';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, Heart, MoreHorizontal, Trash2, Flag } from 'lucide-react';
+import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
 
-import { useState, useEffect } from 'react';
-import { X, Send } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-
-type Post = {
-  id: string;
-  userProfilePic?: string;
-  userName: string;
-  createdAt: any;
-  text?: string;
-  photoUrl?: string;
-};
-
-type User = {
-  uid: string;
-  photoURL?: string;
-  // add other user fields if needed
-};
-
-type CommentModalProps = {
-  post: Post;
+interface CommentModalProps {
+  post: any;
+  user: any;
   onClose: () => void;
-  onAddComment: (comment: string) => Promise<void>;
-  currentUser?: User | null;
-};
+  onCommentSubmit?: (postId: string, text: string) => Promise<void>;
+}
 
-const CommentModal = ({ post, onClose, onAddComment, currentUser }: CommentModalProps) => {
-  const [comments, setComments] = useState<Array<{
-    id: string;
-    userProfilePic?: string;
-    userName: string;
-    createdAt: Date | null;
-    text?: string;
-  }>>([]);
-  const [newComment, setNewComment] = useState('');
+const CommentModal: React.FC<CommentModalProps> = ({ post, user, onClose, onCommentSubmit }) => {
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // Subscribe to comments for this post
-    const commentsRef = collection(db, 'posts', post.id, 'comments');
-    const q = query(commentsRef, orderBy('createdAt', 'asc'));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const commentsData: Array<{
-        id: string;
-        userProfilePic?: string;
-        userName: string;
-        createdAt: Date | null;
-        text?: string;
-      }> = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!data.isDeleted) {
-          commentsData.push({
-              id: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate(),
-              userName: ''
-          });
-        }
-      });
-      setComments(commentsData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    fetchComments();
   }, [post.id]);
 
-  const handleSubmitComment = async () => {
-    if (!newComment.trim() || !currentUser?.uid) return;
-
+  const fetchComments = async () => {
     try {
-      await onAddComment(newComment.trim());
-      setNewComment('');
+      const commentsRef = collection(db, 'posts', post.id, 'comments');
+      const q = query(commentsRef, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+
+      const commentsData = await Promise.all(snapshot.docs.map(async (commentDoc) => {
+        const data = commentDoc.data();
+        let author = {
+          name: data.userName || 'Anonymous',
+          photoURL: data.userProfilePic || '/default-avatar.png',
+          uid: data.uid
+        };
+
+        // Fetch latest user data if possible
+        if (data.uid) {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', data.uid));
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              author = {
+                name: userData.displayName || 'Anonymous',
+                photoURL: userData.photoURL || '/default-avatar.png',
+                uid: data.uid
+              };
+            }
+          } catch (e) {
+            console.error('Error fetching user data', e);
+          }
+        }
+
+        return {
+          id: commentDoc.id,
+          ...data,
+          author
+        };
+      }));
+
+      setComments(commentsData);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error('Error fetching comments:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatTime = (timestamp: Date | null) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !user) return;
+
+    setSubmitting(true);
+    try {
+      if (onCommentSubmit) {
+        await onCommentSubmit(post.id, commentText);
+      } else {
+        // Fallback if no handler provided
+        await addDoc(collection(db, 'posts', post.id, 'comments'), {
+          uid: user.uid,
+          userName: user.displayName || 'Anonymous',
+          userProfilePic: user.photoURL || '',
+          text: commentText.trim(),
+          createdAt: serverTimestamp()
+        });
+      }
+
+      setCommentText('');
+      fetchComments(); // Refresh comments
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
-    
-    const now = new Date();
-    const commentTime = timestamp;
-    const diffMs = now.getTime() - commentTime.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffMinutes < 1) return 'now';
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${Math.floor(diffHours / 24)}d`;
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    return formatDistanceToNow(date, { addSuffix: true });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex">
-      <div className="w-full bg-gray-900 text-white flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <button onClick={onClose} className="text-white">
-            <X className="w-6 h-6" />
-          </button>
-          <h2 className="text-lg font-semibold">Comments</h2>
-          <div className="w-6" /> {/* Spacer */}
-        </div>
-
-        {/* Original Post Preview */}
-        <div className="p-4 border-b border-gray-700 bg-gray-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <img 
-              src={post.userProfilePic || '/default-avatar.png'} 
-              alt={post.userName}
-              className="w-8 h-8 rounded-full object-cover"
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-900 w-full max-w-4xl h-[80vh] rounded-2xl overflow-hidden flex border border-gray-800" onClick={e => e.stopPropagation()}>
+        {/* Left Side - Post Content (Image/Video) */}
+        <div className="hidden md:flex w-1/2 bg-black items-center justify-center relative">
+          {post.photoUrl ? (
+            <img
+              src={post.photoUrl}
+              alt="Post content"
+              className="max-w-full max-h-full object-contain"
             />
-            <div>
-              <span className="text-peach-200 font-medium">{post.userName}</span>
-              <div className="text-gray-400 text-sm">{formatTime(post.createdAt)}</div>
-            </div>
-          </div>
-          
-          {post.text && (
-            <p className="text-gray-300 text-sm line-clamp-3">{post.text}</p>
-          )}
-          
-          {post.photoUrl && (
-            <img 
-              src={post.photoUrl} 
-              alt="Post" 
-              className="w-full h-32 object-cover rounded mt-2"
-            />
-          )}
-        </div>
-
-        {/* Comments List */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="p-4 text-center text-gray-400">Loading comments...</div>
-          ) : comments.length === 0 ? (
-            <div className="p-4 text-center text-gray-400">
-              <div className="text-lg mb-2">💬</div>
-              <div>No comments yet</div>
-              <div className="text-sm">Be the first to comment!</div>
-            </div>
           ) : (
-            <div className="p-4 space-y-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <img 
-                    src={comment.userProfilePic || '/default-avatar.png'} 
-                    alt={comment.userName}
-                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+            <div className="p-8 text-center">
+              <p className="text-gray-400">{post.text}</p>
+            </div>
+          )}
+
+          {/* Quest Overlay if applicable */}
+          {post.questContext && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              <h3 className="text-white font-bold text-lg">{post.questContext.questTitle}</h3>
+              <p className="text-gray-300 text-sm line-clamp-2">{post.questContext.description}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side - Comments & Details */}
+        <div className="w-full md:w-1/2 flex flex-col bg-gray-900">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src={post.userProfilePic || '/default-avatar.png'}
+                alt={post.userName}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <span className="font-semibold text-white text-sm">{post.userName}</span>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Comments List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            {/* Post Caption as first comment */}
+            {post.text && (
+              <div className="flex gap-3">
+                <img
+                  src={post.userProfilePic || '/default-avatar.png'}
+                  alt={post.userName}
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-semibold text-white text-sm">{post.userName}</span>
+                    <span className="text-gray-300 text-sm">{post.text}</span>
+                  </div>
+                  <span className="text-gray-500 text-xs mt-1 block">{formatTime(post.createdAt)}</span>
+                </div>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-center py-4 text-gray-500">Loading comments...</div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No comments yet. Be the first!</div>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="flex gap-3 group">
+                  <img
+                    src={comment.author.photoURL}
+                    alt={comment.author.name}
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0 cursor-pointer"
+                    onClick={() => router.push(`/profile/${comment.author.uid}`)}
                   />
                   <div className="flex-1">
-                    <div className="bg-gray-800 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-peach-200 font-medium text-sm">
-                          {comment.userName}
-                        </span>
-                        <span className="text-gray-400 text-xs">
-                          {formatTime(comment.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-white text-sm">{comment.text}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className="font-semibold text-white text-sm cursor-pointer hover:underline"
+                        onClick={() => router.push(`/profile/${comment.author.uid}`)}
+                      >
+                        {comment.author.name}
+                      </span>
+                      <span className="text-gray-300 text-sm">{comment.text}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-gray-500 text-xs">{formatTime(comment.createdAt)}</span>
+                      {/* Reply button could go here */}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              ))
+            )}
+            <div ref={commentsEndRef} />
+          </div>
 
-        {/* Comment Input */}
-        {currentUser ? (
-          <div className="p-4 border-t border-gray-700">
-            <div className="flex gap-3">
-              <img 
-                src={currentUser.photoURL || '/default-avatar.png'} 
+          {/* Comment Input */}
+          <div className="p-4 border-t border-gray-800">
+            <form onSubmit={handleSubmit} className="flex items-center gap-3">
+              <img
+                src={user?.photoURL || '/default-avatar.png'}
                 alt="You"
-                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                className="w-8 h-8 rounded-full object-cover"
               />
-              <div className="flex-1 flex gap-2">
+              <div className="flex-1 relative">
                 <input
                   type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add a comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmitComment();
-                    }
-                  }}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-peach-200"
+                  className="w-full bg-gray-800 text-white px-4 py-2 pr-10 rounded-full border border-gray-700 focus:border-[#F7CEB0] focus:outline-none text-sm"
+                  disabled={submitting}
                 />
                 <button
-                  onClick={handleSubmitComment}
-                  disabled={!newComment.trim()}
-                  className={`p-2 rounded-full transition-colors ${
-                    newComment.trim() 
-                      ? 'bg-peach-200 text-gray-900 hover:bg-peach-300' 
-                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                  type="submit"
+                  disabled={!commentText.trim() || submitting}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F7CEB0] disabled:opacity-50 hover:text-[#f5c094]"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send size={16} />
                 </button>
               </div>
-            </div>
+            </form>
           </div>
-        ) : (
-          <div className="p-4 border-t border-gray-700 text-center">
-            <div className="text-gray-400">Please log in to comment</div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

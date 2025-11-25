@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { getUserData } from "../../../lib/firebaseSerive";
+import { getUserData } from "@/lib/firebaseSerive";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../../../lib/firebase";
-import { updateBio } from "../../../lib/profileService";
+import { auth } from "@/lib/firebase";
+import { updateBio } from "@/lib/profileService";
+import { Edit2, Save, X } from "lucide-react";
 
 interface UserData {
   bio?: string;
@@ -45,8 +46,6 @@ const AboutSection: React.FC = () => {
     fetchUserData();
   }, [uid]);
 
-  // ... rest of the component
-
   const handleSave = async () => {
     if (!uid) return;
     
@@ -74,8 +73,8 @@ const AboutSection: React.FC = () => {
 
   if (!userData) {
     return (
-      <div className="bg-[rgba(248,249,250,1)] border w-full mt-3 pt-4 pb-6 px-8 rounded-lg border-[rgba(197,196,199,1)] animate-pulse">
-        <div className="h-6 bg-gray-200 rounded w-20 mb-4"></div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+        <div className="h-5 bg-gray-200 rounded w-20 mb-4"></div>
         <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
       </div>
@@ -83,42 +82,31 @@ const AboutSection: React.FC = () => {
   }
 
   return (
-    <div className="bg-[rgba(248,249,250,1)] border w-full mt-3 rounded-lg border-[rgba(197,196,199,1)] border-solid max-md:max-w-full">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between pt-4 px-8 max-md:px-5">
-        <h2 className="text-base text-black font-medium">About</h2>
+      <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900">About</h2>
         {!isEditing && (
           <button
             onClick={handleEdit}
-            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors group"
             aria-label="Edit about section"
           >
-            <svg 
-              width="16" 
-              height="16" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2"
-              className="text-gray-600"
-            >
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <Edit2 size={16} className="text-gray-600 group-hover:text-[#EA6100]" />
           </button>
         )}
       </div>
 
       {/* Content */}
-      <div className="px-8 pb-6 max-md:px-5">
+      <div className="p-6">
         {isEditing ? (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-4">
             <textarea
               value={bioInput}
               onChange={(e) => setBioInput(e.target.value)}
               placeholder="Tell others about yourself, your interests, and what you're passionate about..."
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              rows={4}
+              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#EA6100] focus:border-transparent text-sm"
+              rows={6}
               maxLength={300}
             />
             
@@ -132,25 +120,28 @@ const AboutSection: React.FC = () => {
               <button
                 onClick={handleCancel}
                 disabled={isLoading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
+                <X size={16} />
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={isLoading || bioInput.trim() === userData?.bio}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-[#EA6100] text-white rounded-lg hover:bg-[#d55600] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {isLoading && (
-                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Save size={16} />
                 )}
                 Save
               </button>
             </div>
           </div>
         ) : (
-          <div className="mt-4">
-            <p className="text-[#8B8A8F] text-sm font-normal leading-[21px] whitespace-pre-wrap">
+          <div>
+            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
               {userData.bio || "No bio available. Click edit to add your bio."}
             </p>
           </div>

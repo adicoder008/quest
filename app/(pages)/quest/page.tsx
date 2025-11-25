@@ -283,7 +283,7 @@ const QuestPage = () => {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth');
+      router.push('/');
     }
   }, [user, loading, router]);
 

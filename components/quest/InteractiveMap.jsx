@@ -55,8 +55,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       // Must have valid location data
       const hasLocation = card.location && 
                          card.location.coordinates && 
-                         card.location.coordinates.lat && 
-                         card.location.coordinates.lng;
+                         card.location.coordinates.latitude && 
+                         card.location.coordinates.longitude;
       
       if (!hasLocation) return false;
       
@@ -227,8 +227,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
     cardsWithDayInfo.forEach((card, index) => {
       const position = {
-        lat: card.location.coordinates.lat,
-        lng: card.location.coordinates.lng
+        lat: card.location.coordinates.latitude,
+        lng: card.location.coordinates.longitude
       };
       bounds.extend(position);
 

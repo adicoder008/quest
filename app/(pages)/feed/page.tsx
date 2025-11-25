@@ -21,7 +21,6 @@ import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
-import RightSidebar from '@/components/RightSidebar/page';
 import NavBar from '@/components/LeftSideNav';
 
 const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
@@ -31,6 +30,8 @@ const SIDEBAR_GAP = 0;
 
 const TRIP_BANNER_SRC = '/green_modern_travel_banner.svg';
 const AI_PLANNER_BANNER_SRC = '/aiTripPlanner.svg';
+import CommentModal from '@/components/Home/CommentModal';
+import { getLevelInfo, getUserBadges } from '@/lib/firebaseSerive';
 
 // Helper function to generate username from display name
 const generateUsername = (displayName: string | null | undefined): string => {
@@ -43,6 +44,7 @@ const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   if (!user) return null;
+
 
   return (
     <>
@@ -75,6 +77,224 @@ const ResponsiveFeedPage = () => {
   }
 
   return <MobileFeedPage />;
+};
+
+// RIGHT SIDEBAR
+const FeedRightSidebar = ({ user, userData }: any) => {
+  const [badges, setBadges] = useState<any[]>([]);
+  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [popularUsers, setPopularUsers] = useState<any[]>([]);
+  const [followingList, setFollowingList] = useState<string[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.uid) return;
+
+      try {
+        const userBadges = await getUserBadges(user.uid);
+        setBadges(userBadges.slice(0, 3));
+
+        const xp = userData?.totalXP || 0;
+        const level = getLevelInfo(xp);
+        setLevelInfo(level);
+
+        // Get following list
+        const following = await getFollowingList(user.uid);
+        setFollowingList(following);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, [user, userData]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'users'), orderBy('followersCount', 'desc')),
+      (snapshot) => {
+        const usersData = snapshot.docs
+          .map(docc => ({
+            id: docc.id,
+            ...docc.data(),
+            photoURL: docc.data().photoURL || '/default-avatar.png',
+            followers: docc.data().followers || [],
+            followersCount: docc.data().followersCount || 0
+          }))
+          .filter(u => u.id !== user?.uid); // Don't show yourself
+
+        setPopularUsers(usersData.slice(0, 4));
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid || targetUserId === user.uid) return;
+
+    try {
+      const isFollowing = followingList.includes(targetUserId);
+
+      // Optimistically update UI
+      setFollowingList(prev =>
+        isFollowing
+          ? prev.filter(id => id !== targetUserId)
+          : [...prev, targetUserId]
+      );
+
+      if (isFollowing) {
+        await unfollowUserService(user.uid, targetUserId);
+      } else {
+        await followUserService(user.uid, targetUserId);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      // Revert optimistic update
+      const following = await getFollowingList(user.uid);
+      setFollowingList(following);
+    }
+  };
+
+  return (
+    <div className="hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
+      {/* User Profile Card */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
+        <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
+
+        <div className="px-4 pb-4">
+          <img
+            src={user?.photoURL || '/default-avatar.png'}
+            alt={user?.displayName}
+            className="w-20 h-20 rounded-full border-4 border-gray-900 -mt-10 mb-3 object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => router.push(`/profile/${user?.uid}`)}
+          />
+
+          <h3 className="text-white text-lg font-bold mb-1 cursor-pointer hover:underline" onClick={() => router.push(`/profile/${user?.uid}`)}>
+            {user?.displayName || 'User'}
+          </h3>
+          <p className="text-gray-400 text-sm mb-3">
+            @{generateUsername(user?.displayName)}
+          </p>
+
+          {userData?.bio && (
+            <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+              {userData.bio}
+            </p>
+          )}
+
+          {/* Stats */}
+          <div className="flex gap-4 mb-4">
+            <div>
+              <span className="text-white font-bold">{userData?.followingCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Following</span>
+            </div>
+            <div>
+              <span className="text-white font-bold">{userData?.followersCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Followers</span>
+            </div>
+          </div>
+
+          {/* Level Progress */}
+          {levelInfo && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[#F7CEB0] font-medium text-sm">
+                  {levelInfo.currentLevel.name}
+                </span>
+                {levelInfo.nextLevel && (
+                  <span className="text-gray-400 text-xs">
+                    {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2 rounded-full transition-all"
+                  style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {badges.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white font-medium text-sm">Earned Badges</h4>
+                <button
+                  onClick={() => router.push(`/profile/${user?.uid}#badges`)}
+                  className="text-[#F7CEB0] text-xs hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {badges.map(badge => (
+                  <div
+                    key={badge.id}
+                    className="bg-[#F8EBE2] rounded-lg p-2 flex flex-col items-center min-w-[70px]"
+                    title={badge.description}
+                  >
+                    <img
+                      src={badge.iconUrl}
+                      alt={badge.name}
+                      className="w-10 h-10 object-contain mb-1"
+                    />
+                    <span className="text-[#402B09] text-[10px] font-semibold text-center">
+                      {badge.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Popular Travelers */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+        <h4 className="text-white font-medium text-base mb-4">Popular Travelers</h4>
+        <div className="space-y-3">
+          {popularUsers.map((traveler) => (
+            <div key={traveler.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/profile/${traveler.id}`)}>
+                <img
+                  src={traveler.photoURL}
+                  alt={traveler.displayName}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-white text-sm font-medium hover:underline truncate">
+                    {traveler.displayName}
+                  </h5>
+                  <p className="text-gray-400 text-xs truncate">
+                    {traveler.followersCount} followers
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFollow(traveler.id);
+                }}
+                className={`text-xs px-3 py-1 rounded-full transition-colors flex-shrink-0 ml-2 ${followingList.includes(traveler.id)
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                  }`}
+              >
+                {followingList.includes(traveler.id) ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline w-full text-left">
+          Explore more
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // IMPROVED POST MENU - Shows near the post
@@ -388,12 +608,28 @@ const ShareModal = ({ post, onClose }: any) => {
 };
 
 // Inline Comments Component
-const InlineComments = ({ post, user, onCommentSubmit }: any) => {
+const InlineComments = ({ post, user, onCommentSubmit, isOpen, onToggle }: any) => {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+  const [internalShowComments, setInternalShowComments] = useState(false);
   const router = useRouter();
+
+  const showComments = isOpen !== undefined ? isOpen : internalShowComments;
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalShowComments(!internalShowComments);
+    }
+  };
+
+  useEffect(() => {
+    if (showComments) {
+      loadComments();
+    }
+  }, [showComments]);
 
   const loadComments = async () => {
     if (!post?.id) return;
@@ -474,86 +710,84 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   return (
     <div className="mt-3 border-t border-gray-700 pt-3">
       <button
-        onClick={() => {
-          setShowComments(!showComments);
-          if (!showComments) {
-            loadComments();
-          }
-        }}
+        onClick={handleToggle}
         className="text-gray-400 hover:text-[#F7CEB0] text-sm font-medium mb-3 transition-colors"
       >
         {showComments ? 'Hide' : 'View'} Comments ({post.stats?.comments || 0})
       </button>
 
-      {showComments && (
-        <div className="space-y-3">
-          <form onSubmit={handleSubmit} className="flex items-start gap-3">
-            <img
-              src={user?.photoURL || '/default-avatar.png'}
-              alt="Your profile"
-              className="w-8 h-8 rounded-full object-cover shrink-0"
-            />
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
-                className="w-full bg-gray-800 text-white px-3 py-2 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
-                required
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim()}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${commentText.trim()
-                  ? 'text-[#F7CEB0] hover:text-[#f5c094]'
-                  : 'text-gray-600 cursor-not-allowed'
-                  }`}
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </form>
 
-          {loading ? (
-            <div className="text-center py-4">
-              <div className="text-gray-400 text-sm">Loading comments...</div>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-gray-400 text-sm">No comments yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-2">
-                  <img
-                    src={comment.author.avatar}
-                    alt={comment.author.name}
-                    className="w-6 h-6 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => router.push(`/profile/${comment.author.uid}`)}
-                  />
-                  <div className="flex-1">
-                    <div className="bg-gray-800 rounded-lg p-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-xs font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
-                          {comment.author.name}
-                        </h4>
-                        <span className="text-gray-400 text-xs">·</span>
-                        <span className="text-gray-400 text-xs">
-                          {formatCommentTime(comment.createdAt)}
-                        </span>
+      {
+        showComments && (
+          <div className="space-y-3">
+            <form onSubmit={handleSubmit} className="flex items-start gap-3">
+              <img
+                src={user?.photoURL || '/default-avatar.png'}
+                alt="Your profile"
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="w-full bg-gray-800 text-white px-3 py-2 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${commentText.trim()
+                    ? 'text-[#F7CEB0] hover:text-[#f5c094]'
+                    : 'text-gray-600 cursor-not-allowed'
+                    }`}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </form>
+
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="text-gray-400 text-sm">Loading comments...</div>
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-gray-400 text-sm">No comments yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start gap-2">
+                    <img
+                      src={comment.author.avatar}
+                      alt={comment.author.name}
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => router.push(`/profile/${comment.author.uid}`)}
+                    />
+                    <div className="flex-1">
+                      <div className="bg-gray-800 rounded-lg p-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-xs font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
+                            {comment.author.name}
+                          </h4>
+                          <span className="text-gray-400 text-xs">·</span>
+                          <span className="text-gray-400 text-xs">
+                            {formatCommentTime(comment.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-white text-sm">{comment.text}</p>
                       </div>
-                      <p className="text-white text-sm">{comment.text}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+    </div >
   );
 };
 
@@ -569,6 +803,7 @@ const Feed = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [selectedPostForComments, setSelectedPostForComments] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
   const router = useRouter();
@@ -983,32 +1218,72 @@ const Feed = () => {
     const postText = post.content?.text || post.text;
     const postImages = post.content?.images || post.photoUrls || [];
     const [currentImageIdx, setCurrentImageIdx] = useState(0);
+    const [showQuestComments, setShowQuestComments] = useState(false);
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
+    // Handle Query Params (scrollTo & openComments)
+    useEffect(() => {
+      if (!posts.length || !searchParams) return;
+
+      const scrollToId = searchParams.get('scrollTo');
+      const openComments = searchParams.get('openComments') === 'true';
+
+      if (scrollToId) {
+        const element = document.getElementById(`post-${scrollToId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          if (openComments) {
+            const post = posts.find(p => p.id === scrollToId);
+            if (post) {
+              setSelectedPostForComments(post);
+              // Clear params to prevent reopening on refresh
+              window.history.replaceState({}, '', '/feed');
+            }
+          }
+        }
+      }
+    }, [posts, searchParams]);
+
+    // ... (inside DesktopPost)
     if (post.postType === 'quest_completion' || post.questContext) {
       return (
-        <QuestPostCard
-          post={{
-            id: post.id,
-            uid: post.author.id,
-            userName: post.author.name,
-            userProfilePic: post.author.avatar,
-            text: post.content.text || '',
-            photoUrl: post.content.images?.[0] || '',
-            createdAt: post.metadata.createdAt,
-            likeCount: post.stats.likes || 0,
-            commentCount: post.stats.comments || 0,
-            shareCount: post.stats.shares || 0,
-            likedBy: post.stats.likedBy || [],
-            questContext: post.questContext
-          }}
-          currentUser={user}
-          onLike={() => handleLike(post.id)}
-          onComment={() => handleCommentSubmit(post.id, '')}
-          onShare={() => handleShare(post.id)}
-          onSave={() => handleSave(post.id)}
-          onMenu={() => setSelectedPostForMenu(post)}
-          isSaved={isSaved}
-        />
+        <div id={`post-${post.id}`}>
+          <QuestPostCard
+            post={{
+              id: post.id,
+              uid: post.author.id,
+              userName: post.author.name,
+              userProfilePic: post.author.avatar,
+              text: post.content.text || '',
+              photoUrl: post.content.images?.[0] || '',
+              createdAt: post.metadata.createdAt,
+              likeCount: post.stats.likes || 0,
+              commentCount: post.stats.comments || 0,
+              shareCount: post.stats.shares || 0,
+              likedBy: post.stats.likedBy || [],
+              questContext: post.questContext
+            }}
+            currentUser={user}
+            onLike={() => handleLike(post.id)}
+            onComment={() => setShowQuestComments(!showQuestComments)}
+            onShare={() => handleShare(post.id)}
+            onSave={() => handleSave(post.id)}
+            onMenu={() => setSelectedPostForMenu(post)}
+            isSaved={isSaved}
+            followingList={followingList}
+            onFollow={handleFollow}
+          />
+          <div className="px-4 pb-4">
+            <InlineComments
+              post={post}
+              user={user}
+              onCommentSubmit={handleCommentSubmit}
+              isOpen={showQuestComments}
+              onToggle={() => setShowQuestComments(!showQuestComments)}
+            />
+          </div>
+        </div>
       );
     }
 
@@ -1307,7 +1582,7 @@ const Feed = () => {
         </div>
       </main>
 
-      <RightSidebar
+      <FeedRightSidebar
         user={user}
         userData={userData}
         style={{
@@ -1359,6 +1634,15 @@ const Feed = () => {
         <ShareModal
           post={selectedPostForShare}
           onClose={() => setSelectedPostForShare(null)}
+        />
+      )}
+
+      {selectedPostForComments && (
+        <CommentModal
+          post={selectedPostForComments}
+          user={user}
+          onClose={() => setSelectedPostForComments(null)}
+          onCommentSubmit={handleCommentSubmit}
         />
       )}
     </div>

@@ -4,23 +4,55 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
-import { calculateLevel } from '@/lib/xpService';
+import { getGamificationData, getRankInfo } from '@/lib/gamificationService';
 import { addComment } from '@/lib/postService';
 import { savePost, unsavePost, sharePost } from '@/lib/postService';
 import Footer from '@/components/phoneComponents/Footer';
-import { Settings, Edit2, Calendar, SlidersHorizontal, HelpCircle, MapPin, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from 'lucide-react';
+import {
+  Settings,
+  Edit2,
+  Calendar,
+  SlidersHorizontal,
+  HelpCircle,
+  MapPin,
+  Heart,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  MoreHorizontal,
+  Trophy,
+  Award,
+  Flame,
+  Zap,
+  Target,
+} from 'lucide-react';
 import { FaHeartbeat } from 'react-icons/fa';
-import { IoChevronForward } from "react-icons/io5";
-import { collection, query, where, orderBy, getDocs, doc as firestoreDoc, updateDoc, arrayUnion, arrayRemove, increment, getDoc } from 'firebase/firestore';
+import { IoChevronForward } from 'react-icons/io5';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  doc as firestoreDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  getDoc,
+} from 'firebase/firestore';
 import questService from '@/lib/questService';
 import { Quest } from '@/app/types';
 import NavBar from '@/components/LeftSideNav';
-import { followUser as followUserService, unfollowUser as unfollowUserService, getFollowingList } from '@/lib/followService';
+import {
+  followUser as followUserService,
+  unfollowUser as unfollowUserService,
+  getFollowingList,
+} from '@/lib/followService';
 
 const DESKTOP_MAIN_WIDTH = 60; // percentage of viewport width used for main content
 const LEFT_NAV_WIDTH = 280;
 const SIDEBAR_GAP = 5;
-
 
 const styles = `
   .scrollbar-hide {
@@ -43,7 +75,7 @@ interface UserData {
   postsCount?: number;
   followers?: string[];
   following?: string[];
-  totalXP?: number;
+  totalQPs?: number;
   isVerified?: boolean;
   savedPosts?: string[];
 }
@@ -79,7 +111,7 @@ const AccountPage = () => {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
-  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [gamificationInfo, setGamificationInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -96,7 +128,6 @@ const AccountPage = () => {
   const [loadingQuests, setLoadingQuests] = useState(false);
   const [followingList, setFollowingList] = useState<string[]>([]);
 
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -108,24 +139,25 @@ const AccountPage = () => {
           setUserData(data as UserData);
 
           const following = await getFollowingList(currentUser.uid);
-        setFollowingList(following);
+          setFollowingList(following);
 
           const userBadges = await getUserBadges(currentUser.uid);
           setBadges(userBadges.slice(0, 3));
 
-          const xp = data?.totalXP || 0;
-          const level = calculateLevel(xp);
-          setLevelInfo(level);
+          // Updated gamification logic
+          const gData = await getGamificationData(currentUser.uid);
+          const rankInfo = getRankInfo(gData);
+          setGamificationInfo(rankInfo);
 
           await fetchUserPosts(currentUser.uid);
-          
+
           if (data?.savedPosts && data.savedPosts.length > 0) {
             await fetchSavedPosts(data.savedPosts);
           }
 
           await fetchUserQuests(currentUser.uid);
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error('Error fetching user data:', error);
         }
       }
       setLoading(false);
@@ -144,8 +176,8 @@ const AccountPage = () => {
         orderBy('createdAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
-      
-      const posts: Post[] = querySnapshot.docs.map(doc => {
+
+      const posts: Post[] = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -166,7 +198,7 @@ const AccountPage = () => {
           questContext: data.questContext || null,
         };
       });
-      
+
       setYourPosts(posts);
     } catch (error) {
       console.error('Error fetching user posts:', error);
@@ -179,7 +211,7 @@ const AccountPage = () => {
     setLoadingPosts(true);
     try {
       const posts: Post[] = [];
-      
+
       for (const postId of savedPostIds) {
         const postDoc = await getDoc(firestoreDoc(db, 'posts', postId));
         if (postDoc.exists()) {
@@ -204,7 +236,7 @@ const AccountPage = () => {
           });
         }
       }
-      
+
       setSavedPosts(posts);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
@@ -218,7 +250,7 @@ const AccountPage = () => {
     try {
       const quests = await questService.getUserQuests(uid);
       setMyQuests(quests);
-      
+
       const savedQuestItems: any[] = (await questService.getUserSavedQuests(uid)) || [];
       const savedQuestIds: string[] = savedQuestItems
         .map((item: any) => (typeof item === 'string' ? item : item?.id))
@@ -247,24 +279,24 @@ const AccountPage = () => {
       if (isLiked) {
         await updateDoc(postRef, {
           likedBy: arrayRemove(user.uid),
-          likeCount: increment(-1)
+          likeCount: increment(-1),
         });
       } else {
         await updateDoc(postRef, {
           likedBy: arrayUnion(user.uid),
-          likeCount: increment(1)
+          likeCount: increment(1),
         });
       }
 
       const updatePosts = (posts: Post[]) =>
-        posts.map(post =>
+        posts.map((post) =>
           post.id === postId
             ? {
                 ...post,
                 likedBy: isLiked
-                  ? post.likedBy?.filter(id => id !== user.uid)
+                  ? post.likedBy?.filter((id) => id !== user.uid)
                   : [...(post.likedBy || []), user.uid],
-                likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1
+                likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1,
               }
             : post
         );
@@ -285,7 +317,7 @@ const AccountPage = () => {
         await savePost(postId, user.uid);
       }
       const updatePosts = (posts: Post[]) =>
-        posts.map(post =>
+        posts.map((post) =>
           post.id === postId ? { ...post, isSaved: !isSaved } : post
         );
       setYourPosts(updatePosts);
@@ -304,7 +336,7 @@ const AccountPage = () => {
       await signOut(auth);
       router.push('/login');
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error('Error signing out:', error);
     }
   };
 
@@ -349,8 +381,8 @@ const AccountPage = () => {
     <div className='min-h-screen bg-black'>
       <style>{styles}</style>
       <style jsx>{layoutStyles}</style>
-      
-      <div className="hidden lg:block">
+
+      <div className='hidden lg:block'>
         <NavBar
           user={user}
           onSignOut={handleSignOut}
@@ -382,9 +414,14 @@ const AccountPage = () => {
                       alt='Profile'
                       className='w-32 h-32 lg:w-40 lg:h-40 rounded-full border-4 border-[#121212] object-cover'
                     />
-                    {levelInfo && (
-                      <div className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap'>
-                        {levelInfo.currentLevel}
+                    {/* Updated Rank Display */}
+                    {gamificationInfo && (
+                      <div
+                        className='absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#EA6100] text-black px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer hover:scale-105 transition-transform'
+                        onClick={() => navigateTo('/gamification')}
+                        title='View Gamification Hub'
+                      >
+                        {gamificationInfo.rankTitle}
                       </div>
                     )}
                   </div>
@@ -437,12 +474,13 @@ const AccountPage = () => {
                   </div>
                   <div className='text-gray-400 text-sm'>Following</div>
                 </div>
-                {levelInfo && (
+                {/* Updated QP Display */}
+                {gamificationInfo && (
                   <div className='col-span-3 lg:col-span-1'>
                     <div className='text-xl lg:text-2xl font-bold text-[#EA6100]'>
-                      {levelInfo.totalXP} XP
+                      {gamificationInfo.totalQPs} QP
                     </div>
-                    <div className='text-gray-400 text-sm'>Experience</div>
+                    <div className='text-gray-400 text-sm'>Quest Points</div>
                   </div>
                 )}
               </div>
@@ -454,6 +492,64 @@ const AccountPage = () => {
                 </div>
               )}
 
+              {/* Gamification Preview */}
+              {gamificationInfo && (
+                <div 
+                  className='mt-6 bg-[#1a1a1a] rounded-xl p-5 cursor-pointer hover:bg-[#292929] transition-colors border border-gray-800'
+                  onClick={() => navigateTo('/gamification')}
+                >
+                  <div className='flex items-center justify-between mb-4'>
+                    <div className='flex items-center gap-3'>
+                      <Trophy className='text-[#EA6100]' size={24} />
+                      <div>
+                        <h3 className='text-white font-semibold'>Your Progress</h3>
+                        <p className='text-gray-400 text-sm'>View your full stats and achievements</p>
+                      </div>
+                    </div>
+                    <div className='text-[#EA6100]'>
+                      <IoChevronForward size={20} />
+                    </div>
+                  </div>
+
+                  {/* <div className='grid grid-cols-3 gap-4'>
+                    <div className='text-center'>
+                      <div className='flex items-center justify-center gap-2 mb-2'>
+                        <Award className='text-[#EA6100]' size={16} />
+                        <span className='text-white font-bold text-lg'>{gamificationInfo.totalQPs}</span>
+                      </div>
+                      <span className='text-gray-400 text-xs'>Total QP</span>
+                    </div>
+                    <div className='text-center'>
+                      <div className='flex items-center justify-center gap-2 mb-2'>
+                        <Target className='text-[#EA6100]' size={16} />
+                        <span className='text-white font-bold text-lg'>{gamificationInfo.publishedQuests}</span>
+                      </div>
+                      <span className='text-gray-400 text-xs'>Quests</span>
+                    </div>
+                    <div className='text-center'>
+                      <div className='flex items-center justify-center gap-2 mb-2'>
+                        <Flame className='text-[#EA6100]' size={16} />
+                        <span className='text-white font-bold text-lg'>0</span>
+                      </div>
+                      <span className='text-gray-400 text-xs'>Streak</span>
+                    </div>
+                  </div> */}
+
+                  <div className='mt-4'>
+                    <div className='flex justify-between text-sm mb-2'>
+                      <span className='text-gray-400'>Progress to {gamificationInfo.nextRankTitle}</span>
+                      <span className='text-[#EA6100]'>{Math.round(gamificationInfo.qpProgress * 100)}%</span>
+                    </div>
+                    <div className='w-full bg-gray-700 rounded-full h-2'>
+                      <div 
+                        className='bg-gradient-to-r from-[#EA6100] to-[#ff9a50] h-2 rounded-full transition-all'
+                        style={{ width: `${gamificationInfo.qpProgress * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Badges */}
               {badges.length > 0 && (
                 <div className='mt-6'>
@@ -462,8 +558,9 @@ const AccountPage = () => {
                     {badges.map((badge) => (
                       <div
                         key={badge.id}
-                        className='flex-shrink-0 bg-[#292929] rounded-lg p-3 hover:bg-[#3a3a3a] transition-colors'
+                        className='flex-shrink-0 bg-[#292929] rounded-lg p-3 hover:bg-[#3a3a3a] transition-colors cursor-pointer'
                         title={badge.description}
+                        onClick={() => navigateTo('/gamification')}
                       >
                         <img
                           src={badge.iconUrl}
@@ -481,16 +578,14 @@ const AccountPage = () => {
           {/* Content */}
           <div className='mt-8 px-5 lg:px-8 pb-20 lg:pb-8'>
             <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-              
               {/* Left Column - Posts */}
               <div className='lg:col-span-2 space-y-6'>
-                
                 {/* Posts Section */}
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                   <div className='flex items-center justify-between mb-4'>
                     <h2 className='text-2xl font-bold text-white'>Posts</h2>
                   </div>
-                  
+
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActivePostTab('your-posts')}
@@ -523,19 +618,23 @@ const AccountPage = () => {
                       {activePostTab === 'your-posts' ? (
                         yourPosts.length > 0 ? (
                           <div className='space-y-4'>
-                            {yourPosts.slice(0, 3).map(post => (
+                            {yourPosts.slice(0, 3).map((post) => (
                               <PostCard
                                 key={post.id}
                                 post={post}
                                 currentUser={user}
                                 onLike={() => handleLike(post.id)}
-                                onSave={() => handleSave(post.id, post.isSaved || false)}
+                                onSave={() =>
+                                  handleSave(post.id, post.isSaved || false)
+                                }
                                 onClick={() => navigateTo(`/post/${post.id}`)}
                               />
                             ))}
                             {yourPosts.length > 3 && (
                               <button
-                                onClick={() => navigateTo('/account/all-posts?tab=your-posts')}
+                                onClick={() =>
+                                  navigateTo('/account/all-posts?tab=your-posts')
+                                }
                                 className='w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
                               >
                                 <span>View All Posts ({yourPosts.length})</span>
@@ -554,34 +653,36 @@ const AccountPage = () => {
                             </button>
                           </div>
                         )
+                      ) : savedPosts.length > 0 ? (
+                        <div className='space-y-4'>
+                          {savedPosts.slice(0, 3).map((post) => (
+                            <PostCard
+                              key={post.id}
+                              post={post}
+                              currentUser={user}
+                              onLike={() => handleLike(post.id)}
+                              onSave={() =>
+                                handleSave(post.id, post.isSaved || false)
+                              }
+                              onClick={() => navigateTo(`/post/${post.id}`)}
+                            />
+                          ))}
+                          {savedPosts.length > 3 && (
+                            <button
+                              onClick={() =>
+                                navigateTo('/account/all-posts?tab=saved-posts')
+                              }
+                              className='w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
+                            >
+                              <span>View All Saved Posts ({savedPosts.length})</span>
+                              <IoChevronForward />
+                            </button>
+                          )}
+                        </div>
                       ) : (
-                        savedPosts.length > 0 ? (
-                          <div className='space-y-4'>
-                            {savedPosts.slice(0, 3).map(post => (
-                              <PostCard
-                                key={post.id}
-                                post={post}
-                                currentUser={user}
-                                onLike={() => handleLike(post.id)}
-                                onSave={() => handleSave(post.id, post.isSaved || false)}
-                                onClick={() => navigateTo(`/post/${post.id}`)}
-                              />
-                            ))}
-                            {savedPosts.length > 3 && (
-                              <button
-                                onClick={() => navigateTo('/account/all-posts?tab=saved-posts')}
-                                className='w-full py-3 bg-[#292929] hover:bg-[#3a3a3a] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2'
-                              >
-                                <span>View All Saved Posts ({savedPosts.length})</span>
-                                <IoChevronForward />
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                            <p className='text-gray-400'>No saved posts</p>
-                          </div>
-                        )
+                        <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                          <p className='text-gray-400'>No saved posts</p>
+                        </div>
                       )}
                     </div>
                   )}
@@ -590,7 +691,7 @@ const AccountPage = () => {
                 {/* Quests Section */}
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                   <h2 className='text-2xl font-bold text-white mb-4'>Quests</h2>
-                  
+
                   <div className='flex gap-3 mb-6 overflow-x-auto scrollbar-hide'>
                     <button
                       onClick={() => setActiveQuestTab('public-quests')}
@@ -629,11 +730,18 @@ const AccountPage = () => {
                       <div className='text-gray-400'>Loading quests...</div>
                     </div>
                   ) : activeQuestTab === 'public-quests' ? (
-                    myQuests.filter(q => q.isPublic).length > 0 ? (
+                    myQuests.filter((q) => q.isPublic).length > 0 ? (
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        {myQuests.filter(q => q.isPublic).slice(0, 4).map(quest => (
-                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                        ))}
+                        {myQuests
+                          .filter((q) => q.isPublic)
+                          .slice(0, 4)
+                          .map((quest) => (
+                            <QuestCard
+                              key={quest.id}
+                              quest={quest}
+                              onClick={() => navigateTo(`/quest/${quest.id}`)}
+                            />
+                          ))}
                       </div>
                     ) : (
                       <div className='text-center py-8 bg-[#292929] rounded-lg'>
@@ -647,11 +755,18 @@ const AccountPage = () => {
                       </div>
                     )
                   ) : activeQuestTab === 'private-quests' ? (
-                    myQuests.filter(q => !q.isPublic).length > 0 ? (
+                    myQuests.filter((q) => !q.isPublic).length > 0 ? (
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        {myQuests.filter(q => !q.isPublic).slice(0, 4).map(quest => (
-                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                        ))}
+                        {myQuests
+                          .filter((q) => !q.isPublic)
+                          .slice(0, 4)
+                          .map((quest) => (
+                            <QuestCard
+                              key={quest.id}
+                              quest={quest}
+                              onClick={() => navigateTo(`/quest/${quest.id}`)}
+                            />
+                          ))}
                       </div>
                     ) : (
                       <div className='text-center py-8 bg-[#292929] rounded-lg'>
@@ -664,19 +779,23 @@ const AccountPage = () => {
                         </button>
                       </div>
                     )
+                  ) : savedQuests.length > 0 ? (
+                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                      {savedQuests.slice(0, 4).map((quest) => (
+                        <QuestCard
+                          key={quest.id}
+                          quest={quest}
+                          onClick={() => navigateTo(`/quest/${quest.id}`)}
+                        />
+                      ))}
+                    </div>
                   ) : (
-                    savedQuests.length > 0 ? (
-                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        {savedQuests.slice(0, 4).map(quest => (
-                          <QuestCard key={quest.id} quest={quest} onClick={() => navigateTo(`/quest/${quest.id}`)} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className='text-center py-8 bg-[#292929] rounded-lg'>
-                        <p className='text-gray-400'>No saved quests</p>
-                        <p className='text-gray-500 text-sm mt-1'>Save quests to view them here</p>
-                      </div>
-                    )
+                    <div className='text-center py-8 bg-[#292929] rounded-lg'>
+                      <p className='text-gray-400'>No saved quests</p>
+                      <p className='text-gray-500 text-sm mt-1'>
+                        Save quests to view them here
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -684,32 +803,39 @@ const AccountPage = () => {
               {/* Right Column - Quick Actions */}
               <div className='lg:col-span-1 space-y-6'>
                 <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6 lg:sticky lg:top-6'>
-                  <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>Quick Actions</h3>
-                  
+                  <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>
+                    Quick Actions
+                  </h3>
+
                   <div className='space-y-2'>
                     <MenuOption
+                      icon={<Trophy className='text-[#EA6100]' size={20} />}
+                      label='Gamification Hub'
+                      onClick={() => navigateTo('/gamification')}
+                    />
+                    <MenuOption
                       icon={<Settings className='text-[#EA6100]' size={20} />}
-                      label="Settings"
+                      label='Settings'
                       onClick={() => navigateTo('/settings')}
                     />
                     <MenuOption
                       icon={<Edit2 className='text-[#EA6100]' size={20} />}
-                      label="Edit Profile"
+                      label='Edit Profile'
                       onClick={() => navigateTo('/settings/edit-profile')}
                     />
                     <MenuOption
                       icon={<Calendar className='text-[#EA6100]' size={20} />}
-                      label="Upcoming Quests"
+                      label='Upcoming Quests'
                       onClick={() => navigateTo('/account/upcoming-quests')}
                     />
                     <MenuOption
                       icon={<SlidersHorizontal className='text-[#EA6100]' size={20} />}
-                      label="Preferences"
+                      label='Preferences'
                       onClick={() => navigateTo('/account/preferences')}
                     />
                     <MenuOption
                       icon={<HelpCircle className='text-[#EA6100]' size={20} />}
-                      label="Support"
+                      label='Support'
                       onClick={() => navigateTo('/account/support')}
                     />
                   </div>
@@ -733,13 +859,15 @@ const MenuOption: React.FC<{
   label: string;
   onClick: () => void;
 }> = ({ icon, label, onClick }) => (
-  <div 
+  <div
     onClick={onClick}
     className='flex justify-between items-center py-3 px-4 rounded-lg hover:bg-[#292929] cursor-pointer transition-colors group'
   >
     <div className='flex gap-3 items-center'>
       <div className='flex-shrink-0'>{icon}</div>
-      <div className='text-white group-hover:text-[#EA6100] transition-colors'>{label}</div>
+      <div className='text-white group-hover:text-[#EA6100] transition-colors'>
+        {label}
+      </div>
     </div>
     <div className='text-[#EA6100] opacity-0 group-hover:opacity-100 transition-opacity'>
       <IoChevronForward size={20} />
@@ -748,14 +876,16 @@ const MenuOption: React.FC<{
 );
 
 // Post Card Component with Read More
-const PostCard: React.FC<{ 
-  post: Post; 
-  currentUser: any; 
+const PostCard: React.FC<{
+  post: Post;
+  currentUser: any;
   onLike: () => void;
   onSave: () => void;
   onClick: () => void;
 }> = ({ post, currentUser, onLike, onSave, onClick }) => {
-  const [liked, setLiked] = useState(post.likedBy?.includes(currentUser?.uid) || false);
+  const [liked, setLiked] = useState(
+    post.likedBy?.includes(currentUser?.uid) || false
+  );
   const [showFullText, setShowFullText] = useState(false);
 
   useEffect(() => {
@@ -764,14 +894,17 @@ const PostCard: React.FC<{
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    const date = timestamp.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 604800)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -789,31 +922,40 @@ const PostCard: React.FC<{
   const needsReadMore = post.text.length > textLimit;
 
   return (
-    <div 
-      className='bg-[#292929] rounded-xl overflow-hidden hover:bg-[#3a3a3a] transition-colors border border-gray-800'
-    >
+    <div className='bg-[#292929] rounded-xl overflow-hidden hover:bg-[#3a3a3a] transition-colors border border-gray-800'>
       <div className='flex items-center justify-between p-4 border-b border-gray-800'>
-        <div className='flex items-center gap-3 cursor-pointer' onClick={onClick}>
-          <img 
-            src={post.userProfilePic || '/default-avatar.png'} 
+        <div
+          className='flex items-center gap-3 cursor-pointer'
+          onClick={onClick}
+        >
+          <img
+            src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
             className='w-10 h-10 rounded-full object-cover'
           />
           <div>
             <span className='text-white font-medium block'>{post.userName}</span>
-            <span className='text-gray-400 text-sm'>{formatTime(post.createdAt)}</span>
+            <span className='text-gray-400 text-sm'>
+              {formatTime(post.createdAt)}
+            </span>
           </div>
         </div>
-        <button className='text-gray-400 hover:text-white' onClick={(e) => e.stopPropagation()}>
+        <button
+          className='text-gray-400 hover:text-white'
+          onClick={(e) => e.stopPropagation()}
+        >
           <MoreHorizontal size={20} />
         </button>
       </div>
 
       {post.photoUrl && (
-        <div className='relative w-full aspect-square cursor-pointer' onClick={onClick}>
+        <div
+          className='relative w-full aspect-square cursor-pointer'
+          onClick={onClick}
+        >
           <img
             src={Array.isArray(post.photoUrl) ? post.photoUrl[0] : post.photoUrl}
-            alt="Post"
+            alt='Post'
             className='w-full h-full object-cover'
           />
         </div>
@@ -822,13 +964,12 @@ const PostCard: React.FC<{
       <div className='p-4'>
         <div className='mb-3'>
           <p className='text-white'>
-            {needsReadMore && !showFullText 
-              ? `${post.text.slice(0, textLimit)}...` 
-              : post.text
-            }
+            {needsReadMore && !showFullText
+              ? `${post.text.slice(0, textLimit)}...`
+              : post.text}
           </p>
           {needsReadMore && (
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 setShowFullText(!showFullText);
@@ -839,33 +980,39 @@ const PostCard: React.FC<{
             </button>
           )}
         </div>
-        
+
         <div className='flex items-center justify-between pt-3 border-t border-gray-800'>
           <div className='flex items-center gap-4'>
-            <button 
+            <button
               onClick={handleLikeClick}
-              className={`flex items-center gap-2 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+              className={`flex items-center gap-2 transition-colors ${
+                liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+              }`}
             >
               <FaHeartbeat size={22} className={liked ? 'fill-current' : ''} />
               <span className='text-sm font-medium'>{post.likeCount || 0}</span>
             </button>
-            <button 
+            <button
               className='flex items-center gap-2 text-gray-400 hover:text-white transition-colors'
               onClick={onClick}
             >
               <MessageCircle size={22} />
-              <span className='text-sm font-medium'>{post.commentCount || 0}</span>
+              <span className='text-sm font-medium'>
+                {post.commentCount || 0}
+              </span>
             </button>
-            <button 
+            <button
               className='text-gray-400 hover:text-white transition-colors'
               onClick={(e) => e.stopPropagation()}
             >
               <Share2 size={22} />
             </button>
           </div>
-          <button 
+          <button
             onClick={handleSaveClick}
-            className={`transition-colors ${post.isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'}`}
+            className={`transition-colors ${
+              post.isSaved ? 'text-[#EA6100]' : 'text-gray-400 hover:text-[#EA6100]'
+            }`}
           >
             <Bookmark size={22} className={post.isSaved ? 'fill-current' : ''} />
           </button>
@@ -876,21 +1023,29 @@ const PostCard: React.FC<{
 };
 
 // Quest Card Component
-const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onClick }) => {
+const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({
+  quest,
+  onClick,
+}) => {
   return (
-    <div 
+    <div
       onClick={onClick}
       className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-800 hover:border-[#EA6100]'
     >
       <div className='relative h-48'>
         <img
-          src={quest.coverImageUrl as any || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600'}
+          src={
+            (quest.coverImageUrl as any) ||
+            'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600'
+          }
           alt={quest.title}
           className='w-full h-full object-cover'
         />
         <div className='absolute inset-0 bg-gradient-to-t from-black/70 to-transparent' />
         <div className='absolute bottom-0 left-0 right-0 p-4'>
-          <h4 className='text-white font-bold text-lg mb-1 line-clamp-1'>{quest.title}</h4>
+          <h4 className='text-white font-bold text-lg mb-1 line-clamp-1'>
+            {quest.title}
+          </h4>
           <div className='flex items-center gap-2 text-gray-300 text-sm'>
             <MapPin size={14} />
             <span className='line-clamp-1'>{quest.destination}</span>
@@ -900,7 +1055,8 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
       <div className='p-4'>
         <div className='flex items-center justify-between text-sm'>
           <span className='text-gray-400 text-xs'>
-            {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
+            {new Date(quest.startDate).toLocaleDateString()} -{' '}
+            {new Date(quest.endDate).toLocaleDateString()}
           </span>
           <span className='text-[#EA6100] font-medium text-xs'>
             {quest.isPublic ? 'Public' : 'Private'}

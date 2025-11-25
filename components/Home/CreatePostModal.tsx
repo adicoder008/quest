@@ -2,7 +2,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Image as ImageIcon, MapPin, Tag, RotateCw, ZoomIn, ZoomOut, Sliders, Loader2 } from 'lucide-react';
 import { createPost, POST_TYPES } from '@/lib/postService';
-import GooglePlacesAutocomplete, { geocodeByAddress, getLatLng } from 'react-google-places-autocomplete-next';
 import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface CreatePostModalProps {
@@ -24,17 +23,38 @@ interface ImageAdjustments {
     positionY: number;
 }
 
+interface PlaceSuggestion {
+    placePrediction: {
+        placeId: string;
+        text: {
+            text: string;
+        };
+        structuredFormat: {
+            mainText: {
+                text: string;
+            };
+            secondaryText: {
+                text: string;
+            };
+        };
+    };
+}
+
 const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
     const [text, setText] = useState('');
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    const [location, setLocation] = useState(null);
     const [locationString, setLocationString] = useState('');
+    const [locationQuery, setLocationQuery] = useState('');
+    const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [tags, setTags] = useState('');
     const [loading, setLoading] = useState(false);
     const [showTagInput, setShowTagInput] = useState(false);
     const [showAdjustments, setShowAdjustments] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
     const [imageAdjustments, setImageAdjustments] = useState<ImageAdjustments>({
         brightness: 100,
         contrast: 100,
@@ -49,6 +69,8 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageContainerRef = useRef<HTMLDivElement>(null);
+    const locationInputRef = useRef<HTMLInputElement>(null);
+    const suggestionsRef = useRef<HTMLDivElement>(null);
 
     // Instagram 4:5 ratio dimensions
     const TARGET_WIDTH = 1080;
@@ -68,24 +90,87 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         });
     }, [currentImageIndex]);
 
-    const handleLocationSelect = async (place: any) => {
-        if (!place) {
-            setLocation(null);
-            setLocationString('');
+    // Close suggestions when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                suggestionsRef.current &&
+                !suggestionsRef.current.contains(event.target as Node) &&
+                locationInputRef.current &&
+                !locationInputRef.current.contains(event.target as Node)
+            ) {
+                setShowSuggestions(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fetch place suggestions using new AutocompleteSuggestion API
+    const fetchPlaceSuggestions = useCallback(async (input: string) => {
+        if (!input.trim() || input.length < 3) {
+            setSuggestions([]);
             return;
         }
-        
-        setLocation(place); // <-- Saves the full place object
-        setLocationString(place.label); // <-- Saves the string for the post
 
-        // You can also get lat/lng if you need it
         try {
-            const results = await geocodeByAddress(place.label);
-            const latLng = await getLatLng(results[0]);
-            console.log("Selected Location Lat/Lng:", latLng);
-            // You could save latLng to your post here
+            const response = await fetch('/api/places-autocomplete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ input }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch suggestions');
+            }
+
+            const data = await response.json();
+            setSuggestions(data.suggestions || []);
+            setShowSuggestions(true);
         } catch (error) {
-            console.error("Error getting lat/lng:", error);
+            console.error('Error fetching place suggestions:', error);
+            setSuggestions([]);
+        }
+    }, []);
+
+    // Debounce location input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (locationQuery) {
+                fetchPlaceSuggestions(locationQuery);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [locationQuery, fetchPlaceSuggestions]);
+
+    // Handle place selection
+    const handlePlaceSelect = async (suggestion: PlaceSuggestion) => {
+        const placeText = suggestion.placePrediction.text.text;
+        setLocationString(placeText);
+        setLocationQuery(placeText);
+        setSelectedPlace(suggestion);
+        setShowSuggestions(false);
+
+        // Optionally fetch place details
+        try {
+            const response = await fetch('/api/place-details', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ placeId: suggestion.placePrediction.placeId }),
+            });
+
+            if (response.ok) {
+                const details = await response.json();
+                console.log('Place details:', details);
+            }
+        } catch (error) {
+            console.error('Error fetching place details:', error);
         }
     };
 
@@ -116,11 +201,9 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                             let drawWidth, drawHeight;
                             
                             if (imgRatio > ASPECT_RATIO) {
-                                // Image is wider - fit by height
                                 drawHeight = TARGET_HEIGHT;
                                 drawWidth = drawHeight * imgRatio;
                             } else {
-                                // Image is taller - fit by width
                                 drawWidth = TARGET_WIDTH;
                                 drawHeight = drawWidth / imgRatio;
                             }
@@ -156,10 +239,8 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
-        // Limit to 10 images
         const newFiles = files.slice(0, 10 - selectedImages.length);
         
-        // Generate previews
         const previews = await Promise.all(
             newFiles.map(file => processImage(file, imageAdjustments))
         );
@@ -180,7 +261,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         const newAdjustments = { ...imageAdjustments, [key]: value };
         setImageAdjustments(newAdjustments);
 
-        // Update preview for current image
         if (selectedImages[currentImageIndex]) {
             const newPreview = await processImage(selectedImages[currentImageIndex], newAdjustments);
             setImagePreviews(prev => {
@@ -206,7 +286,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         handleAdjustmentChange('rotation', newRotation);
     };
 
-    // Mouse drag handlers for panning
     const handleMouseDown = (e: React.MouseEvent) => {
         if (imageAdjustments.scale <= 1) return;
         setIsDragging(true);
@@ -218,7 +297,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         const newX = e.clientX - dragStart.x;
         const newY = e.clientY - dragStart.y;
         
-        // Limit panning based on scale
         const maxPan = 200 * (imageAdjustments.scale - 1);
         const limitedX = Math.max(-maxPan, Math.min(maxPan, newX));
         const limitedY = Math.max(-maxPan, Math.min(maxPan, newY));
@@ -229,7 +307,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
     const handleMouseUp = async () => {
         if (isDragging) {
             setIsDragging(false);
-            // Update preview after dragging
             if (selectedImages[currentImageIndex]) {
                 const newPreview = await processImage(selectedImages[currentImageIndex], imageAdjustments);
                 setImagePreviews(prev => {
@@ -241,7 +318,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
         }
     };
 
-    // Touch handlers for mobile
     const handleTouchStart = (e: React.TouchEvent) => {
         if (imageAdjustments.scale <= 1 || e.touches.length !== 1) return;
         const touch = e.touches[0];
@@ -305,53 +381,26 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
-            // Process all images with their adjustments
-            const processedImages = await Promise.all(
-                selectedImages.map((file, index) => {
-                    return processImage(file, imageAdjustments);
-                })
-            );
-
-            // Convert base64 to blobs
-            const imageBlobs = await Promise.all(
-                processedImages.map(async (base64) => {
-                    const response = await fetch(base64);
-                    return response.blob();
-                })
-            );
-
             const processedImageFiles = await Promise.all(
                 selectedImages.map(async (file, index) => {
-                    // Get the base64 string from your canvas processing
-                    // (This function is in your CreatePostModal.tsx)
-                    const base64 = await processImage(file, imageAdjustments); 
-                    
-                    // Fetch the base64 string to get a blob
+                    const base64 = await processImage(file, imageAdjustments);
                     const response = await fetch(base64);
                     const blob = await response.blob();
-
-                    // Get original base name and create a new file name
                     const baseName = file.name.replace(/\.[^/.]+$/, '');
-                    // Your processImage function creates 'image/jpeg'
-                    const newFileName = `${baseName}_processed.jpeg`; 
-
-                    // 2. Create a new FILE object from the Blob
-                    // This attaches the .name property that imageService needs
-                    const newFile = new File([blob], newFileName, {
+                    const newFileName = `${baseName}_processed.jpeg`;
+                    return new File([blob], newFileName, {
                         type: 'image/jpeg',
                         lastModified: file.lastModified,
                     });
-
-                    return newFile; // This is now a File object
                 })
             );
 
             await createPost({
                 uid: user.uid,
                 userName: user.displayName || 'Anonymous',
-                userProfilePic : user.photoURL || '',
+                userProfilePic: user.photoURL || '',
                 text: text.trim(),
-                imageFiles : processedImageFiles,
+                imageFiles: processedImageFiles,
                 location: locationString.trim(),
                 topics: tagsArray,
                 type: POST_TYPES.REGULAR
@@ -371,80 +420,7 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
             <div className="bg-gray-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                    <div className="flex items-center gap-3 flex-1">
-                        <h2 className="text-xl font-semibold text-white">Create Post</h2>
-                        
-                        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center gap-3 flex-1">
-           
-            
-            {/* Location Input in Header - REPLACED */}
-            <div className="flex items-center gap-2 flex-1 max-w-xs z-[60]"> {/* Added z-index for dropdown */}
-                <MapPin className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                
-                {/* --- THIS IS THE NEW COMPONENT --- */}
-                <GooglePlacesAutocomplete
-                    apiKey={process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || ''}
-                    
-                    selectProps={{
-                        value: location,
-                        onChange: handleLocationSelect,
-                        placeholder: 'Add location...',
-                        styles: {
-                            control: (provided: any) => ({
-                                ...provided,
-                                backgroundColor: '#1f2937', // bg-gray-800
-                                border: '1px solid #374151', // border-gray-700
-                                borderRadius: '0.5rem', // rounded-lg
-                                minHeight: '38px',
-                                boxShadow: 'none',
-                                '&:hover': {
-                                    borderColor: '#f97316' // focus:border-orange-400
-                                }
-                            }),
-                            input: (provided: any) => ({
-                                ...provided,
-                                color: '#ffffff', // text-white
-                                fontSize: '0.875rem', // text-sm
-                            }),
-                            singleValue: (provided: any) => ({
-                                ...provided,
-                                color: '#ffffff', // text-white
-                                fontSize: '0.875rem', // text-sm
-                            }),
-                            placeholder: (provided: any) => ({
-                                ...provided,
-                                color: '#6b7280', // placeholder-gray-500
-                                fontSize: '0.875rem', // text-sm
-                            }),
-                            menu: (provided: any) => ({
-                                ...provided,
-                                backgroundColor: '#1f2937', // bg-gray-800
-                                borderRadius: '0.5rem',
-                                zIndex: 9999
-                            }),
-                            option: (provided: any, state: { isFocused: any; }) => ({
-                                ...provided,
-                                backgroundColor: state.isFocused ? '#374151' : 'transparent', // bg-gray-700 on focus
-                                color: '#ffffff', // text-white
-                                fontSize: '0.875rem', // text-sm
-                                cursor: 'pointer'
-                            }),
-                        }
-                    }}
-                />
-            </div>
-        </div>
-        
-        <button
-            onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
-        >
-            <X className="w-5 h-5" />
-        </button>
-    </div>
-                    </div>
-                    
+                    <h2 className="text-xl font-semibold text-white">Create Post</h2>
                     <button
                         onClick={onClose}
                         className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
@@ -464,17 +440,61 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                         className="w-full bg-transparent text-white placeholder-gray-400 focus:outline-none resize-none text-lg"
                     />
 
-                    {/* Image Controls - Only show when images are selected */}
+                    {/* Location Input with Autocomplete */}
+                    <div className="relative">
+                        <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus-within:border-orange-400">
+                            <MapPin className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                            <input
+                                ref={locationInputRef}
+                                type="text"
+                                placeholder="Add location..."
+                                value={locationQuery}
+                                onChange={(e) => {
+                                    setLocationQuery(e.target.value);
+                                    setLocationString('');
+                                }}
+                                onFocus={() => {
+                                    if (suggestions.length > 0) {
+                                        setShowSuggestions(true);
+                                    }
+                                }}
+                                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm focus:outline-none"
+                            />
+                        </div>
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div
+                                ref={suggestionsRef}
+                                className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50"
+                            >
+                                {suggestions.map((suggestion, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handlePlaceSelect(suggestion)}
+                                        className="w-full text-left px-4 py-3 hover:bg-gray-700 transition-colors border-b border-gray-700 last:border-b-0"
+                                    >
+                                        <div className="text-white text-sm font-medium">
+                                            {suggestion.placePrediction.structuredFormat.mainText.text}
+                                        </div>
+                                        <div className="text-gray-400 text-xs mt-0.5">
+                                            {suggestion.placePrediction.structuredFormat.secondaryText.text}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Image Controls */}
                     {imagePreviews.length > 0 && (
                         <div className="space-y-3">
-                            {/* Quick Controls */}
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleZoomOut}
                                         disabled={imageAdjustments.scale <= 1}
                                         className="p-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        title="Zoom Out"
                                     >
                                         <ZoomOut className="w-5 h-5" />
                                     </button>
@@ -485,14 +505,12 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                                         onClick={handleZoomIn}
                                         disabled={imageAdjustments.scale >= 3}
                                         className="p-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        title="Zoom In"
                                     >
                                         <ZoomIn className="w-5 h-5" />
                                     </button>
                                     <button
                                         onClick={handleRotate}
                                         className="p-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 transition-colors ml-2"
-                                        title="Rotate"
                                     >
                                         <RotateCw className="w-5 h-5" />
                                     </button>
@@ -515,7 +533,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                                 </div>
                             )}
 
-                            {/* Advanced Adjustments */}
                             {showAdjustments && (
                                 <div className="bg-gray-800 rounded-lg p-4 space-y-4">
                                     <div className="flex items-center justify-between mb-2">
@@ -528,7 +545,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                                         </button>
                                     </div>
 
-                                    {/* Brightness */}
                                     <div>
                                         <label className="text-xs text-gray-400 block mb-1">
                                             Brightness: {imageAdjustments.brightness}%
@@ -543,7 +559,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                                         />
                                     </div>
 
-                                    {/* Contrast */}
                                     <div>
                                         <label className="text-xs text-gray-400 block mb-1">
                                             Contrast: {imageAdjustments.contrast}%
@@ -558,7 +573,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                                         />
                                     </div>
 
-                                    {/* Saturation */}
                                     <div>
                                         <label className="text-xs text-gray-400 block mb-1">
                                             Saturation: {imageAdjustments.saturation}%
@@ -626,7 +640,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                         </div>
                     )}
 
-                    {/* Add Photos Button - Prominent when no images */}
                     {imagePreviews.length === 0 && (
                         <button
                             onClick={() => fileInputRef.current?.click()}
@@ -642,7 +655,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                         </button>
                     )}
 
-                    {/* Additional Options */}
                     {imagePreviews.length > 0 && imagePreviews.length < 10 && (
                         <button
                             onClick={() => fileInputRef.current?.click()}
@@ -675,7 +687,7 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                     </div>
                 </div>
 
-                {/* Footer - Post Button */}
+                {/* Footer */}
                 <div className="p-4 border-t border-gray-800">
                     <button
                         onClick={handlePost}
@@ -698,7 +710,6 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
                     )}
                 </div>
 
-                {/* Hidden File Input */}
                 <input
                     ref={fileInputRef}
                     type="file"

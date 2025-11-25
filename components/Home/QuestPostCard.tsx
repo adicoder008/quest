@@ -24,6 +24,7 @@ interface QuestPostCardProps {
       questId: string;
       questTitle: string;
       description: string;
+      isAiGenerated?: boolean;
     };
   };
   currentUser: any;
@@ -51,7 +52,7 @@ export const QuestPostCard = ({
 }: QuestPostCardProps) => {
   const router = useRouter();
   const isLiked = post.likedBy?.includes(currentUser?.uid);
-  
+
   // 🔥 FOLLOW FUNCTIONALITY
   const authorId = post.uid;
   const isFollowingUser = followingList?.includes(authorId) || false;
@@ -66,11 +67,11 @@ export const QuestPostCard = ({
   const handleFollowClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (!currentUser?.uid || !authorId || authorId === currentUser.uid) {
       return;
     }
-    
+
     if (onFollow) {
       onFollow(authorId);
     }
@@ -81,7 +82,7 @@ export const QuestPostCard = ({
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -101,8 +102,8 @@ export const QuestPostCard = ({
             onClick={() => router.push(`/profile/${authorId}`)}
           />
           <div className="flex-1">
-            <h3 
-              className="text-white font-medium text-sm cursor-pointer hover:underline" 
+            <h3
+              className="text-white font-medium text-sm cursor-pointer hover:underline"
               onClick={() => router.push(`/profile/${authorId}`)}
             >
               {post.userName}
@@ -116,11 +117,10 @@ export const QuestPostCard = ({
           {!isOwnPost && onFollow && (
             <button
               onClick={handleFollowClick}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                isFollowingUser
-                  ? 'bg-gray-700 text-white hover:bg-gray-600'
-                  : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
-              }`}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${isFollowingUser
+                ? 'bg-gray-700 text-white hover:bg-gray-600'
+                : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                }`}
             >
               {isFollowingUser ? (
                 <div className="flex items-center gap-1">
@@ -135,7 +135,7 @@ export const QuestPostCard = ({
               )}
             </button>
           )}
-          
+
           <button
             onClick={onMenu}
             className="p-2 hover:bg-gray-800 rounded-full transition-colors"
@@ -153,7 +153,7 @@ export const QuestPostCard = ({
       )}
 
       {/* YouTube Shorts Style Image with Quest Title */}
-      <div 
+      <div
         className="relative cursor-pointer group"
         onClick={handleQuestClick}
         style={{ height: '60vh', minHeight: '400px' }}
@@ -169,6 +169,14 @@ export const QuestPostCard = ({
 
         {/* Gradient Overlay - YouTube Shorts Style */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
+
+        {/* AI Generated Badge */}
+        {post.questContext?.isAiGenerated && (
+          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full flex items-center gap-2 z-10">
+            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            <span className="text-xs font-medium text-white">AI Generated</span>
+          </div>
+        )}
 
         {/* Quest Title at Bottom - YouTube Shorts Style */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -207,9 +215,8 @@ export const QuestPostCard = ({
           <div className="flex items-center gap-6">
             <button
               onClick={onLike}
-              className={`flex items-center gap-2 transition-colors ${
-                isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-              }`}
+              className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                }`}
             >
               <HeartPulse size={22} className={isLiked ? 'fill-current' : ''} />
               <span className="text-sm font-medium">{post.likeCount || 0}</span>
@@ -234,9 +241,8 @@ export const QuestPostCard = ({
 
           <button
             onClick={onSave}
-            className={`transition-colors ${
-              isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-            }`}
+            className={`transition-colors ${isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+              }`}
           >
             {isSaved ? (
               <FaBookmark size={22} className="fill-current" />
@@ -265,7 +271,7 @@ export const MobileQuestPostCard = ({
 }: QuestPostCardProps) => {
   const router = useRouter();
   const isLiked = post.likedBy?.includes(currentUser?.uid);
-  
+
   // 🔥 FOLLOW FUNCTIONALITY
   const authorId = post.uid;
   const isFollowingUser = followingList?.includes(authorId) || false;
@@ -280,11 +286,11 @@ export const MobileQuestPostCard = ({
   const handleFollowClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (!currentUser?.uid || !authorId || authorId === currentUser.uid) {
       return;
     }
-    
+
     if (onFollow) {
       onFollow(authorId);
     }
@@ -295,7 +301,7 @@ export const MobileQuestPostCard = ({
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -314,7 +320,7 @@ export const MobileQuestPostCard = ({
             onClick={() => router.push(`/profile/${authorId}`)}
           />
           <div className="flex-1 min-w-0">
-            <span 
+            <span
               className="text-white font-medium text-sm cursor-pointer hover:underline truncate block"
               onClick={() => router.push(`/profile/${authorId}`)}
             >
@@ -331,16 +337,15 @@ export const MobileQuestPostCard = ({
           {!isOwnPost && onFollow && (
             <button
               onClick={handleFollowClick}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                isFollowingUser
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-[#F7CEB0] text-black'
-              }`}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${isFollowingUser
+                ? 'bg-gray-700 text-white'
+                : 'bg-[#F7CEB0] text-black'
+                }`}
             >
               {isFollowingUser ? 'Following' : 'Follow'}
             </button>
           )}
-          
+
           <button onClick={onMenu} className="p-2 flex-shrink-0">
             <MoreVertical size={18} className="text-gray-400" />
           </button>
@@ -396,32 +401,30 @@ export const MobileQuestPostCard = ({
       {/* Actions */}
       <div className="flex items-center justify-between p-3 border-t border-gray-800">
         <div className="flex items-center gap-5">
-          <button 
-            onClick={onLike} 
-            className={`transition-colors ${
-              isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-            }`}
+          <button
+            onClick={onLike}
+            className={`transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+              }`}
           >
             <HeartPulse size={24} className={isLiked ? 'fill-current' : ''} />
           </button>
-          <button 
-            onClick={onComment} 
+          <button
+            onClick={onComment}
             className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <FaRegCommentDots size={24} />
           </button>
-          <button 
-            onClick={onShare} 
+          <button
+            onClick={onShare}
             className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <FaShareSquare size={24} />
           </button>
         </div>
-        <button 
-          onClick={onSave} 
-          className={`transition-colors ${
-            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-          }`}
+        <button
+          onClick={onSave}
+          className={`transition-colors ${isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+            }`}
         >
           {isSaved ? (
             <FaBookmark size={24} className="fill-current" />

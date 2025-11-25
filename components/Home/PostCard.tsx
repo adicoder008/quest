@@ -1,209 +1,202 @@
 'use client';
 
-import { useState } from 'react';
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, MapPin } from 'lucide-react';
-import CommentModal from './CommentModal';
-import { Post, User } from '../../app/types/index';
-import { FaUser } from "react-icons/fa";
-import { FaHeartbeat } from "react-icons/fa";
-import { FaRegCommentDots } from "react-icons/fa";
-import { FaShareSquare } from "react-icons/fa";
+import React, { useState } from 'react';
+import { MessageCircle, Heart, Bookmark, MoreHorizontal, MapPin, BookmarkCheck, Send } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Post, User as UserType } from '@/app/types/index';
 
 interface PostCardProps {
   post: Post;
+  currentUser: UserType;
   onLike: () => void;
-  onComment: (text: string) => Promise<void>;
-  currentUser: User | null;
+  onComment: (text: string) => void;
+  onSave: () => void;
+  onShare: () => void;
+  onMenuClick: () => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, onLike, onComment, currentUser }) => {
-  const [showComments, setShowComments] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  currentUser,
+  onLike,
+  onComment,
+  onSave,
+  onShare,
+  onMenuClick
+}) => {
+  const router = useRouter();
+  const [commentText, setCommentText] = useState('');
+  const [showFullCaption, setShowFullCaption] = useState(false);
 
-  const handleLike = () => {
-    setLiked(!liked);
-    onLike();
-  };
+  const isLiked = post.likedBy?.includes(currentUser.uid);
+  const isSaved = post.isSaved;
+  const likeCount = post.likeCount ?? 0;
 
-  const formatTime = (timestamp: string | undefined): string => {
-    if (!timestamp) return '';
-    
-    const now = new Date();
-    const postTime = new Date(timestamp);
-    const diffMs = now.getTime() - postTime.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHours < 1) return 'now';
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${Math.floor(diffHours / 24)}d`;
-  };
-
-  const renderPostContent = () => {
-    const { postType, text, photoUrl, location, questContext } = post;
-
-    if (postType === 'quest_completion') {
-      return (
-        <div className="bg-gradient-to-r from-peach-200 to-orange-300 rounded-lg p-4 text-gray-900">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">🎯</span>
-            <span className="font-semibold">Quest Completed!</span>
-          </div>
-          {questContext && (
-            <div className="text-sm mb-2">
-              <div className="font-medium">{questContext.questTitle}</div>
-              <div className="opacity-80">{questContext.description}</div>
-            </div>
-          )}
-          {text && <p className="text-sm">{text}</p>}
-        </div>
-      );
+  const handleSubmitComment = () => {
+    if (commentText.trim()) {
+      onComment(commentText);
+      setCommentText('');
     }
+  };
 
-    return (
-      <div className="bg-white rounded-lg overflow-hidden">
-        {/* Location header for event posts */}
-        {location && (
-          <div className="flex items-center gap-2 p-3 border-b border-gray-100">
-            <MapPin className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-semibold text-gray-800">{location}</span>
-          </div>
-        )}
-
-        {/* Photo */}
-        {photoUrl && (
-          <div className="relative">
-            <img 
-              src={photoUrl} 
-              alt="Post content" 
-              className="w-full h-64 object-cover"
-            />
-          </div>
-        )}
-
-        {/* Text content */}
-        {text && (
-          <div className="p-4">
-            {postType === 'event' ? (
-              <div>
-                <h3 className="font-bold text-lg text-gray-900 mb-1">
-                  {post.eventTitle || 'Event'}
-                </h3>
-                <p className="text-gray-700 text-sm mb-2">{post.eventSubtitle}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 text-sm">{text}</span>
-                  {post.eventPrice && (
-                    <div className="bg-gray-900 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      ₹ {post.eventPrice}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-800">{text}</p>
-            )}
-          </div>
-        )}
-
-        {/* Just photo case - no additional padding needed */}
-        {photoUrl && !text && !location && <div className="h-2" />}
-      </div>
-    );
+  const formatCount = (count: number) => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
   };
 
   return (
-    <div className="border-b border-gray-800 px-4 py-6">
-      {/* User header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            
-            {post.userProfilePic ? (
-              <img 
-                src={post.userProfilePic} 
-                alt={post.userName}
-                className="w-6 h-6 rounded-full object-cover"
-              />
-            ) : (
-              <FaUser className="size-5 rounded-full object-cover text-white bg-gray-600 p-1" />
+    <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => router.push(`/profile/${post.authorId}`)}
+        >
+          <img 
+            src={post.userProfilePic || '/default-avatar.png'} 
+            alt={post.userName}
+            className="w-10 h-10 rounded-full object-cover"
+          />
+          <div>
+            <p className="text-white font-medium text-sm">{post.userName}</p>
+            {post.location && (
+              <div className="flex items-center gap-1 text-gray-400 text-xs">
+                <MapPin className="w-3 h-3" />
+                <span>{post.location}</span>
+              </div>
             )}
-            
-            <span className="text-peach-200 text-sm">{post.userName}</span>
           </div>
-          <span className="text-white text-[1rem]">{formatTime(post.createdAt)}</span>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <button className="text-white text-sm px-3 py-1 bg-transparent hover:bg-gray-800 rounded transition-colors">
-            Follow
-          </button>
-          <MoreHorizontal className="w-6 h-6 text-white" />
-        </div>
+        <button onClick={onMenuClick} className="text-gray-400 hover:text-white transition-colors">
+          <MoreHorizontal className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Post content */}
-      {renderPostContent()}
+      {/* Image */}
+      {post.imageUrls && (
+        <div className="w-full aspect-square bg-black">
+          <img 
+            src={post.imageUrls} 
+            alt="Post content"
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => router.push(`/post/${post.id}`)}
+          />
+        </div>
+      )}
 
-      {/* Actions */}
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center justify-between">
+      {/* Action Buttons */}
+      <div className="px-4 pt-3">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
             <button 
-              onClick={handleLike}
-              className={`flex items-center gap-1 transition-colors ${liked ? 'text-red-500' : 'text-white'}`}
+              onClick={onLike}
+              className="hover:opacity-70 transition-opacity"
             >
-              <FaHeartbeat className='text-red-500' size={24} />
+              <Heart 
+                className={`w-6 h-6 ${isLiked ? 'fill-[#EA6100] text-[#EA6100]' : 'text-white'}`}
+              />
             </button>
             <button 
-              onClick={() => setShowComments(true)}
-              className="text-white"
+              onClick={() => router.push(`/post/${post.id}`)}
+              className="hover:opacity-70 transition-opacity"
             >
-              <FaRegCommentDots size={24} className='' />
+              <MessageCircle className="w-6 h-6 text-white" />
             </button>
-            <button className="text-white">
-              <FaShareSquare size={24} className=''/>
+            <button 
+              onClick={onShare}
+              className="hover:opacity-70 transition-opacity"
+            >
+              <Send className="w-6 h-6 text-white" />
             </button>
           </div>
           <button 
-            onClick={() => setBookmarked(!bookmarked)}
-            className={`transition-colors ${bookmarked ? 'text-peach-200' : 'text-white'}`}
+            onClick={onSave}
+            className="hover:opacity-70 transition-opacity"
           >
-            <Bookmark className={`w-6 h-6 ${bookmarked ? 'fill-current' : ''}`} />
+            {isSaved ? (
+              <BookmarkCheck className="w-6 h-6 text-[#F7CEB0]" />
+            ) : (
+              <Bookmark className="w-6 h-6 text-white" />
+            )}
           </button>
         </div>
+        {/* Likes Count */}
+        {likeCount > 0 && (
+          <p className="text-white font-semibold text-sm mb-2">
+            {formatCount(likeCount)} {likeCount === 1 ? 'like' : 'likes'}
+          </p>
+        )}
+        
 
-        {/* Engagement stats */}
-        {((post.likeCount || 0) > 0 || (post.commentCount || 0) > 0) && (
-          <div className="flex items-center gap-4 text-sm text-gray-400">
-            {(post.likeCount || 0) > 0 && (
-              <span>{post.likeCount} likes</span>
-            )}
-            {(post.commentCount || 0) > 0 && (
-              <span>{post.commentCount} comments</span>
+        {/* Caption */}
+        {post.caption && (
+          <div className="text-sm mb-2">
+            <span className="text-white font-semibold mr-2">{post.userName}</span>
+            {post.caption.length > 150 && !showFullCaption ? (
+              <>
+                <span className="text-white">{post.caption.slice(0, 150)}...</span>
+                <button 
+                  onClick={() => setShowFullCaption(true)}
+                  className="text-gray-400 ml-1 hover:text-gray-300 transition-colors"
+                >
+                  more
+                </button>
+              </>
+            ) : (
+              <span className="text-white">{post.caption}</span>
             )}
           </div>
         )}
 
-        {/* User caption */}
-        <div className="space-y-1">
-          <div className="text-peach-200 text-sm">{post.userName} says...</div>
-          {post.caption && (
-            <div className="text-purple-300 text-sm">
-              {post.caption}
-            </div>
-          )}
+        {/* Comments Count */}
+        {(post.commentCount ?? 0) > 0 && (
+          <button 
+            onClick={() => router.push(`/post/${post.id}`)}
+            className="text-gray-400 text-sm mb-3 hover:text-gray-300 transition-colors block"
+          >
+            View all {post.commentCount ?? 0} {(post.commentCount ?? 0) === 1 ? 'comment' : 'comments'}
+          </button>
+        )}
+
+        {/* Timestamp */}
+        {post.createdAt && (
+          <p className="text-gray-500 text-xs mb-3">
+            {new Date(post.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </p>
+        )}
+
+        {/* Comment Input */}
+        <div className="border-t border-gray-700 pt-3 pb-2">
+          <div className="flex items-center gap-3">
+            <img 
+              src={currentUser.photoURL || '/default-avatar.png'}
+              alt="Your avatar"
+              className="w-8 h-8 rounded-full object-cover"
+            />
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 bg-transparent border-none outline-none text-white text-sm placeholder-gray-500"
+              onKeyPress={(e) => e.key === 'Enter' && handleSubmitComment()}
+            />
+            {commentText.trim() && (
+              <button
+                onClick={handleSubmitComment}
+                className="text-[#F7CEB0] font-semibold text-sm hover:text-[#EA6100] transition-colors"
+              >
+                Post
+              </button>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Comments Modal */}
-      {showComments && (
-        <CommentModal
-          post={post}
-          onClose={() => setShowComments(false)}
-          onAddComment={onComment}
-          currentUser={currentUser}
-        />
-      )}
     </div>
   );
 };

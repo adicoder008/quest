@@ -581,6 +581,67 @@ const questService = {
       generated: false,
       tripData: questData
     };
+  },
+  // File: services/questService.ts
+
+  /**
+   * Deletes a quest and cleans up associated data
+   */
+  async deleteQuest(questId: string, uid: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
+      
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
+
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
+
+      const questData = questSnap.data();
+
+      // [FIX] Check ownership using BOTH the direct field and the members map
+      const isOwner = questData.owner === uid || questData.members?.[uid] === 'owner';
+
+      if (!isOwner) {
+        console.error('Ownership check failed:', { owner: questData.owner, uid, members: questData.members });
+        throw new Error('Only the owner can delete this quest.');
+      }
+
+      await runTransaction(db, async (transaction) => {
+        // 1. Delete the Quest document
+        transaction.delete(questRef);
+
+        // 2. Remove questId from user's profile
+        const userRef = doc(db, 'users', uid);
+        transaction.update(userRef, {
+          questIds: arrayRemove(questId)
+        });
+
+        // 3. Delete associated chat if it exists
+        if (questData.chatId) {
+          const chatRef = doc(db, 'chats', questData.chatId);
+          // Note: This requires 'allow delete' in firestore.rules for chats
+          transaction.delete(chatRef);
+        }
+
+        // 4. Delete associated feed post if it exists
+        if (questData.associatedPostId) {
+          const postRef = doc(db, 'posts', questData.associatedPostId);
+          // Note: This requires 'allow delete' in firestore.rules for posts
+          transaction.delete(postRef);
+        }
+      });
+
+      console.log('Quest deleted successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting quest:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete quest'
+      };
+    }
   }
 };
 

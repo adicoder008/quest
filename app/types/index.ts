@@ -24,7 +24,7 @@ export interface Quest {
   sharesCount?: number;
   isPostedToFeed?: boolean;
   associatedPostId?: string | null;
-  
+
   // FIXED: Single cover image URL (same format as posts)
   coverImageUrl?: string; // Compressed image URL (same as post photoUrl)
 }
@@ -54,7 +54,7 @@ export interface User {
   showOnlineStatus?: boolean;
   emailNotifications?: boolean;
   pushNotifications?: boolean;
-  followers?: string[]; 
+  followers?: string[];
   following?: string[];
   savedPosts?: string[];
   badges?: number[];
@@ -87,6 +87,7 @@ export interface QuestDay {
 
 export interface QuestItinerary {
   days: QuestDay[];
+  generated?: boolean;
 }
 
 export interface QuestContext {
@@ -193,6 +194,7 @@ export interface CreatePostData {
     category?: string;
     xpEarned?: number;
     difficulty?: string;
+    isAiGenerated?: boolean;
   };
 }
 
