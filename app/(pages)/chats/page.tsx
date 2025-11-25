@@ -1,20 +1,26 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Users, 
-  Send, 
-  Image as ImageIcon, 
-  X, 
+import {
+  Search,
+  Plus,
+  Users,
+  Send,
+  Image as ImageIcon,
+  X,
   MoreVertical,
   ArrowLeft,
   Check,
   CheckCheck,
   Phone,
   Video,
-  Paperclip
+  Paperclip,
+  Smile,
+  Reply as ReplyIcon,
+  Pin,
+  PinOff,
+  Trash2,
+  AtSign
 } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -37,8 +43,9 @@ import useResponsive from '@/hooks/useResponsive';
 import imageCompression from 'browser-image-compression';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { notifyNewMessage } from '@/lib/notificationService';
+import { notifyNewMessage, notifyMention } from '@/lib/notificationService';
 import Footer from '@/components/Footer';
+import chatService from '@/lib/chatService';
 
 
 interface Chat {
@@ -64,6 +71,10 @@ interface Message {
   imageUrl?: string;
   read: boolean;
   type: 'text' | 'image' | 'quest_invite';
+  reactions?: { [emoji: string]: string[] };
+  replyTo?: string;
+  mentions?: string[];
+  isDeleted?: boolean;
 }
 
 // =================================================================
@@ -339,23 +350,155 @@ const NewDMModal = ({ onClose, currentUser, onSelectUser }: NewDMModalProps) => 
 };
 
 // =================================================================
+// DELETE CONFIRMATION MODAL
+// =================================================================
+interface DeleteModalProps {
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const DeleteModal = ({ onConfirm, onCancel }: DeleteModalProps) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 rounded-lg w-full max-w-sm border border-gray-700">
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+              <Trash2 size={24} className="text-red-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-white">Delete Message?</h3>
+              <p className="text-sm text-gray-400">This action cannot be undone</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-lg font-medium bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-3 rounded-lg font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =================================================================
+// REACTION PICKER
+// =================================================================
+interface ReactionPickerProps {
+  onSelectEmoji: (emoji: string) => void;
+  onClose: () => void;
+}
+
+const ReactionPicker = ({ onSelectEmoji, onClose }: ReactionPickerProps) => {
+  const emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉'];
+
+  return (
+    <div className="absolute bottom-full left-0 mb-2 bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-700 flex gap-1 z-10">
+      {emojis.map(emoji => (
+        <button
+          key={emoji}
+          onClick={() => {
+            onSelectEmoji(emoji);
+            onClose();
+          }}
+          className="w-10 h-10 flex items-center justify-center text-xl hover:bg-gray-700 rounded transition-colors"
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// =================================================================
 // CHAT MESSAGE COMPONENT
 // =================================================================
 interface ChatMessageProps {
   message: Message;
   isOwn: boolean;
   showAvatar: boolean;
+  currentUserId: string;
+  onReact: (emoji: string) => void;
+  onReply: () => void;
+  onDelete: () => void;
+  onPin: () => void;
+  isPinned: boolean;
+  replyToMessage?: Message | null;
+  chatMembers?: any[];
 }
 
-const ChatMessage = ({ message, isOwn, showAvatar }: ChatMessageProps) => {
+const ChatMessage = ({
+  message,
+  isOwn,
+  showAvatar,
+  currentUserId,
+  onReact,
+  onReply,
+  onDelete,
+  onPin,
+  isPinned,
+  replyToMessage,
+  chatMembers
+}: ChatMessageProps) => {
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Parse mentions in text
+  const renderTextWithMentions = (text: string, mentions?: string[]) => {
+    if (!mentions || mentions.length === 0) return text;
+
+    let renderedText = text;
+    mentions.forEach(userId => {
+      const member = chatMembers?.find(m => m.id === userId);
+      if (member) {
+        const mentionPattern = new RegExp(`@${member.displayName}`, 'gi');
+        renderedText = renderedText.replace(
+          mentionPattern,
+          `<span class="bg-[#EA6100]/20 text-[#EA6100] px-1 rounded">@${member.displayName}</span>`
+        );
+      }
+    });
+
+    return <span dangerouslySetInnerHTML={{ __html: renderedText }} />;
+  };
+
+  if (message.isDeleted) {
+    return (
+      <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+        {showAvatar && !isOwn && <div className="w-8"></div>}
+        {!showAvatar && !isOwn && <div className="w-8"></div>}
+        <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+          <div className="rounded-2xl px-4 py-2 bg-gray-800/50 border border-gray-700">
+            <p className="text-sm text-gray-500 italic">Message deleted</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div
+      className={`flex items-end gap-2 mb-3 group ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
       {showAvatar && !isOwn && (
         <img
           src={message.senderAvatar || '/default-avatar.png'}
@@ -363,14 +506,29 @@ const ChatMessage = ({ message, isOwn, showAvatar }: ChatMessageProps) => {
           className="w-8 h-8 rounded-full object-cover flex-shrink-0"
         />
       )}
-      
+
       {!showAvatar && !isOwn && <div className="w-8"></div>}
 
-      <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+      <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col relative`}>
         {!isOwn && showAvatar && (
           <p className="text-xs text-gray-400 mb-1 px-3">{message.senderName}</p>
         )}
-        
+
+        {isPinned && (
+          <div className="flex items-center gap-1 text-xs text-[#EA6100] mb-1 px-3">
+            <Pin size={12} />
+            <span>Pinned</span>
+          </div>
+        )}
+
+        {/* Reply preview */}
+        {message.replyTo && replyToMessage && (
+          <div className="mb-1 px-3 py-2 bg-gray-900/50 rounded-lg border-l-2 border-[#EA6100] text-xs">
+            <p className="text-gray-400">{replyToMessage.senderName}</p>
+            <p className="text-gray-300 truncate">{replyToMessage.text}</p>
+          </div>
+        )}
+
         <div
           className={`rounded-2xl px-4 py-2 ${
             isOwn
@@ -386,18 +544,92 @@ const ChatMessage = ({ message, isOwn, showAvatar }: ChatMessageProps) => {
               onClick={() => window.open(message.imageUrl, '_blank')}
             />
           )}
-          
-          {message.text && <p className="text-sm break-words">{message.text}</p>}
-          
-          <div className={`flex items-center gap-1 justify-end mt-1 text-xs ${
-            isOwn ? 'text-black/70' : 'text-gray-400'
-          }`}>
+
+          {message.text && (
+            <p className="text-sm break-words">
+              {renderTextWithMentions(message.text, message.mentions)}
+            </p>
+          )}
+
+          <div
+            className={`flex items-center gap-1 justify-end mt-1 text-xs ${
+              isOwn ? 'text-black/70' : 'text-gray-400'
+            }`}
+          >
             <span>{formatTime(message.timestamp)}</span>
-            {isOwn && (
-              message.read ? <CheckCheck size={14} /> : <Check size={14} />
-            )}
+            {isOwn && (message.read ? <CheckCheck size={14} /> : <Check size={14} />)}
           </div>
         </div>
+
+        {/* Reactions */}
+        {message.reactions && Object.keys(message.reactions).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {Object.entries(message.reactions).map(([emoji, userIds]) => (
+              <button
+                key={emoji}
+                onClick={() => onReact(emoji)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                  userIds.includes(currentUserId)
+                    ? 'bg-[#EA6100]/20 border border-[#EA6100]'
+                    : 'bg-gray-800 border border-gray-700 hover:bg-gray-700'
+                }`}
+              >
+                <span>{emoji}</span>
+                <span className="text-gray-400">{userIds.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        {showActions && (
+          <div className={`absolute top-0 ${isOwn ? 'left-0' : 'right-0'} flex gap-1 -translate-y-8`}>
+            <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg flex">
+              <button
+                onClick={() => setShowReactionPicker(!showReactionPicker)}
+                className="p-2 hover:bg-gray-800 transition-colors rounded-l-lg"
+                title="React"
+              >
+                <Smile size={16} className="text-gray-400" />
+              </button>
+              <button
+                onClick={onReply}
+                className="p-2 hover:bg-gray-800 transition-colors"
+                title="Reply"
+              >
+                <ReplyIcon size={16} className="text-gray-400" />
+              </button>
+              <button
+                onClick={onPin}
+                className="p-2 hover:bg-gray-800 transition-colors"
+                title={isPinned ? 'Unpin' : 'Pin'}
+              >
+                {isPinned ? (
+                  <PinOff size={16} className="text-[#EA6100]" />
+                ) : (
+                  <Pin size={16} className="text-gray-400" />
+                )}
+              </button>
+              {isOwn && (
+                <button
+                  onClick={onDelete}
+                  className="p-2 hover:bg-gray-800 transition-colors rounded-r-lg"
+                  title="Delete"
+                >
+                  <Trash2 size={16} className="text-red-500" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reaction picker */}
+        {showReactionPicker && (
+          <ReactionPicker
+            onSelectEmoji={onReact}
+            onClose={() => setShowReactionPicker(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -410,14 +642,22 @@ export default function ChatsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [selectedChatData, setSelectedChatData] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [chatMembers, setChatMembers] = useState<any[]>([]);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isDesktop = useResponsive(768);
 
   useEffect(() => {
@@ -466,15 +706,18 @@ export default function ChatsPage() {
           }
         }
 
+        // Get unread count for this user
+        const unreadCount = data.unreadCount?.[user.uid] || 0;
+
         chatsData.push({
           id: chatDoc.id,
           name: chatName,
           avatar: chatAvatar || '/default-avatar.png',
-          lastMessage: data.lastMessage || '',
+          lastMessage: data.lastMessage?.text || data.lastMessage || '',
           lastMessageTime: data.lastMessageTime,
           isGroup: data.isGroup || false,
           members: data.members || [],
-          unreadCount: 0,
+          unreadCount,
           questId: data.questId
         });
       }
@@ -484,6 +727,50 @@ export default function ChatsPage() {
 
     return () => unsubscribe();
   }, [user]);
+
+  // Load selected chat data and members
+  useEffect(() => {
+    if (!selectedChat?.id) return;
+
+    const chatRef = doc(db, 'chats', selectedChat.id);
+    const unsubscribe = onSnapshot(chatRef, async (snapshot) => {
+      if (snapshot.exists()) {
+        const chatData = snapshot.data();
+        setSelectedChatData(chatData);
+
+        // Load member info
+        const memberPromises = chatData.members.map(async (memberId: string) => {
+          const userDoc = await getDoc(doc(db, 'users', memberId));
+          if (userDoc.exists()) {
+            return { id: memberId, ...userDoc.data() };
+          }
+          return null;
+        });
+
+        const membersData = (await Promise.all(memberPromises)).filter(Boolean);
+        setChatMembers(membersData);
+
+        // Track typing indicators
+        if (chatData.typing && user?.uid) {
+          const typingUserIds = Object.entries(chatData.typing)
+            .filter(([userId, timestamp]) => userId !== user.uid && timestamp)
+            .map(([userId]) => userId);
+          setTypingUsers(typingUserIds);
+        } else {
+          setTypingUsers([]);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [selectedChat, user]);
+
+  // Mark messages as read when chat is selected
+  useEffect(() => {
+    if (selectedChat?.id && user?.uid) {
+      chatService.markMessagesAsRead(selectedChat.id, user.uid);
+    }
+  }, [selectedChat, user]);
 
   // Load messages for selected chat
   useEffect(() => {
@@ -511,43 +798,141 @@ export default function ChatsPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Handle typing indicator
+  const handleTyping = async () => {
+    if (!selectedChat?.id || !user?.uid) return;
+
+    // Set typing status to true
+    await chatService.setTypingStatus(selectedChat.id, user.uid, true);
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to clear typing status
+    typingTimeoutRef.current = setTimeout(async () => {
+      await chatService.setTypingStatus(selectedChat.id, user.uid, false);
+    }, 3000);
+  };
+
+  // Parse mentions from message text
+  const parseMentions = (text: string): string[] => {
+    const mentionPattern = /@(\w+)/g;
+    const matches = text.matchAll(mentionPattern);
+    const mentionedUserIds: string[] = [];
+
+    for (const match of matches) {
+      const mentionedName = match[1];
+      const member = chatMembers.find(
+        m => m.displayName?.toLowerCase() === mentionedName.toLowerCase()
+      );
+      if (member) {
+        mentionedUserIds.push(member.id);
+      }
+    }
+
+    return mentionedUserIds;
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if ((!messageText.trim() && !uploadingImage) || !selectedChat || !user) return;
 
     try {
-      const messageData = {
+      // Parse mentions
+      const mentions = parseMentions(messageText);
+
+      const messageData: any = {
+        uid: user.uid,
         text: messageText.trim(),
-        senderId: user.uid,
-        senderName: user.displayName || 'Anonymous',
-        senderAvatar: user.photoURL || '/default-avatar.png',
-        timestamp: serverTimestamp(),
-        read: false,
-        type: 'text'
+        authorName: user.displayName || 'Anonymous',
+        authorPhoto: user.photoURL || '/default-avatar.png',
       };
 
-      await addDoc(collection(db, 'chats', selectedChat.id, 'messages'), messageData);
+      // Add reply if replying
+      if (replyingTo) {
+        messageData.replyTo = replyingTo.id;
+      }
 
-      // Update last message
-      await updateDoc(doc(db, 'chats', selectedChat.id), {
-        lastMessage: messageText.trim() || '📷 Photo',
-        lastMessageTime: serverTimestamp()
-      });
+      // Add mentions if any
+      if (mentions.length > 0) {
+        messageData.mentions = mentions;
+      }
+
+      // Send message through chatService
+      await chatService.sendMessage(selectedChat.id, messageData);
+
+      // Clear typing status
+      await chatService.setTypingStatus(selectedChat.id, user.uid, false);
+
+      // Send mention notifications
+      if (mentions.length > 0) {
+        await notifyMention(
+          selectedChat.id,
+          selectedChat.name,
+          user.uid,
+          user.displayName || 'Anonymous',
+          user.photoURL || '/default-avatar.png',
+          messageText.trim(),
+          mentions
+        );
+      }
 
       setMessageText('');
-
-      const recipientIds = selectedChat.members.filter(id => id !== user.uid);
-      await notifyNewMessage(
-        selectedChat.id,
-        selectedChat.name,
-        user.uid,
-        user.displayName || 'Anonymous',
-        user.photoURL || '/default-avatar.png',
-        messageText,
-        recipientIds
-      );
+      setReplyingTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  // Handle reactions
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!selectedChat?.id || !user?.uid) return;
+
+    try {
+      const message = messages.find(m => m.id === messageId);
+      if (!message) return;
+
+      const hasReacted = message.reactions?.[emoji]?.includes(user.uid);
+
+      if (hasReacted) {
+        await chatService.removeReaction(selectedChat.id, messageId, user.uid, emoji);
+      } else {
+        await chatService.addReaction(selectedChat.id, messageId, user.uid, emoji);
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+    }
+  };
+
+  // Handle pin/unpin
+  const handlePin = async (messageId: string) => {
+    if (!selectedChat?.id || !selectedChatData) return;
+
+    try {
+      const isPinned = selectedChatData.pinnedMessages?.includes(messageId);
+
+      if (isPinned) {
+        await chatService.unpinMessage(selectedChat.id, messageId);
+      } else {
+        await chatService.pinMessage(selectedChat.id, messageId);
+      }
+    } catch (error) {
+      console.error('Error pinning message:', error);
+    }
+  };
+
+  // Handle delete
+  const handleDeleteMessage = async () => {
+    if (!selectedChat?.id || !messageToDelete) return;
+
+    try {
+      await chatService.deleteMessage(selectedChat.id, messageToDelete);
+      setShowDeleteModal(false);
+      setMessageToDelete(null);
+    } catch (error) {
+      console.error('Error deleting message:', error);
     }
   };
 
@@ -670,12 +1055,34 @@ export default function ChatsPage() {
             </button>
           </div>
 
+          {/* Pinned Messages */}
+          {selectedChatData?.pinnedMessages && selectedChatData.pinnedMessages.length > 0 && (
+            <div className="bg-gray-900 border-b border-gray-700 p-3">
+              <div className="flex items-center gap-2 text-[#EA6100] text-sm">
+                <Pin size={16} />
+                <span className="font-medium">Pinned Messages</span>
+              </div>
+              {selectedChatData.pinnedMessages.slice(0, 3).map((pinnedId: string) => {
+                const pinnedMsg = messages.find(m => m.id === pinnedId);
+                if (!pinnedMsg) return null;
+                return (
+                  <div key={pinnedId} className="mt-2 text-xs text-gray-400 truncate">
+                    {pinnedMsg.senderName}: {pinnedMsg.text}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 bg-black">
             {messages.map((message, index) => {
               const isOwn = message.senderId === user.uid;
               const prevMessage = messages[index - 1];
               const showAvatar = !prevMessage || prevMessage.senderId !== message.senderId;
+              const replyToMessage = message.replyTo
+                ? messages.find(m => m.id === message.replyTo)
+                : null;
 
               return (
                 <ChatMessage
@@ -683,11 +1090,53 @@ export default function ChatsPage() {
                   message={message}
                   isOwn={isOwn}
                   showAvatar={showAvatar}
+                  currentUserId={user.uid}
+                  onReact={(emoji) => handleReaction(message.id, emoji)}
+                  onReply={() => setReplyingTo(message)}
+                  onDelete={() => {
+                    setMessageToDelete(message.id);
+                    setShowDeleteModal(true);
+                  }}
+                  onPin={() => handlePin(message.id)}
+                  isPinned={selectedChatData?.pinnedMessages?.includes(message.id) || false}
+                  replyToMessage={replyToMessage}
+                  chatMembers={chatMembers}
                 />
               );
             })}
+
+            {/* Typing indicator */}
+            {typingUsers.length > 0 && (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8"></div>
+                <div className="bg-gray-800 rounded-2xl px-4 py-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Reply Preview */}
+          {replyingTo && (
+            <div className="bg-gray-900 border-t border-gray-700 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ReplyIcon size={16} className="text-[#EA6100]" />
+                <div className="text-sm">
+                  <p className="text-gray-400">Replying to {replyingTo.senderName}</p>
+                  <p className="text-white truncate max-w-xs">{replyingTo.text}</p>
+                </div>
+              </div>
+              <button onClick={() => setReplyingTo(null)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+          )}
 
           {/* Input */}
           <div className="bg-gray-900 border-t border-gray-700 p-4">
@@ -699,7 +1148,7 @@ export default function ChatsPage() {
                 accept="image/*"
                 className="hidden"
               />
-              
+
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -712,8 +1161,11 @@ export default function ChatsPage() {
               <input
                 type="text"
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Type a message..."
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  handleTyping();
+                }}
+                placeholder="Type a message... (@mention)"
                 className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-full border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:outline-none"
               />
 
@@ -962,6 +1414,27 @@ export default function ChatsPage() {
             </button>
           </div>
 
+          {/* Pinned Messages */}
+          {selectedChatData?.pinnedMessages && selectedChatData.pinnedMessages.length > 0 && (
+            <div className="bg-gray-900 border-b border-gray-700 p-4">
+              <div className="flex items-center gap-2 text-[#EA6100] text-sm mb-2">
+                <Pin size={16} />
+                <span className="font-medium">Pinned Messages</span>
+              </div>
+              <div className="space-y-1">
+                {selectedChatData.pinnedMessages.slice(0, 3).map((pinnedId: string) => {
+                  const pinnedMsg = messages.find(m => m.id === pinnedId);
+                  if (!pinnedMsg) return null;
+                  return (
+                    <div key={pinnedId} className="text-xs text-gray-400 truncate">
+                      <span className="font-medium">{pinnedMsg.senderName}:</span> {pinnedMsg.text}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 bg-black">
             {messages.length === 0 ? (
@@ -980,6 +1453,9 @@ export default function ChatsPage() {
                   const isOwn = message.senderId === user.uid;
                   const prevMessage = messages[index - 1];
                   const showAvatar = !prevMessage || prevMessage.senderId !== message.senderId;
+                  const replyToMessage = message.replyTo
+                    ? messages.find(m => m.id === message.replyTo)
+                    : null;
 
                   return (
                     <ChatMessage
@@ -987,13 +1463,55 @@ export default function ChatsPage() {
                       message={message}
                       isOwn={isOwn}
                       showAvatar={showAvatar}
+                      currentUserId={user.uid}
+                      onReact={(emoji) => handleReaction(message.id, emoji)}
+                      onReply={() => setReplyingTo(message)}
+                      onDelete={() => {
+                        setMessageToDelete(message.id);
+                        setShowDeleteModal(true);
+                      }}
+                      onPin={() => handlePin(message.id)}
+                      isPinned={selectedChatData?.pinnedMessages?.includes(message.id) || false}
+                      replyToMessage={replyToMessage}
+                      chatMembers={chatMembers}
                     />
                   );
                 })}
+
+                {/* Typing indicator */}
+                {typingUsers.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8"></div>
+                    <div className="bg-gray-800 rounded-2xl px-4 py-2">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </>
             )}
           </div>
+
+          {/* Reply Preview */}
+          {replyingTo && (
+            <div className="bg-gray-900 border-t border-gray-700 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ReplyIcon size={18} className="text-[#EA6100]" />
+                <div className="text-sm">
+                  <p className="text-gray-400 text-xs">Replying to {replyingTo.senderName}</p>
+                  <p className="text-white truncate max-w-md">{replyingTo.text}</p>
+                </div>
+              </div>
+              <button onClick={() => setReplyingTo(null)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+          )}
 
           {/* Input */}
           <div className="bg-gray-900 border-t border-gray-700 p-4">
@@ -1002,7 +1520,7 @@ export default function ChatsPage() {
                 Uploading image...
               </div>
             )}
-            
+
             <form onSubmit={handleSendMessage} className="flex items-center gap-3">
               <input
                 type="file"
@@ -1011,7 +1529,7 @@ export default function ChatsPage() {
                 accept="image/*"
                 className="hidden"
               />
-              
+
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -1024,8 +1542,11 @@ export default function ChatsPage() {
               <input
                 type="text"
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Type a message..."
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  handleTyping();
+                }}
+                placeholder="Type a message... (@mention)"
                 className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-full border border-gray-700 focus:ring-2 focus:ring-[#EA6100] focus:outline-none"
               />
 
@@ -1091,7 +1612,17 @@ export default function ChatsPage() {
           }}
         />
       )}
-     
+
+      {showDeleteModal && (
+        <DeleteModal
+          onConfirm={handleDeleteMessage}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setMessageToDelete(null);
+          }}
+        />
+      )}
+
     </div>
   );
 }

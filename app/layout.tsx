@@ -1,8 +1,14 @@
-import { Inter } from 'next/font/google'
+import { Inter, Montserrat } from 'next/font/google'
 import Script from 'next/script'
 import '@/app/globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
+const mont = Montserrat({
+  subsets: ['latin'],
+  variable: '--font-mont',
+  weight: ['400','500','600','700']
+})
+
 
 export const metadata = {
   title: 'OnQuest',
@@ -18,9 +24,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
+     <html lang="en" className={mont.variable}>
+  <body className={inter.className}>
+    {children}
         
         {/* Hotjar Tracking Code */}
         <Script

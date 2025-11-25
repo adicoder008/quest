@@ -8,6 +8,7 @@ import PhoneSection from '@/components/PhoneSection'
 import FAQ from '@/components/FAQ'
 import Signup from '@/components/Signup'
 import Footer from '@/components/Footer'
+import Features from '@/components/Features'
 
 
 const page = () => {
@@ -15,7 +16,8 @@ const page = () => {
     <>
   
     <Hero />
-    <HowItWorks />
+    {/* <HowItWorks /> */}
+    <Features/>
     <Mid/>
     <PhoneSection/>
     <FAQ/>

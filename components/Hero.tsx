@@ -195,8 +195,8 @@ const Hero = () => {
       {/* <div className='NAVBAR absolute x-to '>hi</div> */}
       {/* <div className='flex flex-col ga'> */}
       
-        <div className='flex flex-col gap-4 text-white text-center p-4 '>
-          <h1 className='text-4xl md:text-6xl font-arsenal font-[400]'>
+        <div className='flex flex-col gap-4 text-white text-center p-4 font-mont '>
+          <h1 className='text-4xl md:text-6xl font-mont '>
             Where every trip becomes a <span className='font-[500] italic  '>Story </span> worth <span className='font-[500] italic  '>sharing </span>
           </h1>
           <p className='text-lg md:text-2xl max-w-3xl mx-auto'>
