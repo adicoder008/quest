@@ -1499,30 +1499,43 @@ const Feed = () => {
                     <div className="text-gray-400 text-sm">Loading...</div>
                   </div>
                 ) : (
-                  <div
-                    className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
-                    style={{
-                      width: `${banners.length * 100}%`,
-                      transform: `translateX(-${currentBannerIndex * (100 / banners.length)}%)`
-                    }}
-                  >
-                    {banners.map((banner, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => router.push('/aitrip')}
-                        className="relative w-full"
-                        style={{ width: `${100 / banners.length}%` }}
-                        aria-label="Plan your AI-powered trip"
-                      >
-                        <img
-                          src={banner}
-                          alt="Plan your next adventure with AI"
-                          className="w-full h-auto object-cover hover:opacity-95 transition-opacity cursor-pointer"
+                  <>
+                    <div
+                      className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+                      style={{
+                        width: `${banners.length * 100}%`,
+                        transform: `translateX(-${currentBannerIndex * (100 / banners.length)}%)`
+                      }}
+                    >
+                      {banners.map((banner, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => router.push('/quest')}
+                          className="relative w-full"
+                          style={{ width: `${100 / banners.length}%` }}
+                          aria-label="Plan your AI-powered trip"
+                        >
+                          <img
+                            src={banner}
+                            alt="Plan your next adventure with AI"
+                            className="w-full h-auto object-cover hover:opacity-95 transition-opacity cursor-pointer"
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Banner Dots Indicator */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                      {banners.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentBannerIndex ? 'bg-white scale-110' : 'bg-white/40'
+                            }`}
                         />
-                      </button>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -2521,48 +2534,61 @@ const MobileFeedPage = () => {
         </div>
       </div>
 
-      <div className="w-screen overflow-hidden relative" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
+      <div className="w-screen overflow-hidden relative py-2" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
         {!bannersLoaded ? (
           <div className="w-full h-48 bg-black flex items-center justify-center">
             <div className="text-gray-400">Loading banners...</div>
           </div>
         ) : (
-          <div
-            className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
-            style={{
-              transform: `translateX(-${currentBannerIndex * 100}vw)`,
-              width: `${banners.length * 100}vw`
-            }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            {banners.map((banner, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => window.location.href = '/aitrip'}
-                className="shrink-0 flex justify-center items-center bg-black"
-                style={{ width: '100vw', minHeight: '200px' }}
-                aria-label="Plan your AI-powered trip"
-              >
-                <img
-                  src={banner}
-                  alt="Plan your next adventure with AI"
-                  className="w-full h-full object-contain hover:opacity-95 transition-opacity cursor-pointer"
-                  style={{ maxHeight: '50vh', width: '100%' }}
-                  onError={(e) => {
-                    console.error('Failed to load banner:', banner, 'at index:', index);
-                    e.currentTarget.style.opacity = '0.5';
-                  }}
-                  onLoad={(e) => {
-                    e.currentTarget.style.display = 'block';
-                    e.currentTarget.style.opacity = '1';
-                  }}
+          <>
+            <div
+              className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+              style={{
+                transform: `translateX(-${currentBannerIndex * 100}vw)`,
+                width: `${banners.length * 100}vw`
+              }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              {banners.map((banner, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => window.location.href = '/quest'}
+                  className="shrink-0 flex justify-center items-center bg-black"
+                  style={{ width: '100vw', minHeight: '200px' }}
+                  aria-label="Plan your AI-powered trip"
+                >
+                  <img
+                    src={banner}
+                    alt="Plan your next adventure with AI"
+                    className="w-full h-full object-contain hover:opacity-95 transition-opacity cursor-pointer"
+                    style={{ maxHeight: '50vh', width: '100%' }}
+                    onError={(e) => {
+                      console.error('Failed to load banner:', banner, 'at index:', index);
+                      e.currentTarget.style.opacity = '0.5';
+                    }}
+                    onLoad={(e) => {
+                      e.currentTarget.style.display = 'block';
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Banner Dots Indicator */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {banners.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentBannerIndex ? 'bg-white scale-110' : 'bg-white/40'
+                    }`}
                 />
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

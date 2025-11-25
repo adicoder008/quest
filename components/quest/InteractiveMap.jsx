@@ -26,26 +26,26 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   // Destination: Cards with titles like "arrival", "end", "destination" or return journey indicators
   const isSourceOrDestination = (card, index, allCards) => {
     if (!card) return false;
-    
+
     const title = (card.title || '').toLowerCase();
     const description = (card.description || '').toLowerCase();
-    
+
     // Check for source indicators
-    const sourceKeywords = ['departure', 'start from', 'leaving from', 'source', 'journey begins', 'travel from', 'from to','train','flight'];
-    const isSource = sourceKeywords.some(keyword => 
+    const sourceKeywords = ['departure', 'start from', 'leaving from', 'source', 'journey begins', 'travel from', 'from to', 'train', 'flight'];
+    const isSource = sourceKeywords.some(keyword =>
       title.includes(keyword) || description.includes(keyword)
     );
-    
+
     // Check for destination indicators
     const destKeywords = ['arrival', 'reach', 'return to', 'back to', 'destination', 'journey ends'];
-    const isDestination = destKeywords.some(keyword => 
+    const isDestination = destKeywords.some(keyword =>
       title.includes(keyword) || description.includes(keyword)
     );
-    
+
     // Also check if it's a pure transit activity (train/bus ride with no stop)
-    const isTransit = title.includes('train ride') || title.includes('bus ride') || 
-                     title.includes('transfer') || title.includes('travel to');
-    
+    const isTransit = title.includes('train ride') || title.includes('bus ride') ||
+      title.includes('transfer') || title.includes('travel to');
+
     return isSource || isDestination || (isTransit && index === 0);
   };
 
@@ -53,23 +53,23 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   const locatedCards = useMemo(() => {
     return flowCards.filter((card, index) => {
       // Must have valid location data
-      const hasLocation = card.location && 
-                         card.location.coordinates && 
-                         card.location.coordinates.latitude && 
-                         card.location.coordinates.longitude;
-      
+      const hasLocation = card.location &&
+        card.location.coordinates &&
+        (card.location.coordinates.lat || card.location.coordinates.latitude) &&
+        (card.location.coordinates.lng || card.location.coordinates.longitude || card.location.coordinates.lon);
+
       if (!hasLocation) return false;
-      
+
       // Exclude source/destination cards
       return !isSourceOrDestination(card, index, flowCards);
     });
   }, [flowCards]);
-  
+
   // Process cards to assign a color for each unique day
   const cardsWithDayInfo = useMemo(() => {
     const dateToDayMap = new Map();
     let dayCounter = 1;
-    
+
     return locatedCards.map(card => {
       // Use the date field from the card
       const cardDate = card.date ? new Date(card.date).toDateString() : 'Default Day';
@@ -97,7 +97,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
   useEffect(() => {
     initializeMap();
-    
+
     return () => {
       if (polylinesRef.current) {
         polylinesRef.current.forEach(p => p.setMap(null));
@@ -122,7 +122,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
           const card = cardsWithDayInfo[index];
           const originalIndex = flowCards.findIndex(fc => fc.id === card.id);
           const isActive = originalIndex === activeIndex;
-          
+
           if (card) {
             marker.setIcon({
               url: `data:image/svg+xml,${encodeURIComponent(createMarkerSVG(index + 1, card.dayColor, isActive))}`,
@@ -139,7 +139,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
     const finalColor = isActive ? '#EF4444' : color || '#3B82F6';
     const bgColor = '#FFFFFF';
     const textColor = finalColor;
-    
+
     return `
       <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -184,9 +184,9 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
       mapInstanceRef.current = map;
       setMapLoaded(true);
-      
+
       setTimeout(() => updateMarkers(), 100);
-      
+
     } catch (error) {
       console.error('Error initializing map:', error);
       setMapError(true);
@@ -204,10 +204,10 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=geometry`;
       script.async = true;
       script.defer = true;
-      
+
       script.onload = () => resolve();
       script.onerror = () => reject(new Error('Failed to load Google Maps API'));
-      
+
       document.head.appendChild(script);
     });
   };
@@ -227,8 +227,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
     cardsWithDayInfo.forEach((card, index) => {
       const position = {
-        lat: card.location.coordinates.latitude,
-        lng: card.location.coordinates.longitude
+        lat: card.location.coordinates.lat || card.location.coordinates.latitude,
+        lng: card.location.coordinates.lng || card.location.coordinates.longitude || card.location.coordinates.lon
       };
       bounds.extend(position);
 
@@ -263,10 +263,10 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
               </svg>
               ${card.location.name || 'Unknown location'}
             </p>
-            ${card.media && card.media[0] ? 
-              `<img src="${card.media[0].url}" alt="${card.title}" class="w-full h-32 object-cover rounded-lg shadow-sm"/>` : 
-              ''
-            }
+            ${card.media && card.media[0] ?
+            `<img src="${card.media[0].url}" alt="${card.title}" class="w-full h-32 object-cover rounded-lg shadow-sm"/>` :
+            ''
+          }
           </div>
         `
       });
@@ -283,8 +283,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
       const endCard = cardsWithDayInfo[i + 1];
 
       const segmentPath = [
-        { lat: startCard.location.coordinates.lat, lng: startCard.location.coordinates.lng },
-        { lat: endCard.location.coordinates.lat, lng: endCard.location.coordinates.lng }
+        { lat: startCard.location.coordinates.lat || startCard.location.coordinates.latitude, lng: startCard.location.coordinates.lng || startCard.location.coordinates.longitude || startCard.location.coordinates.lon },
+        { lat: endCard.location.coordinates.lat || endCard.location.coordinates.latitude, lng: endCard.location.coordinates.lng || endCard.location.coordinates.longitude || endCard.location.coordinates.lon }
       ];
 
       const segmentColor = startCard.dayColor;
@@ -333,8 +333,8 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
 
       if (activeCard) {
         const position = {
-          lat: activeCard.location.coordinates.lat,
-          lng: activeCard.location.coordinates.lng
+          lat: activeCard.location.coordinates.lat || activeCard.location.coordinates.latitude,
+          lng: activeCard.location.coordinates.lng || activeCard.location.coordinates.longitude || activeCard.location.coordinates.lon
         };
         mapInstanceRef.current.panTo(position);
         mapInstanceRef.current.setZoom(14);
@@ -350,7 +350,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">Map unavailable</h3>
         <p className="text-gray-600 mb-4">Unable to load the map. Please try again later.</p>
-        <button 
+        <button
           onClick={initializeMap}
           className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
         >
@@ -373,16 +373,15 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden ${
-      isFullscreen ? 'fixed inset-4 z-50' : ''
-    }`}>
+    <div className={`bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden ${isFullscreen ? 'fixed inset-4 z-50' : ''
+      }`}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
         <div>
           <h3 className="font-bold text-gray-900 text-lg">Journey Map</h3>
 
-          
+
         </div>
-        
+
         <div className="flex items-center gap-2">
           <button
             onClick={centerOnActiveMarker}
@@ -391,7 +390,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
           >
             <Navigation className="w-5 h-5" />
           </button>
-          
+
           <button
             onClick={toggleFullscreen}
             className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
@@ -405,15 +404,15 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
           </button>
         </div>
       </div>
-      
+
       {/* Increased height from h-96 to h-[600px] for desktop, responsive for mobile */}
       <div className={`relative ${isFullscreen ? 'h-full' : 'h-[350px] sm:h-[400px] md:h-[500px] lg:h-[600px]'}`}>
-        <div 
-          ref={mapRef} 
+        <div
+          ref={mapRef}
           className="w-full h-full"
           style={{ minHeight: '300px' }}
         />
-        
+
         {!mapLoaded && !mapError && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center">
@@ -423,7 +422,7 @@ const InteractiveMap = ({ flowCards, activeIndex, onPinClick }) => {
           </div>
         )}
       </div>
-      
+
       {cardsWithDayInfo.length > 0 && (
         <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
           <div className="flex items-center justify-between flex-wrap gap-y-2">

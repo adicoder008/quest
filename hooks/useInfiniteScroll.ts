@@ -1,54 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
-import { collection, query, orderBy, limit, startAfter, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useEffect, useRef } from 'react';
 
-export const useInfiniteScroll = (collectionName: string, pageSize: number = 10) => {
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
+interface UseInfiniteScrollProps {
+  onLoadMore: () => void;
+  hasMore: boolean;
+  loading: boolean;
+}
 
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+export const useInfiniteScroll = ({
+  onLoadMore,
+  hasMore,
+  loading
+}: UseInfiniteScrollProps) => {
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    setLoading(true);
-    try {
-      let q = query(
-        collection(db, collectionName),
-        orderBy('createdAt', 'desc'),
-        limit(pageSize)
-      );
-
-      if (lastDoc) {
-        q = query(q, startAfter(lastDoc));
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && hasMore && !loading) {
+          onLoadMore();
+        }
+      },
+      {
+        root: null, // viewport
+        rootMargin: '100px', // load before reaching the bottom
+        threshold: 0.1
       }
+    );
 
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty || snapshot.docs.length < pageSize) {
-        setHasMore(false);
-      }
+    const currentSentinel = sentinelRef.current;
 
-      const newItems = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      setItems(prev => [...prev, ...newItems]);
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
-    } catch (error) {
-      console.error('Error loading more:', error);
-    } finally {
-      setLoading(false);
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
     }
-  }, [collectionName, pageSize, lastDoc, loading, hasMore]);
 
-  const reset = useCallback(() => {
-    setItems([]);
-    setLastDoc(null);
-    setHasMore(true);
-    setLoading(false);
-  }, []);
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [onLoadMore, hasMore, loading]);
 
-  return { items, loading, hasMore, loadMore, reset };
+  return sentinelRef;
 };

@@ -6,7 +6,8 @@ import {
     Flame, Zap, Send, Ticket
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // --- Global Texture Overlay ---
 const GrainOverlay = () => (
@@ -44,9 +45,14 @@ const Hero = ({ onScrollToForm, onOpenModal }) => (
         <div className="absolute inset-0 z-0">
             {/* IMPORTANT: Use the high-quality watercolor illustration here */}
             <img
-                src="/bunny_banaras.png" // Replace with your actual illustration path
+                src="/bunny_banaras.png"
                 alt="Ranbir in Banaras Illustration"
-                className="w-full h-full object-cover object-center scale-105"
+                className="w-full h-full object-cover object-center scale-105 hidden md:block"
+            />
+            <img
+                src="/bunny_mobile.png"
+                alt="Ranbir in Banaras Illustration (Mobile)"
+                className="w-full h-full object-cover object-center scale-105 block md:hidden"
             />
             {/* A very subtle warm vignette at the bottom just to ground the text slightly, without hiding the image */}
             {/* <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E12]/80 via-transparent to-transparent mix-blend-multiply" />
@@ -67,7 +73,7 @@ const Hero = ({ onScrollToForm, onOpenModal }) => (
                 </h1>
 
                 <p className="text-lg md:text-xl text-slate-300 leading-relaxed max-w-lg">
-                    We're sending 10 student travellers to <strong>Banaras</strong>.
+                    We're sending 10 student travellers to <strong>Banaras(VARANASI)</strong>.
                     Free accommodation, local eats, and a chance to be an OnQuest Ambassador.
                 </p>
 
@@ -231,16 +237,24 @@ const SampleQuestModal = ({ isOpen, onClose }) => {
 }
 
 const ApplicationForm = () => {
+    const [user] = useAuthState(auth);
     const [formData, setFormData] = useState({ name: '', college: '', email: '', phone: '', reason: '', questLink: '', handle: '', consent: false });
     const [status, setStatus] = useState('idle');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!user) {
+            alert("Please log in to submit an application.");
+            return;
+        }
+
         setStatus('submitting');
 
         try {
             await addDoc(collection(db, 'travel_applications'), {
                 ...formData,
+                uid: user.uid,
                 createdAt: serverTimestamp(),
                 source: 'live2travel'
             });
@@ -299,12 +313,21 @@ const ApplicationForm = () => {
                 />
             </div>
 
+            <div>
+                <input
+                    type="text" placeholder="Instagram/Twitter Handle (Optional)"
+                    className="w-full bg-[#0E0E12] border-2 border-[#FF8C00]/10 rounded-xl p-4 text-[#FFFCE0] focus:outline-none focus:border-[#FF8C00] transition-all placeholder:text-[#FFFCE0]/40 font-bold"
+                    value={formData.handle} onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
+                />
+            </div>
+
             <textarea
                 required rows={3}
                 placeholder="Why do you deserve this trip? Be bold. Don't be boring."
                 className="w-full bg-[#0E0E12] border-2 border-[#FF8C00]/10 rounded-xl p-4 text-[#FFFCE0] focus:outline-none focus:border-[#FF8C00] transition-all placeholder:text-[#FFFCE0]/40 font-bold resize-none"
                 value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
             />
+
 
             {/* The Important Bit */}
             <div className="p-1 rounded-2xl bg-gradient-to-r from-[#FF8C00] via-red-500 to-purple-600 shadow-xl">
@@ -358,9 +381,9 @@ export default function App() {
             <Hero onScrollToForm={scrollToForm} onOpenModal={() => setIsModalOpen(true)} />
 
             {/* Feature Bento Grid */}
-            <section id="how" className="py-32 px-4 relative z-10">
+            <section id="how" className="py-12 px-4 relative z-10">
                 <div className="max-w-6xl mx-auto">
-                    <div className="mb-16 flex flex-col md:flex-row justify-between items-end gap-6">
+                    <div className="mb-16 flex flex-col md:flex-row justify-between items-start gap-6">
                         <div>
                             <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tight leading-none text-[#FFFCE0] drop-shadow-lg">
                                 Why The <br /><span className="text-[#FF8C00]">Hype?</span>
@@ -376,27 +399,29 @@ export default function App() {
                             desc="Don't just consume. Create a Quest that guides thousands. This is your portfolio piece."
                             icon={Camera}
                             // Use warm, high contrast images here
-                            image="https://images.unsplash.com/photo-1524230572899-a752b3835840?auto=format&fit=crop&w=800&q=80"
+                            image="https://tagmango.com/publicassets/-1-2-e683007f6f27ca4c7ca7b24dabfe2119.PNG"
                         />
                         <BentoCard
                             className="md:col-span-1 bg-[#1A1A24]"
-                            title="Ambassador Status"
+                            title="Travel Influencer"
                             desc="Top picks get featured. You become the face of OnQuest for your campus."
                             icon={Star}
+                            image="https://images.unsplash.com/photo-1602081967340-63762a43a599?q=80&w=688&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                         />
                         <BentoCard
                             className="md:col-span-1 bg-[#1A1A24]"
-                            title="Free Stays & Eats"
-                            desc="Curated hostels. Hidden food spots. Fully covered."
+                            title="Free Stays"
+                            desc="Curated stays. Fully covered."
                             icon={Utensils}
+                            image="https://images.unsplash.com/photo-1700004060538-cb750e9a2992?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                         />
                         <BentoCard
                             className="md:col-span-2"
-                            title="The Banaras Vibe"
+                            title="The Varanasi Vibe"
                             desc="Chaos and calm. Lassi and Aarti. Experience the duality of the oldest city."
                             icon={Flame}
                             // Use warm, high contrast images here
-                            image="https://images.unsplash.com/photo-1561361513-2d000a50f0dc?auto=format&fit=crop&w=800&q=80"
+                            image="https://images.unsplash.com/photo-1612779774202-68e4305b849b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                         />
                     </div>
                 </div>

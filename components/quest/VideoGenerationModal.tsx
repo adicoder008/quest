@@ -59,7 +59,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   const startGeneration = async () => {
     if (isGenerating) return;
-    
+
     try {
       setIsGenerating(true);
       setStep('generating');
@@ -93,13 +93,13 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   };
 
   const pollVideoStatus = async (reqId: string) => {
-    const maxAttempts = 120; // 2 minutes max (120 * 1 second)
+    const maxAttempts = 600; // 10 minutes max (600 * 1 second) - videos can take 3-5 minutes
     let attempts = 0;
 
     const checkStatus = async () => {
       try {
         const status = await videoService.getVideoStatus(reqId);
-        
+
         if (!status) {
           throw new Error('Video request not found');
         }
@@ -121,7 +121,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         if (attempts < maxAttempts && status.status !== 'completed') {
           setTimeout(checkStatus, 1000); // Check every second
         } else if (attempts >= maxAttempts) {
-          throw new Error('Video generation timed out');
+          throw new Error('Video generation timed out after 10 minutes. The video may still be processing - please check back in a few minutes.');
         }
 
       } catch (error: any) {
@@ -148,7 +148,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   const shareToInstagram = async () => {
     if (!videoUrl) return;
-    
+
     // For web, we can only provide download and copy link
     // Native apps can use Instagram's sharing API
     if (navigator.share) {
@@ -187,7 +187,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
           >
             <X size={20} className="text-gray-400" />
           </button>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl">
               <Video size={24} className="text-white" />
@@ -293,7 +293,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
               </div>
 
               <p className="text-sm text-center text-gray-400">
-                This usually takes 30-60 seconds. Please don't close this window.
+                This usually takes 3-5 minutes. Please don't close this window.
               </p>
             </div>
           )}

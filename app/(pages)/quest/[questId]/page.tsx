@@ -4,25 +4,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import questService from '@/lib/questService';
 import { createPost } from '@/lib/postService';
 import { Map, Calendar, ArrowLeft, Clock, MapPin as MapPinIcon, Filter, Edit3, Save, Copy, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Share2, Send, X, Plane, Train, Bus, Car, Ship, Edit2 } from 'lucide-react';
 import InteractiveMap from '../../../../components/quest/InteractiveMap';
 import { useToast, ToastContainer } from '@/hooks/use-toast';
-import { PostVisibilityModal } from '@/components/QuestPopups';
+import { PostQuestModal } from '@/components/QuestPopups';
 import { LocationInput } from '@/components/common/LocationInput';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Flag } from 'lucide-react';
 import { FaHeart } from 'react-icons/fa';
 import { savePost, unsavePost, reportPost } from '@/lib/postService';
 import { Quest } from '../../../types/index'
 import { arrayRemove, arrayUnion, doc, getDoc, increment, updateDoc } from 'firebase/firestore';
-import { db, storage } from '../../../../lib/firebase.js';
 import { VideoGenerationModal } from '@/components/quest/VideoGenerationModal';
 import { Video } from 'lucide-react';
 import OnQuestPeopleSection from '@/components/quest/OnQuestPeopleSection';
 import ShareModal from '@/components/quest/ShareModal';
-
 
 interface ActivityLocation {
   name: string;
@@ -298,6 +296,22 @@ const QuestViewPage = () => {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
 
+  // Extract all images from the quest for the modal
+  const questImages = React.useMemo(() => {
+    if (!quest?.itinerary?.days) return [];
+    const images: string[] = [];
+    quest.itinerary.days.forEach((day: any) => {
+      day.activities?.forEach((activity: any) => {
+        if (activity.media) {
+          activity.media.forEach((m: any) => {
+            if (m.type === 'image' && m.url) images.push(m.url);
+          });
+        }
+      });
+    });
+    return images;
+  }, [quest]);
+
   const params = useParams();
   const router = useRouter();
   const questId = params.questId as string;
@@ -406,18 +420,13 @@ const QuestViewPage = () => {
     }
   };
 
-  const handlePostQuest = async (visibility: 'public' | 'private', coverImage: File | null) => {
+  const handlePostQuest = async (coverImage: File | null, existingImageUrl?: string | null) => {
     if (!user?.uid || !quest) return;
     try {
-      console.log(coverImage);
-      const result = await questService.postQuestToFeed(questId, user.uid, visibility, coverImage);
-      console.log(result);
+      const result = await questService.postQuestToFeed(questId, user.uid, coverImage, existingImageUrl);
+
       if (result.success) {
-        if (visibility === 'public') {
-          showToast('Quest posted to feed successfully! 🎉', 'success');
-        } else {
-          showToast('Quest saved privately ✓', 'success');
-        }
+        showToast(`Quest posted! You earned ${result.qpAwarded || 0} QP! 🎉`, 'success');
         await loadQuest();
       } else {
         showToast(result.error || 'Failed to post quest', 'error');
@@ -576,14 +585,46 @@ const QuestViewPage = () => {
   // Fix: Properly extract activities with coordinates and add date
   const allActivitiesWithCoords = displayQuest.itinerary?.days?.flatMap((day: any) =>
     (day.activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && a.location?.coordinates?.lng)
-      .map((a: any) => ({ ...a, date: day.date })) // Add day date to each activity
+      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .map((a: any) => {
+        const lat = a.location.coordinates.lat;
+        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        return {
+          ...a,
+          date: day.date,
+          location: {
+            ...a.location,
+            coordinates: {
+              lat,
+              lng,
+              latitude: lat,
+              longitude: lng
+            }
+          }
+        };
+      })
   ) || [];
 
   const dayActivitiesWithCoords = mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]
     ? (displayQuest.itinerary.days[mapFilter].activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && a.location?.coordinates?.lng)
-      .map((a: any) => ({ ...a, date: displayQuest.itinerary.days[mapFilter].date }))
+      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .map((a: any) => {
+        const lat = a.location.coordinates.lat;
+        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        return {
+          ...a,
+          date: displayQuest.itinerary.days[mapFilter].date,
+          location: {
+            ...a.location,
+            coordinates: {
+              lat,
+              lng,
+              latitude: lat,
+              longitude: lng
+            }
+          }
+        };
+      })
     : [];
 
 
@@ -659,6 +700,8 @@ const QuestViewPage = () => {
     }
   };
 
+
+
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-20 lg:pb-0">
       <AddActivityModal
@@ -670,7 +713,16 @@ const QuestViewPage = () => {
         onAdd={handleAddActivity}
       />
       <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
-      <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
+
+      {/* Post Quest Modal */}
+      <PostQuestModal
+        isOpen={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        onPost={handlePostQuest}
+        questTitle={quest.title || quest.destination}
+        questImages={questImages}
+      />
+
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
@@ -727,9 +779,9 @@ const QuestViewPage = () => {
 
                   <button
                     onClick={() => setShowVideoModal(true)}
-                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 via-purple-500 to-pink-600 hover:from-orange-600 hover:via-purple-600 hover:to-pink-700 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-sm font-medium"
                   >
-                    <Video size={16} />
+                    <Video size={18} className="animate-pulse" />
                     <span className="hidden md:inline">Generate Video</span>
                   </button>
 
@@ -1226,12 +1278,12 @@ const QuestViewPage = () => {
       )}
 
 
-      <PostVisibilityModal
+      <PostQuestModal
         isOpen={showPostModal}
         onClose={() => setShowPostModal(false)}
         onPost={handlePostQuest}
         questTitle={quest.destination}
-        hasCoverImage={!!quest.coverImageUrl}
+        questImages={questImages}
       />
 
       {showVideoModal && user && quest && (
