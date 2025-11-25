@@ -15,7 +15,7 @@ import Footer from '@/components/phoneComponents/Footer';
 import useResponsive from '@/hooks/useResponsive';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc as firestoreDoc, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
-import { FaPlus, FaHeart,FaHeartbeat, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
+import { FaPlus, FaHeart, FaHeartbeat, FaRegCommentDots, FaShareSquare, FaBookmark, FaRegBookmark } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
@@ -29,7 +29,8 @@ const LEFT_NAV_WIDTH = 280;
 const RIGHT_SIDEBAR_WIDTH = 380;
 const SIDEBAR_GAP = 0;
 
-const TRIP_BANNER_SRC = '/Green%20Modern%20Travel%20YouTube%20Banner%20.svg';
+const TRIP_BANNER_SRC = '/green_modern_travel_banner.svg';
+const AI_PLANNER_BANNER_SRC = '/aiTripPlanner.svg';
 
 // Helper function to generate username from display name
 const generateUsername = (displayName: string | null | undefined): string => {
@@ -39,30 +40,30 @@ const generateUsername = (displayName: string | null | undefined): string => {
 
 // Create Post Trigger Component
 const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
-    const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-    if (!user) return null;
+  if (!user) return null;
 
-    return (
-        <>
-            <div className="px-4 py-4 border-b border-gray-700">
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
-                >
-                    <Plus className="text-[#F7CEB0] w-5 h-5 shrink-0" />
-                    <span className="text-gray-300 text-sm md:text-base">What's on your mind?</span>
-                </button>
-            </div>
+  return (
+    <>
+      <div className="px-4 py-4 border-b border-gray-700">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors"
+        >
+          <Plus className="text-[#F7CEB0] w-5 h-5 shrink-0" />
+          <span className="text-gray-300 text-sm md:text-base">What's on your mind?</span>
+        </button>
+      </div>
 
-            {showCreateModal && user && (
-                <CreatePostModal
-                    onClose={() => setShowCreateModal(false)}
-                    user={user}
-                />
-            )}
-        </>
-    );
+      {showCreateModal && user && (
+        <CreatePostModal
+          onClose={() => setShowCreateModal(false)}
+          user={user}
+        />
+      )}
+    </>
+  );
 };
 
 // Responsive wrapper
@@ -72,7 +73,7 @@ const ResponsiveFeedPage = () => {
   if (isDesktop) {
     return <Feed />;
   }
-  
+
   return <MobileFeedPage />;
 };
 
@@ -89,20 +90,20 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
     if (anchorRef?.current && menuRef.current) {
       const anchorRect = anchorRef.current.getBoundingClientRect();
       const menuRect = menuRef.current.getBoundingClientRect();
-      
+
       // Position below and to the left of the anchor
       let top = anchorRect.bottom + 8;
       let right = window.innerWidth - anchorRect.right;
-      
+
       // Adjust if menu would go off-screen
       if (top + menuRect.height > window.innerHeight) {
         top = anchorRect.top - menuRect.height - 8;
       }
-      
+
       if (right + menuRect.width > window.innerWidth) {
         right = 16;
       }
-      
+
       setPosition({ top, right });
     }
   }, [anchorRef]);
@@ -150,7 +151,7 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
         <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white">Report Post</h3>
-            <button 
+            <button
               onClick={() => setShowReportModal(false)}
               className="p-1 hover:bg-gray-800 rounded-full transition-colors"
             >
@@ -214,7 +215,7 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
       />
       <div
         ref={menuRef}
-        style={{ 
+        style={{
           position: 'fixed',
           top: `${position.top}px`,
           right: `${position.right}px`,
@@ -234,7 +235,7 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
           {isOwnPost ? (
             <>
               <button
-                onClick={() => {/* Edit functionality */}}
+                onClick={() => {/* Edit functionality */ }}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
               >
                 <Edit size={18} className="text-gray-400" />
@@ -281,7 +282,7 @@ const ShareModal = ({ post, onClose }: any) => {
   const handleShare = async (platform: string) => {
     let shareUrl = '';
     const text = encodeURIComponent(post.content?.text || post.text || 'Check out this post!');
-    
+
     switch (platform) {
       case 'twitter':
         shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(postUrl)}`;
@@ -307,7 +308,7 @@ const ShareModal = ({ post, onClose }: any) => {
       <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="text-lg font-bold text-white">Share Post</h3>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 hover:bg-gray-800 rounded-full transition-colors"
           >
@@ -396,13 +397,13 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
 
   const loadComments = async () => {
     if (!post?.id) return;
-    
+
     setLoading(true);
     try {
       const commentsRef = collection(db, 'posts', post.id, 'comments');
       const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
       const commentsSnapshot = await getDocs(commentsQuery);
-      
+
       const commentsData: any[] = [];
       for (const commentDoc of commentsSnapshot.docs) {
         const commentData = commentDoc.data();
@@ -411,7 +412,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
           avatar: '/default-avatar.png',
           uid: commentData.uid
         };
-        
+
         if (commentData.uid) {
           try {
             const userDoc = await getDoc(doc(db, 'users', commentData.uid));
@@ -427,7 +428,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
             console.error('Error fetching comment author:', error);
           }
         }
-        
+
         commentsData.push({
           id: commentDoc.id,
           text: commentData.text || '',
@@ -436,7 +437,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
           ...commentData
         });
       }
-      
+
       setComments(commentsData);
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -448,7 +449,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !user) return;
-    
+
     try {
       await onCommentSubmit(post.id, commentText);
       setCommentText('');
@@ -463,7 +464,7 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
@@ -487,8 +488,8 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
       {showComments && (
         <div className="space-y-3">
           <form onSubmit={handleSubmit} className="flex items-start gap-3">
-            <img 
-              src={user?.photoURL || '/default-avatar.png'} 
+            <img
+              src={user?.photoURL || '/default-avatar.png'}
               alt="Your profile"
               className="w-8 h-8 rounded-full object-cover shrink-0"
             />
@@ -504,11 +505,10 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
               <button
                 type="submit"
                 disabled={!commentText.trim()}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${
-                  commentText.trim() 
-                    ? 'text-[#F7CEB0] hover:text-[#f5c094]' 
-                    : 'text-gray-600 cursor-not-allowed'
-                }`}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${commentText.trim()
+                  ? 'text-[#F7CEB0] hover:text-[#f5c094]'
+                  : 'text-gray-600 cursor-not-allowed'
+                  }`}
               >
                 <Send size={16} />
               </button>
@@ -527,8 +527,8 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex items-start gap-2">
-                  <img 
-                    src={comment.author.avatar} 
+                  <img
+                    src={comment.author.avatar}
                     alt={comment.author.name}
                     className="w-6 h-6 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => router.push(`/profile/${comment.author.uid}`)}
@@ -569,9 +569,10 @@ const Feed = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
   const router = useRouter();
-  
+
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -579,36 +580,73 @@ const Feed = () => {
   const [followingList, setFollowingList] = useState<string[]>([]);
   const isShowingSearchResults = searchPerformed && searchQuery.trim().length > 0;
 
+  // Banner carousel state
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [bannersLoaded, setBannersLoaded] = useState(false);
+  const banners = [
+    AI_PLANNER_BANNER_SRC,
+    TRIP_BANNER_SRC
+  ];
+
+  // Preload banners
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-    if (currentUser) {
-      setUser({
-        uid: currentUser.uid,
-        displayName: currentUser.displayName ?? undefined,
-        email: currentUser.email ?? undefined,
-        photoURL: currentUser.photoURL ?? undefined
-      });
-      
-      try {
-        const userDetails = await getCurrentUserData();
-        setUserData(userDetails);
-        
-        // 🔥 ADD THESE 2 LINES
-        const following = await getFollowingList(currentUser.uid);
-        setFollowingList(following);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+    let loadedCount = 0;
+    const totalBanners = banners.length;
+
+    banners.forEach((banner) => {
+      const img = new Image();
+      img.src = banner;
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === totalBanners) setBannersLoaded(true);
+      };
+      img.onerror = () => {
+        console.error('Failed to preload banner:', banner);
+        loadedCount++;
+        if (loadedCount === totalBanners) setBannersLoaded(true);
+      };
+    });
+  }, []);
+
+  // Auto-rotation
+  useEffect(() => {
+    if (!bannersLoaded) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, [banners.length, bannersLoaded]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser({
+          uid: currentUser.uid,
+          displayName: currentUser.displayName ?? undefined,
+          email: currentUser.email ?? undefined,
+          photoURL: currentUser.photoURL ?? undefined
+        });
+
+        try {
+          const userDetails = await getCurrentUserData();
+          setUserData(userDetails);
+
+          // 🔥 ADD THESE 2 LINES
+          const following = await getFollowingList(currentUser.uid);
+          setFollowingList(following);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        setUser(null);
+        setUserData(null);
       }
-    } else {
-      setUser(null);
-      setUserData(null);
-    }
-    
-    setLoading(false);
-  });
-  
-  return () => unsubscribe();
-}, []);
+
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const withSavedStatus = (incomingPosts: any[]) =>
     incomingPosts.map((post) => ({
@@ -649,13 +687,13 @@ const Feed = () => {
   useEffect(() => {
     const loadInitialPosts = async () => {
       if (!userData) return;
-      
+
       try {
         setInitialLoading(true);
         const result = await getPaginatedPosts(null, 5);
-        
+
         const postsWithSavedStatus = withSavedStatus(result.posts);
-        
+
         setPosts(postsWithSavedStatus);
         setLastVisible(result.lastVisible);
         setHasMore(result.hasMore);
@@ -671,13 +709,13 @@ const Feed = () => {
 
   const loadMorePosts = async () => {
     if (!hasMore || loadingMore || !lastVisible) return;
-    
+
     try {
       setLoadingMore(true);
       const result = await getPaginatedPosts(lastVisible, 5);
-      
+
       const postsWithSavedStatus = withSavedStatus(result.posts);
-      
+
       setPosts(prev => [...prev, ...postsWithSavedStatus]);
       setLastVisible(result.lastVisible);
       setHasMore(result.hasMore);
@@ -712,29 +750,29 @@ const Feed = () => {
 
   const handleLike = async (postId: string) => {
     if (!user?.uid) return;
-    
+
     try {
       const post = posts.find(p => p.id === postId);
       if (!post) return;
-      
+
       const isLiked = post.stats?.likedBy?.includes(user.uid);
       const postRef = firestoreDoc(db, 'posts', postId);
-      
-      setPosts(prev => prev.map(p => 
-        p.id === postId 
+
+      setPosts(prev => prev.map(p =>
+        p.id === postId
           ? {
-              ...p,
-              stats: {
-                ...p.stats,
-                likes: isLiked ? p.stats.likes - 1 : p.stats.likes + 1,
-                likedBy: isLiked 
-                  ? p.stats.likedBy.filter((uid: string) => uid !== user.uid)
-                  : [...p.stats.likedBy, user.uid]
-              }
+            ...p,
+            stats: {
+              ...p.stats,
+              likes: isLiked ? p.stats.likes - 1 : p.stats.likes + 1,
+              likedBy: isLiked
+                ? p.stats.likedBy.filter((uid: string) => uid !== user.uid)
+                : [...p.stats.likedBy, user.uid]
             }
+          }
           : p
       ));
-      
+
       if (isLiked) {
         await updateDoc(postRef, {
           likedBy: arrayRemove(user.uid),
@@ -751,16 +789,16 @@ const Feed = () => {
       const postDoc = await getDoc(firestoreDoc(db, 'posts', postId));
       if (postDoc.exists()) {
         const data = postDoc.data();
-        setPosts(prev => prev.map(p => 
-          p.id === postId 
+        setPosts(prev => prev.map(p =>
+          p.id === postId
             ? {
-                ...p,
-                stats: {
-                  ...p.stats,
-                  likes: data.likeCount || 0,
-                  likedBy: data.likedBy || []
-                }
+              ...p,
+              stats: {
+                ...p.stats,
+                likes: data.likeCount || 0,
+                likedBy: data.likedBy || []
               }
+            }
             : p
         ));
       }
@@ -769,15 +807,15 @@ const Feed = () => {
 
   const handleSave = async (postId: string) => {
     if (!user?.uid) return;
-    
+
     try {
       const post = posts.find(p => p.id === postId);
       const isSaved = post?.isSaved;
-      
-      setPosts(prev => prev.map(p => 
+
+      setPosts(prev => prev.map(p =>
         p.id === postId ? { ...p, isSaved: !isSaved } : p
       ));
-      
+
       if (isSaved) {
         await unsavePost(postId, user.uid);
       } else {
@@ -785,7 +823,7 @@ const Feed = () => {
       }
     } catch (error) {
       console.error('Error toggling save:', error);
-      setPosts(prev => prev.map(p => 
+      setPosts(prev => prev.map(p =>
         p.id === postId ? { ...p, isSaved: !p.isSaved } : p
       ));
     }
@@ -795,12 +833,12 @@ const Feed = () => {
     const post = posts.find(p => p.id === postId);
     if (post) {
       setSelectedPostForShare(post);
-      
+
       if (user?.uid) {
         try {
           await sharePost(postId, user.uid);
-          setPosts(prev => prev.map(p => 
-            p.id === postId 
+          setPosts(prev => prev.map(p =>
+            p.id === postId
               ? { ...p, stats: { ...p.stats, shares: (p.stats.shares || 0) + 1 } }
               : p
           ));
@@ -813,7 +851,7 @@ const Feed = () => {
 
   const handleCommentSubmit = async (postId: string, commentText: string) => {
     if (!user?.uid || !commentText.trim()) return;
-    
+
     try {
       await addComment(postId, {
         uid: user.uid,
@@ -822,16 +860,16 @@ const Feed = () => {
         text: commentText.trim(),
         createdAt: new Date()
       });
-      
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              stats: { 
-                ...post.stats, 
-                comments: (post.stats.comments || 0) + 1 
-              } 
+
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+            ...post,
+            stats: {
+              ...post.stats,
+              comments: (post.stats.comments || 0) + 1
             }
+          }
           : post
       ));
 
@@ -839,50 +877,50 @@ const Feed = () => {
       const postDoc = await getDoc(postRef);
       if (postDoc.exists()) {
         const data = postDoc.data();
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { 
-                ...post, 
-                stats: { 
-                  ...post.stats, 
-                  comments: data.commentCount || 0 
-                } 
+        setPosts(prev => prev.map(post =>
+          post.id === postId
+            ? {
+              ...post,
+              stats: {
+                ...post.stats,
+                comments: data.commentCount || 0
               }
+            }
             : post
         ));
       }
     } catch (error) {
       console.error('Error adding comment:', error);
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              stats: { 
-                ...post.stats, 
-                comments: Math.max(0, (post.stats.comments || 1) - 1) 
-              } 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+            ...post,
+            stats: {
+              ...post.stats,
+              comments: Math.max(0, (post.stats.comments || 1) - 1)
             }
+          }
           : post
       ));
     }
   };
 
   // 🔥 ADD THIS ENTIRE FUNCTION
-const handleFollow = async (targetUserId: string) => {
+  const handleFollow = async (targetUserId: string) => {
     if (!user?.uid || !targetUserId || targetUserId === user.uid) {
-      console.error('Invalid follow attempt', { 
-        currentUserId: user?.uid, 
-        targetUserId 
+      console.error('Invalid follow attempt', {
+        currentUserId: user?.uid,
+        targetUserId
       });
       return;
     }
-    
+
     try {
       const isFollowing = followingList.includes(targetUserId);
-      
+
       // Optimistically update UI
-      setFollowingList(prev => 
-        isFollowing 
+      setFollowingList(prev =>
+        isFollowing
           ? prev.filter(id => id !== targetUserId)
           : [...prev, targetUserId]
       );
@@ -892,7 +930,7 @@ const handleFollow = async (targetUserId: string) => {
       } else {
         await followUserService(user.uid, targetUserId);
       }
-      
+
       // Refresh user data to update counts
       const userDetails = await getCurrentUserData();
       setUserData(userDetails);
@@ -909,7 +947,7 @@ const handleFollow = async (targetUserId: string) => {
     const date = new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -978,8 +1016,8 @@ const handleFollow = async (targetUserId: string) => {
       <article className="border bg-gray-900 mb-4 rounded-xl border-gray-700 overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 flex-1">
-            <img 
-              src={post.author.avatar} 
+            <img
+              src={post.author.avatar}
               alt={post.author.name}
               className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => router.push(`/profile/${post.author.id}`)}
@@ -997,16 +1035,15 @@ const handleFollow = async (targetUserId: string) => {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {!isOwnPost && (
               <button
                 onClick={() => handleFollow(authorId)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  isFollowingUser
-                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                    : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
-                }`}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${isFollowingUser
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                  }`}
               >
                 {isFollowingUser ? (
                   <div className="flex items-center gap-1">
@@ -1021,8 +1058,8 @@ const handleFollow = async (targetUserId: string) => {
                 )}
               </button>
             )}
-            
-            <button 
+
+            <button
               ref={(el) => {
                 if (selectedPostForMenu?.id === post.id) {
                   setMenuAnchorRef(el);
@@ -1050,10 +1087,10 @@ const handleFollow = async (targetUserId: string) => {
               alt={`Post content ${currentImageIdx + 1}`}
               className="w-full rounded-lg object-contain max-h-[500px] bg-gray-800"
             />
-            
+
             {postImages.length > 1 && (
               <>
-                <button 
+                <button
                   onClick={() => setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length)}
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
                 >
@@ -1061,7 +1098,7 @@ const handleFollow = async (targetUserId: string) => {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                   </svg>
                 </button>
-                <button 
+                <button
                   onClick={() => setCurrentImageIdx(prev => (prev + 1) % postImages.length)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-opacity"
                 >
@@ -1071,7 +1108,7 @@ const handleFollow = async (targetUserId: string) => {
                 </button>
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                   {postImages.map((_: any, index: number) => (
-                    <div 
+                    <div
                       key={index}
                       className={`w-2 h-2 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
                     />
@@ -1084,25 +1121,24 @@ const handleFollow = async (targetUserId: string) => {
 
         <div className="border-t border-gray-700 px-4 py-3">
           <div className="flex items-center gap-6">
-            <button 
+            <button
               onClick={() => handleLike(post.id)}
-              className={`flex items-center gap-2 transition-colors ${
-                isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
-              }`}
+              className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                }`}
             >
               <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
-            
-            <button 
+
+            <button
               onClick={() => handleCommentSubmit(post.id, '')}
               className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
               <FaRegCommentDots className="w-5 h-5" />
               <span className="text-sm font-medium">{post.stats.comments || 0}</span>
             </button>
-            
-            <button 
+
+            <button
               onClick={() => handleShare(post.id)}
               className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
             >
@@ -1110,20 +1146,19 @@ const handleFollow = async (targetUserId: string) => {
               <span className="text-sm font-medium">{post.stats.shares || 0}</span>
             </button>
 
-            <button 
+            <button
               onClick={() => handleSave(post.id)}
-              className={`ml-auto transition-colors ${
-                isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-              }`}
+              className={`ml-auto transition-colors ${isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+                }`}
             >
               {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        <InlineComments 
-          post={post} 
-          user={user} 
+        <InlineComments
+          post={post}
+          user={user}
           onCommentSubmit={handleCommentSubmit}
         />
       </article>
@@ -1136,17 +1171,17 @@ const handleFollow = async (targetUserId: string) => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <NavBar 
-        user={user} 
+      <NavBar
+        user={user}
         onSignOut={handleSignOut}
-        style={{ 
-          left: containerStartExpression, 
+        style={{
+          left: containerStartExpression,
           right: 'auto',
           width: `${LEFT_NAV_WIDTH}px`
         }}
       />
 
-      <main 
+      <main
         className="relative min-h-screen bg-black"
         style={mainWidthStyle}
       >
@@ -1183,19 +1218,38 @@ const handleFollow = async (targetUserId: string) => {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => router.push('/aitrip')}
-                className="w-full flex justify-center"
-                aria-label="Plan your AI-powered trip"
-              >
-                <img
-                  src={TRIP_BANNER_SRC}
-                  alt="Plan your next adventure with AI"
-                  loading="lazy"
-                  className="w-full max-w-full rounded-xl border border-gray-800 hover:opacity-95 transition-opacity cursor-pointer"
-                />
-              </button>
+              <div className="w-full overflow-hidden relative rounded-xl border border-gray-800">
+                {!bannersLoaded ? (
+                  <div className="w-full h-32 bg-gray-900 flex items-center justify-center">
+                    <div className="text-gray-400 text-sm">Loading...</div>
+                  </div>
+                ) : (
+                  <div
+                    className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+                    style={{
+                      width: `${banners.length * 100}%`,
+                      transform: `translateX(-${currentBannerIndex * (100 / banners.length)}%)`
+                    }}
+                  >
+                    {banners.map((banner, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => router.push('/aitrip')}
+                        className="relative w-full"
+                        style={{ width: `${100 / banners.length}%` }}
+                        aria-label="Plan your AI-powered trip"
+                      >
+                        <img
+                          src={banner}
+                          alt="Plan your next adventure with AI"
+                          className="w-full h-auto object-cover hover:opacity-95 transition-opacity cursor-pointer"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {isShowingSearchResults ? (
@@ -1253,9 +1307,9 @@ const handleFollow = async (targetUserId: string) => {
         </div>
       </main>
 
-      <RightSidebar 
-        user={user} 
-        userData={userData} 
+      <RightSidebar
+        user={user}
+        userData={userData}
         style={{
           left: rightSidebarLeftExpression,
           right: 'auto',
@@ -1264,15 +1318,24 @@ const handleFollow = async (targetUserId: string) => {
       />
 
       {user && (
-        <div className="fixed bottom-6 right-6 z-50"> 
-          <button
-            onClick={() => router.push('/quests/create')}
-            className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
-            aria-label="Create new quest"
-          >
-            <FaPlus className="text-xl" />
-          </button>
-        </div>
+        <>
+          <div className="fixed bottom-6 right-6 z-50">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
+              aria-label="Create new post"
+            >
+              <FaPlus className="text-xl" />
+            </button>
+          </div>
+
+          {showCreateModal && user && (
+            <CreatePostModal
+              onClose={() => setShowCreateModal(false)}
+              user={user}
+            />
+          )}
+        </>
       )}
 
       {selectedPostForMenu && menuAnchorRef && (
@@ -1303,13 +1366,13 @@ const handleFollow = async (targetUserId: string) => {
 };
 
 // Mobile Post Card Component
-const MobilePostCard = ({ 
-  post, 
-  currentUser, 
-  onLike, 
-  onComment, 
-  onSave, 
-  onShare, 
+const MobilePostCard = ({
+  post,
+  currentUser,
+  onLike,
+  onComment,
+  onSave,
+  onShare,
   onMenuClick,
   followingList,
   onFollow
@@ -1334,7 +1397,7 @@ const MobilePostCard = ({
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -1343,13 +1406,13 @@ const MobilePostCard = ({
 
   const loadComments = async () => {
     if (!post?.id) return;
-    
+
     setLoadingComments(true);
     try {
       const commentsRef = collection(db, 'posts', post.id, 'comments');
       const commentsQuery = query(commentsRef, orderBy('createdAt', 'desc'));
       const commentsSnapshot = await getDocs(commentsQuery);
-      
+
       const commentsData: any[] = [];
       for (const commentDoc of commentsSnapshot.docs) {
         const commentData = commentDoc.data();
@@ -1358,7 +1421,7 @@ const MobilePostCard = ({
           avatar: '/default-avatar.png',
           uid: commentData.uid
         };
-        
+
         if (commentData.uid) {
           try {
             const userDoc = await getDoc(doc(db, 'users', commentData.uid));
@@ -1374,7 +1437,7 @@ const MobilePostCard = ({
             console.error('Error fetching comment author:', error);
           }
         }
-        
+
         commentsData.push({
           id: commentDoc.id,
           text: commentData.text || '',
@@ -1383,7 +1446,7 @@ const MobilePostCard = ({
           ...commentData
         });
       }
-      
+
       setComments(commentsData);
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -1407,7 +1470,7 @@ const MobilePostCard = ({
     setCommentText('');
     loadComments();
   };
- 
+
   if (post.postType === 'quest_completion' || post.questContext) {
     return (
       <>
@@ -1428,19 +1491,19 @@ const MobilePostCard = ({
           }}
           currentUser={currentUser}
           onLike={onLike}
-          onComment={handleToggleComments} 
+          onComment={handleToggleComments}
           onShare={onShare}
           onSave={onSave}
           onMenu={onMenuClick}
           isSaved={post.isSaved}
         />
-        
+
         {showComments && (
           <div className="mt-4 pt-4 border-t border-gray-800 p-4">
             <form onSubmit={handleSubmitComment} className="mb-4">
               <div className="flex items-start gap-2">
-                <img 
-                  src={currentUser.photoURL || '/default-avatar.png'} 
+                <img
+                  src={currentUser.photoURL || '/default-avatar.png'}
                   alt="Your profile"
                   className="w-8 h-8 rounded-full object-cover shrink-0"
                 />
@@ -1455,11 +1518,10 @@ const MobilePostCard = ({
                   <button
                     type="submit"
                     disabled={!commentText.trim()}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                      commentText.trim() 
-                        ? 'text-[#F7CEB0]' 
-                        : 'text-gray-600'
-                    }`}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${commentText.trim()
+                      ? 'text-[#F7CEB0]'
+                      : 'text-gray-600'
+                      }`}
                   >
                     <Send size={16} />
                   </button>
@@ -1479,8 +1541,8 @@ const MobilePostCard = ({
               <div className="space-y-3">
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex items-start gap-2">
-                    <img 
-                      src={comment.author.avatar} 
+                    <img
+                      src={comment.author.avatar}
                       alt={comment.author.name}
                       className="w-7 h-7 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => router.push(`/profile/${comment.author.uid}`)}
@@ -1510,8 +1572,8 @@ const MobilePostCard = ({
     <article className="border-b border-gray-800 bg-black p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
-          <img 
-            src={post.userProfilePic || '/default-avatar.png'} 
+          <img
+            src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
             className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => router.push(`/profile/${post.authorId}`)}
@@ -1531,7 +1593,7 @@ const MobilePostCard = ({
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {!isOwnPost && (
             <button
@@ -1539,17 +1601,16 @@ const MobilePostCard = ({
                 e.stopPropagation();
                 onFollow(authorId);
               }}
-              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                isFollowingUser
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-[#F7CEB0] text-black'
-              }`}
+              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${isFollowingUser
+                ? 'bg-gray-700 text-white'
+                : 'bg-[#F7CEB0] text-black'
+                }`}
             >
               {isFollowingUser ? 'Following' : 'Follow'}
             </button>
           )}
-          
-          <button 
+
+          <button
             onClick={onMenuClick}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800 transition-colors"
           >
@@ -1569,10 +1630,10 @@ const MobilePostCard = ({
             alt={`Post content ${currentImageIdx + 1}`}
             className="w-full object-contain max-h-[70vh] bg-gray-800"
           />
-          
+
           {postImages.length > 1 && (
             <>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev - 1 + postImages.length) % postImages.length); }}
                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
               >
@@ -1580,7 +1641,7 @@ const MobilePostCard = ({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                 </svg>
               </button>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setCurrentImageIdx(prev => (prev + 1) % postImages.length); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-opacity"
               >
@@ -1590,7 +1651,7 @@ const MobilePostCard = ({
               </button>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {postImages.map((_: any, index: number) => (
-                  <div 
+                  <div
                     key={index}
                     className={`w-1.5 h-1.5 rounded-full ${index === currentImageIdx ? 'bg-white' : 'bg-white/50'}`}
                   />
@@ -1602,25 +1663,24 @@ const MobilePostCard = ({
       )}
 
       <div className="flex items-center pt-2 border-t border-gray-800 gap-3">
-        <button 
+        <button
           onClick={onLike}
-          className={`flex items-center gap-1 transition-colors ${
-            isLiked ? 'text-red-500' : 'text-gray-400'
-          }`}
+          className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400'
+            }`}
         >
           <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
           <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={handleToggleComments}
           className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
           <FaRegCommentDots className="w-5 h-5" />
           <span className="text-xs font-medium">{post.commentCount || 0}</span>
         </button>
-        
-        <button 
+
+        <button
           onClick={onShare}
           className="flex items-center gap-1 text-gray-400 hover:text-[#F7CEB0] transition-colors"
         >
@@ -1628,11 +1688,10 @@ const MobilePostCard = ({
           <span className="text-xs font-medium">{post.shareCount || 0}</span>
         </button>
 
-        <button 
+        <button
           onClick={onSave}
-          className={`ml-auto transition-colors ${
-            isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
-          }`}
+          className={`ml-auto transition-colors ${isSaved ? 'text-[#F7CEB0]' : 'text-gray-400 hover:text-[#F7CEB0]'
+            }`}
         >
           {isSaved ? <FaBookmark className="w-5 h-5 fill-current" /> : <FaRegBookmark className="w-5 h-5" />}
         </button>
@@ -1642,8 +1701,8 @@ const MobilePostCard = ({
         <div className="mt-4 pt-4 border-t border-gray-800">
           <form onSubmit={handleSubmitComment} className="mb-4">
             <div className="flex items-start gap-2">
-              <img 
-                src={currentUser.photoURL || '/default-avatar.png'} 
+              <img
+                src={currentUser.photoURL || '/default-avatar.png'}
                 alt="Your profile"
                 className="w-8 h-8 rounded-full object-cover shrink-0"
               />
@@ -1658,11 +1717,10 @@ const MobilePostCard = ({
                 <button
                   type="submit"
                   disabled={!commentText.trim()}
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${
-                    commentText.trim() 
-                      ? 'text-[#F7CEB0]' 
-                      : 'text-gray-600'
-                  }`}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 transition-colors ${commentText.trim()
+                    ? 'text-[#F7CEB0]'
+                    : 'text-gray-600'
+                    }`}
                 >
                   <Send size={16} />
                 </button>
@@ -1682,8 +1740,8 @@ const MobilePostCard = ({
             <div className="space-y-3">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex items-start gap-2">
-                  <img 
-                    src={comment.author.avatar} 
+                  <img
+                    src={comment.author.avatar}
                     alt={comment.author.name}
                     className="w-7 h-7 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => router.push(`/profile/${comment.author.uid}`)}
@@ -1711,22 +1769,34 @@ const MobilePostCard = ({
 
 // MOBILE FEED PAGE
 const MobileFeedPage = () => {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserType | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Post[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
-  
+
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const isShowingSearchResults = searchPerformed && searchQuery.trim().length > 0;
+
+  // Banner carousel state
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [bannersLoaded, setBannersLoaded] = useState(false);
+  const banners = [
+    AI_PLANNER_BANNER_SRC,
+    TRIP_BANNER_SRC
+  ];
 
   const updateMobileCollections = (postId: string, updater: (post: Post) => Post) => {
     setPosts(prev => prev.map(post => (post.id === postId ? updater(post) : post)));
@@ -1791,11 +1861,11 @@ const MobileFeedPage = () => {
           const userData = await getCurrentUserData();
           setUser(userData);
           setUserData(userData);
-          
+
           // Load following list
           const following = await getFollowingList(authUser.uid);
           setFollowingList(following);
-          
+
         } catch (error) {
           console.error('Error getting user data:', error);
           setUser({
@@ -1879,22 +1949,22 @@ const MobileFeedPage = () => {
 
   const handleLikePost = async (postId: string) => {
     if (!user?.uid) return;
-    
+
     try {
       const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
       if (!post) return;
-      
+
       const isLiked = post.likedBy?.includes(user.uid);
       const postRef = firestoreDoc(db, 'posts', postId);
-      
+
       updateMobileCollections(postId, (p) => ({
         ...p,
         likeCount: isLiked ? (p.likeCount || 1) - 1 : (p.likeCount || 0) + 1,
-        likedBy: isLiked 
+        likedBy: isLiked
           ? (p.likedBy || []).filter((uid: string) => uid !== user.uid)
           : [...(p.likedBy || []), user.uid],
       }));
-      
+
       if (isLiked) {
         await updateDoc(postRef, {
           likedBy: arrayRemove(user.uid),
@@ -1922,13 +1992,13 @@ const MobileFeedPage = () => {
 
   const handleSavePost = async (postId: string) => {
     if (!user?.uid) return;
-    
+
     try {
       const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
       const isSaved = post?.isSaved;
-      
+
       updateMobileCollections(postId, (p) => ({ ...p, isSaved: !isSaved }));
-      
+
       if (isSaved) {
         await unsavePost(postId, user.uid);
       } else {
@@ -1944,7 +2014,7 @@ const MobileFeedPage = () => {
     const post = posts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
     if (post) {
       setSelectedPostForShare(post);
-      
+
       if (user?.uid) {
         try {
           await sharePost(postId, user.uid);
@@ -1961,7 +2031,7 @@ const MobileFeedPage = () => {
 
   const handleAddComment = async (postId: string, commentText: string) => {
     if (!user?.uid || !commentText.trim()) return;
-    
+
     try {
       await addComment(postId, {
         uid: user.uid,
@@ -1969,7 +2039,7 @@ const MobileFeedPage = () => {
         userProfilePic: user.photoURL || '',
         text: commentText.trim()
       });
-      
+
       updateMobileCollections(postId, (post) => ({
         ...post,
         commentCount: (post.commentCount || 0) + 1,
@@ -1994,48 +2064,113 @@ const MobileFeedPage = () => {
   };
 
   // 🔥 ADD THIS ENTIRE FUNCTION
-const handleFollow = async (targetUserId: string) => {
-  if (!user?.uid || !targetUserId || targetUserId === user.uid) {
-    console.error('Invalid follow attempt', { 
-      currentUserId: user?.uid, 
-      targetUserId 
-    });
-    return;
-  }
-  
-  try {
-    const isFollowing = followingList.includes(targetUserId);
-    
-    // Optimistically update UI
-    setFollowingList(prev => 
-      isFollowing 
-        ? prev.filter(id => id !== targetUserId)
-        : [...prev, targetUserId]
-    );
-
-    if (isFollowing) {
-      await unfollowUserService(user.uid, targetUserId);
-    } else {
-      await followUserService(user.uid, targetUserId);
+  const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid || !targetUserId || targetUserId === user.uid) {
+      console.error('Invalid follow attempt', {
+        currentUserId: user?.uid,
+        targetUserId
+      });
+      return;
     }
-    
-    // Silently refresh user data in background
-    const userDetails = await getCurrentUserData();
-    setUserData(userDetails);
-  } catch (error) {
-    console.error('Error toggling follow:', error);
-    // Revert optimistic update on error
-    const following = await getFollowingList(user.uid);
-    setFollowingList(following);
-  }
-};
+
+    try {
+      const isFollowing = followingList.includes(targetUserId);
+
+      // Optimistically update UI
+      setFollowingList(prev =>
+        isFollowing
+          ? prev.filter(id => id !== targetUserId)
+          : [...prev, targetUserId]
+      );
+
+      if (isFollowing) {
+        await unfollowUserService(user.uid, targetUserId);
+      } else {
+        await followUserService(user.uid, targetUserId);
+      }
+
+      // Silently refresh user data in background
+      const userDetails = await getCurrentUserData();
+      setUserData(userDetails);
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      // Revert optimistic update on error
+      const following = await getFollowingList(user.uid);
+      setFollowingList(following);
+    }
+  };
+
+  // Preload all banner images and wait for both to load
+  useEffect(() => {
+    let loadedCount = 0;
+    const totalBanners = banners.length;
+
+    const bannerUrls = [AI_PLANNER_BANNER_SRC, TRIP_BANNER_SRC];
+    bannerUrls.forEach((banner) => {
+      const img = new Image();
+      img.src = banner;
+      img.onload = () => {
+        loadedCount++;
+        console.log('Banner preloaded:', banner, `(${loadedCount}/${totalBanners})`);
+        if (loadedCount === totalBanners) {
+          setBannersLoaded(true);
+        }
+      };
+      img.onerror = () => {
+        console.error('Failed to preload banner:', banner);
+        loadedCount++;
+        if (loadedCount === totalBanners) {
+          setBannersLoaded(true);
+        }
+      };
+    });
+  }, []);
+
+  // Banner carousel auto-rotation - every 5 seconds
+  useEffect(() => {
+    if (!bannersLoaded) return;
+
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [banners.length, bannersLoaded]);
+
+  // Touch handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStart === null || touchEnd === null) return;
+
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (distance > minSwipeDistance) {
+      // Swipe left - next banner
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    } else if (distance < -minSwipeDistance) {
+      // Swipe right - previous banner
+      setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
+    }
+
+    // Reset touch positions
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
 
   if (!user && !loading) {
     return (
       <div className="w-full min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Please sign in to view the feed</h2>
-          <button 
+          <button
             onClick={() => window.location.href = '/auth'}
             className="bg-[#F7CEB0] text-black px-6 py-2 rounded-lg font-medium hover:bg-[#f5c094] transition-colors"
           >
@@ -2059,18 +2194,18 @@ const handleFollow = async (targetUserId: string) => {
   return (
     <div className="w-full min-h-screen bg-black text-white">
       <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-700">
-        <Header /> 
-        
-        <div className="px-4 py-3">
+        <Header />
+
+        {/* <div className="px-4 py-3">
           <h1 className="text-xl font-medium text-white">
             New day, <span className="text-[#F7CEB0]"> new Quest</span> — let's go!
           </h1>
-        </div>
+        </div> */}
       </div>
-      
-      <CreatePostTrigger user={user} />
 
-      <div className="px-4 pt-4 space-y-4">
+      {/* <CreatePostTrigger user={user} /> */}
+
+      <div className="px-4 pt-4">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -2100,20 +2235,51 @@ const handleFollow = async (targetUserId: string) => {
             </button>
           )}
         </div>
+      </div>
 
-        <button
-          type="button"
-          onClick={() => window.location.href = '/aitrip'}
-          className="w-full flex justify-center"
-          aria-label="Plan your AI-powered trip"
-        >
-          <img
-            src={TRIP_BANNER_SRC}
-            alt="Plan your next adventure with AI"
-            loading="lazy"
-            className="w-full max-w-full rounded-xl border border-gray-800 hover:opacity-95 transition-opacity cursor-pointer"
-          />
-        </button>
+      <div className="w-screen overflow-hidden relative" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
+        {!bannersLoaded ? (
+          <div className="w-full h-48 bg-black flex items-center justify-center">
+            <div className="text-gray-400">Loading banners...</div>
+          </div>
+        ) : (
+          <div
+            className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+            style={{
+              transform: `translateX(-${currentBannerIndex * 100}vw)`,
+              width: `${banners.length * 100}vw`
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {banners.map((banner, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => window.location.href = '/aitrip'}
+                className="shrink-0 flex justify-center items-center bg-black"
+                style={{ width: '100vw', minHeight: '200px' }}
+                aria-label="Plan your AI-powered trip"
+              >
+                <img
+                  src={banner}
+                  alt="Plan your next adventure with AI"
+                  className="w-full h-full object-contain hover:opacity-95 transition-opacity cursor-pointer"
+                  style={{ maxHeight: '50vh', width: '100%' }}
+                  onError={(e) => {
+                    console.error('Failed to load banner:', banner, 'at index:', index);
+                    e.currentTarget.style.opacity = '0.5';
+                  }}
+                  onLoad={(e) => {
+                    e.currentTarget.style.display = 'block';
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="pb-20">
@@ -2202,6 +2368,27 @@ const handleFollow = async (targetUserId: string) => {
           post={selectedPostForShare}
           onClose={() => setSelectedPostForShare(null)}
         />
+      )}
+
+      {user && (
+        <>
+          <div className="fixed bottom-20 right-6 z-50">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
+              aria-label="Create new post"
+            >
+              <FaPlus className="text-xl" />
+            </button>
+          </div>
+
+          {showCreateModal && user && (
+            <CreatePostModal
+              onClose={() => setShowCreateModal(false)}
+              user={user}
+            />
+          )}
+        </>
       )}
 
       <Footer />
