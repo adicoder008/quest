@@ -293,7 +293,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
               </div>
 
               <p className="text-sm text-center text-gray-400">
-                This usually takes 3-5 minutes. Please don't close this window.
+                This usually takes 1-2 minutes. Please don't close this window. We are working on optimizing the process 👉 👉
               </p>
             </div>
           )}

@@ -21,7 +21,7 @@ const Navbar = ({ onOpenModal, onScrollToForm }) => (
         <div className="bg-[#0E0E12]/80 backdrop-blur-xl border border-[#FF8C00]/20 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl shadow-[#FF8C00]/10 pointer-events-auto">
             <div className="flex items-center gap-2">
                 <span className="text-2xl font-black tracking-tighter text-[#FFFCE0] style={{textShadow: '0 2px 10px rgba(255,140,0,0.3)'}}">
-                    <img src="/OQ_LOGO_MAIN.svg" alt="OnQuest Logo" className="h-10 w-auto" />
+                    <img src="/OQ_LOGO_MAIN.svg" alt="OnQuest Logo" className="h-10 w-28" />
                 </span>
             </div>
 
@@ -40,28 +40,31 @@ const Navbar = ({ onOpenModal, onScrollToForm }) => (
 );
 
 const Hero = ({ onScrollToForm, onOpenModal }) => (
-    <section className="relative min-h-screen flex items-end pb-32 md:items-center md:pb-0 justify-center overflow-hidden pt-20">
-        {/* Dynamic Background - NO DARK OVERLAY */}
+    <section className="relative min-h-screen flex items-start md:items-center justify-center overflow-hidden pt-20">
+        {/* Dynamic Background */}
         <div className="absolute inset-0 z-0">
-            {/* IMPORTANT: Use the high-quality watercolor illustration here */}
+            {/* Desktop Image */}
             <img
                 src="/bunny_banaras.png"
                 alt="Ranbir in Banaras Illustration"
                 className="w-full h-full object-cover object-center scale-105 hidden md:block"
             />
+            {/* Mobile Image - Cropped from bottom */}
             <img
-                src="/bunny_mobile.png"
+                src="/bunny_banaras.png"
                 alt="Ranbir in Banaras Illustration (Mobile)"
-                className="w-full h-full object-cover object-center scale-105 block md:hidden"
+                className="w-full h-full object-cover object-top scale-105 block md:hidden"
             />
-            {/* A very subtle warm vignette at the bottom just to ground the text slightly, without hiding the image */}
-            {/* <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E12]/80 via-transparent to-transparent mix-blend-multiply" />
-    </div> */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-transparent" />
-            <div className="absolute inset-0 bg-slate-980/20 mix-blend-multiply" />
+
+            {/* Mobile Gradient: Dark at top for text readability, transparent at bottom */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0E0E12] via-[#0E0E12]/60 to-transparent block md:hidden" />
+
+            {/* Desktop Gradients */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-transparent hidden md:block" />
+            <div className="absolute inset-0 bg-slate-980/20 mix-blend-multiply hidden md:block" />
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 w-full container mx-auto px-4 pt-8 md:pt-0 grid lg:grid-cols-2 gap-12 items-start md:items-center">
             <div className="space-y-6 max-w-2xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff6900]/10 border border-[#ff6900]/20 text-[#ff6900] text-xs font-bold uppercase tracking-wider">
                     <Sparkles size={12} />
@@ -389,7 +392,7 @@ export default function App() {
                                 Why The <br /><span className="text-[#FF8C00]">Hype?</span>
                             </h2>
                         </div>
-                        <p className="text-[#FFFCE0]/70 max-w-sm text-right font-bold text-lg">We pay for the stay.<br />You pay with your stories.</p>
+                        <p className="text-[#FFFCE0]/70 max-w-sm text-left font-bold text-lg">We pay for the stay.<br />You pay with your stories.</p>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-6 auto-rows-[320px]">
@@ -399,7 +402,7 @@ export default function App() {
                             desc="Don't just consume. Create a Quest that guides thousands. This is your portfolio piece."
                             icon={Camera}
                             // Use warm, high contrast images here
-                            image="https://tagmango.com/publicassets/-1-2-e683007f6f27ca4c7ca7b24dabfe2119.PNG"
+                            image="https://fourthwall.com/webflow-cdn/63ff7c6ecc83f9ec7ffe916b/67103d6dee895d41c23fb5e7_6656289fde213456d156929b_CreatorEconomy-ezgif.com-png-to-webp-converter.webp"
                         />
                         <BentoCard
                             className="md:col-span-1 bg-[#1A1A24]"
