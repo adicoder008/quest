@@ -31,6 +31,8 @@ const SIDEBAR_GAP = 0;
 const TRIP_BANNER_SRC = '/green_modern_travel_banner.svg';
 const AI_PLANNER_BANNER_SRC = '/aiTripPlanner.svg';
 import CommentModal from '@/components/Home/CommentModal';
+import EditPostModal from '@/components/Home/EditPostModal';
+import MobilePostMenu from '@/components/Home/PostMenu';
 import { getLevelInfo, getUserBadges } from '@/lib/firebaseSerive';
 
 // Helper function to generate username from display name
@@ -298,7 +300,7 @@ const FeedRightSidebar = ({ user, userData }: any) => {
 };
 
 // IMPROVED POST MENU - Shows near the post
-const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
+const PostMenu = ({ post, user, onClose, onDelete, onEdit, anchorRef }: any) => {
   const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -307,8 +309,9 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
   const [position, setPosition] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
-    if (anchorRef?.current && menuRef.current) {
-      const anchorRect = anchorRef.current.getBoundingClientRect();
+    const anchorEl = anchorRef?.current || anchorRef;
+    if (anchorEl && menuRef.current) {
+      const anchorRect = anchorEl.getBoundingClientRect();
       const menuRect = menuRef.current.getBoundingClientRect();
 
       // Position below and to the left of the anchor
@@ -455,7 +458,10 @@ const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
           {isOwnPost ? (
             <>
               <button
-                onClick={() => {/* Edit functionality */ }}
+                onClick={() => {
+                  onEdit?.();
+                  onClose();
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
               >
                 <Edit size={18} className="text-gray-400" />
@@ -804,6 +810,7 @@ const Feed = () => {
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
   const [selectedPostForComments, setSelectedPostForComments] = useState<any>(null);
+  const [selectedPostForEdit, setSelectedPostForEdit] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
   const router = useRouter();
@@ -1269,7 +1276,10 @@ const Feed = () => {
             onComment={() => setShowQuestComments(!showQuestComments)}
             onShare={() => handleShare(post.id)}
             onSave={() => handleSave(post.id)}
-            onMenu={() => setSelectedPostForMenu(post)}
+            onMenu={(e) => {
+              setMenuAnchorRef(e.currentTarget);
+              setSelectedPostForMenu(post);
+            }}
             isSaved={isSaved}
             followingList={followingList}
             onFollow={handleFollow}
@@ -1335,11 +1345,6 @@ const Feed = () => {
             )}
 
             <button
-              ref={(el) => {
-                if (selectedPostForMenu?.id === post.id) {
-                  setMenuAnchorRef(el);
-                }
-              }}
               onClick={(e) => {
                 setMenuAnchorRef(e.currentTarget);
                 setSelectedPostForMenu(post);
@@ -1639,6 +1644,11 @@ const Feed = () => {
             setSelectedPostForMenu(null);
             setMenuAnchorRef(null);
           }}
+          onEdit={() => {
+            setSelectedPostForEdit(selectedPostForMenu);
+            setSelectedPostForMenu(null);
+            setMenuAnchorRef(null);
+          }}
           anchorRef={menuAnchorRef}
         />
       )}
@@ -1656,6 +1666,18 @@ const Feed = () => {
           user={user}
           onClose={() => setSelectedPostForComments(null)}
           onCommentSubmit={handleCommentSubmit}
+        />
+      )}
+
+      {selectedPostForEdit && user && (
+        <EditPostModal
+          post={selectedPostForEdit}
+          user={user}
+          onClose={() => setSelectedPostForEdit(null)}
+          onPostUpdated={(updatedPost) => {
+            setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSelectedPostForEdit(null);
+          }}
         />
       )}
     </div>
@@ -2073,6 +2095,7 @@ const MobileFeedPage = () => {
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [selectedPostForEdit, setSelectedPostForEdit] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -2661,7 +2684,7 @@ const MobileFeedPage = () => {
       </div>
 
       {selectedPostForMenu && (
-        <PostMenu
+        <MobilePostMenu
           post={selectedPostForMenu}
           user={user}
           onClose={() => setSelectedPostForMenu(null)}
@@ -2669,7 +2692,10 @@ const MobileFeedPage = () => {
             setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
             setSelectedPostForMenu(null);
           }}
-          anchorRef={null}
+          onEdit={() => {
+            setSelectedPostForEdit(selectedPostForMenu);
+            setSelectedPostForMenu(null);
+          }}
         />
       )}
 
@@ -2677,6 +2703,19 @@ const MobileFeedPage = () => {
         <ShareModal
           post={selectedPostForShare}
           onClose={() => setSelectedPostForShare(null)}
+        />
+      )}
+
+      {selectedPostForEdit && user && (
+        <EditPostModal
+          post={selectedPostForEdit}
+          user={user}
+          onClose={() => setSelectedPostForEdit(null)}
+          onPostUpdated={(updatedPost) => {
+            setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSearchResults(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSelectedPostForEdit(null);
+          }}
         />
       )}
 

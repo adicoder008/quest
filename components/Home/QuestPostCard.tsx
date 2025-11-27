@@ -32,7 +32,7 @@ interface QuestPostCardProps {
   onComment: () => void;
   onShare: () => void;
   onSave: () => void;
-  onMenu: () => void;
+  onMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
   isSaved?: boolean;
   followingList?: string[];
   onFollow?: (userId: string) => void;
@@ -177,6 +177,19 @@ export const QuestPostCard = ({
             <span className="text-xs font-medium text-white">AI Generated</span>
           </div>
         )}
+
+        {/* Quest Tag - Gen Z Style */}
+        <div className="absolute top-4 left-4 z-10">
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
+            <div className="relative px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-[#F7CEB0]/50 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#F7CEB0] animate-pulse shadow-[0_0_8px_#F7CEB0]"></span>
+              <span className="text-xs font-bold text-white tracking-widest uppercase drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
+                QUEST
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Quest Title at Bottom - YouTube Shorts Style */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -375,6 +388,19 @@ export const MobileQuestPostCard = ({
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+
+        {/* Quest Tag - Gen Z Style (Mobile) */}
+        <div className="absolute top-4 left-4 z-10">
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 animate-pulse"></div>
+            <div className="relative px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#F7CEB0]/60 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F7CEB0] shadow-[0_0_6px_#F7CEB0]"></span>
+              <span className="text-[10px] font-bold text-white tracking-widest uppercase">
+                QUEST
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Quest Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
