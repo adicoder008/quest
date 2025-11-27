@@ -73,11 +73,15 @@ const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEd
     }
   };
 
+  
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-end md:items-center justify-center">
-      <div className="bg-gray-900 w-full md:w-96 md:rounded-xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={onClose}>
+      <div
+        className="bg-gray-900 w-full md:w-96 md:rounded-xl rounded-t-xl overflow-hidden shadow-2xl border border-gray-800"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header - Mobile only */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-800">
           <h3 className="text-white font-semibold">Post Options</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -85,7 +89,7 @@ const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEd
         </div>
 
         {/* Menu Items */}
-        <div className="divide-y divide-gray-700">
+        <div className="divide-y divide-gray-800">
           {isOwnPost ? (
             <>
               <button
@@ -143,6 +147,7 @@ const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEd
       </div>
     </div>
   );
+  
 };
 
 export default PostMenu;

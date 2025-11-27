@@ -46,11 +46,13 @@
 
 
 import React from 'react'
+import useEmblaCarousel from 'embla-carousel-react'
 
 const Features = () => {
+    const [emblaRef] = useEmblaCarousel({ loop: false })
+
     return (
         <>
-
             {/* Desktop/Laptop Layout */}
             <div className="bg-[url('/bgc.svg')] bg-cover bg-center h-[120vh] flex flex-col items-center pt-10">
 
@@ -65,16 +67,19 @@ const Features = () => {
                     <img src="/Mobile2.svg" className="w-[400px]" />
                 </div>
 
-                {/* Mobile/tablet swipeable layout */}
-                <div className="md:hidden w-full overflow-x-auto scroll-smooth snap-x snap-mandatory px-[20vw] flex gap-10">
-                    <img src="/Mobile1.svg" className="w-[280px] snap-center" />
-                    <img src="/Mobile2.svg" className="w-[280px] snap-center" />
+                {/* Mobile/tablet swipeable layout (Embla Carousel) */}
+                <div className="md:hidden w-full overflow-hidden" ref={emblaRef}>
+                    <div className="flex touch-pan-y">
+                        <div className="flex-[0_0_80%] min-w-0 pl-4 flex justify-center">
+                            <img src="/Mobile1.svg" className="w-[280px] object-contain" />
+                        </div>
+                        <div className="flex-[0_0_80%] min-w-0 pl-4 flex justify-center">
+                            <img src="/Mobile2.svg" className="w-[280px] object-contain" />
+                        </div>
+                    </div>
                 </div>
 
             </div>
-
-
-
         </>
     )
 }

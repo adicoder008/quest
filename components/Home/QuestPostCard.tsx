@@ -179,7 +179,7 @@ export const QuestPostCard = ({
         )}
 
         {/* Quest Tag - Gen Z Style */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 right-4 z-9">
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
             <div className="relative px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-[#F7CEB0]/50 flex items-center gap-2">
@@ -231,7 +231,7 @@ export const QuestPostCard = ({
               className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
                 }`}
             >
-              <HeartPulse size={22} className={isLiked ? 'fill-current' : ''} />
+              <FaHeart size={22} className={isLiked ? 'fill-current' : ''} />
               <span className="text-sm font-medium">{post.likeCount || 0}</span>
             </button>
 
@@ -258,9 +258,9 @@ export const QuestPostCard = ({
               }`}
           >
             {isSaved ? (
-              <FaBookmark size={22} className="fill-current" />
+              <FaBookmark size={22} className="fill-white" />
             ) : (
-              <FaRegBookmark size={22} />
+              <FaRegBookmark size={22} className="fill-white" />
             )}
           </button>
         </div>
@@ -390,12 +390,12 @@ export const MobileQuestPostCard = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
         {/* Quest Tag - Gen Z Style (Mobile) */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 right-4 z-10">
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 animate-pulse"></div>
             <div className="relative px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#F7CEB0]/60 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F7CEB0] shadow-[0_0_6px_#F7CEB0]"></span>
-              <span className="text-[10px] font-bold text-white tracking-widest uppercase">
+              <span className="text-[10px] font-bold text-white tracking-widest uppercase"> 
                 QUEST
               </span>
             </div>
@@ -432,16 +432,20 @@ export const MobileQuestPostCard = ({
             className={`transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
               }`}
           >
-            <HeartPulse size={24} className={isLiked ? 'fill-current' : ''} />
+            <div className="flex items-center gap-2">
+              <FaHeart size={24} className={isLiked ? 'fill-current' : ''} />
+              <span className="text-sm font-medium">{post.likeCount || 0}</span>
+            </div>
           </button>
           <button
             onClick={onComment}
-            className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <FaRegCommentDots size={24} />
+            <span className="text-sm font-medium">{post.commentCount || 0}</span>
           </button>
           <button
-            onClick={onShare}
+            onClick={onComment}
             className="text-gray-400 hover:text-[#F7CEB0] transition-colors"
           >
             <FaShareSquare size={24} />
@@ -453,7 +457,7 @@ export const MobileQuestPostCard = ({
             }`}
         >
           {isSaved ? (
-            <FaBookmark size={24} className="fill-current" />
+            <FaBookmark size={24} className="fill-white" />
           ) : (
             <FaRegBookmark size={24} />
           )}

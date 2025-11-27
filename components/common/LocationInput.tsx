@@ -1,8 +1,6 @@
-// Create a reusable Google Places Location Input Component
-// File: components/common/LocationInput.tsx
-
-import React, { useRef, useEffect } from 'react';
-import { MapPin } from 'lucide-react';
+import React from 'react';
+import { PlacesAutocomplete } from './PlacesAutocomplete';
+import { PlaceSuggestion } from '@/hooks/usePlacesAutocomplete';
 
 interface LocationInputProps {
   value: string;
@@ -11,77 +9,67 @@ interface LocationInputProps {
   className?: string;
 }
 
-export const LocationInput = ({ 
-  value, 
-  onChange, 
+export const LocationInput = ({
+  value,
+  onChange,
   placeholder = "Search for a place...",
   className = ""
 }: LocationInputProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-  useEffect(() => {
-    if (!inputRef.current) return;
+  const handleSelect = async (suggestion: PlaceSuggestion) => {
+    // We need to fetch details to get coordinates, as the autocomplete suggestion
+    // might not have them directly (depending on the field mask used in the hook).
+    // The previous implementation used Google Maps JS API to get details.
+    // Here we can use our server-side API if we have one for details, or just pass the name
+    // if coordinates are not strictly required immediately, or fetch them here.
 
-    const initAutocomplete = () => {
-      if (window.google && inputRef.current) {
-        autocompleteRef.current = new google.maps.places.Autocomplete(
-          inputRef.current,
-          {
-            types: ['establishment', 'geocode'],
-            fields: ['name', 'geometry', 'formatted_address', 'place_id']
-          }
-        );
+    // For now, to maintain compatibility with the prop signature which expects coordinates,
+    // we should ideally fetch them. However, the new hook uses the Autocomplete API which
+    // returns a prediction.
 
-        autocompleteRef.current.addListener('place_changed', () => {
-          const place = autocompleteRef.current?.getPlace();
-          if (place && place.geometry) {
-            onChange({
-              name: place.name || place.formatted_address || '',
-              coordinates: {
-                lat: place.geometry.location?.lat() || 0,
-                lng: place.geometry.location?.lng() || 0
-              }
-            });
-          }
+    // Let's check if we have a place details endpoint.
+    // Based on previous grep, we saw `app/api/place-details/route.ts`.
+
+    try {
+      const response = await fetch('/api/place-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId: suggestion.placePrediction.placeId }),
+      });
+
+      if (response.ok) {
+        const details = await response.json();
+        onChange({
+          name: suggestion.placePrediction.structuredFormat.mainText.text,
+          coordinates: details.place.location // Corrected property access
+        });
+      } else {
+        // Fallback if details fail
+        onChange({
+          name: suggestion.placePrediction.structuredFormat.mainText.text
         });
       }
-    };
-
-    if (window.google) {
-      initAutocomplete();
-    } else {
-      const checkGoogleMaps = setInterval(() => {
-        if (window.google) {
-          initAutocomplete();
-          clearInterval(checkGoogleMaps);
-        }
-      }, 100);
-
-      return () => clearInterval(checkGoogleMaps);
+    } catch (error) {
+      console.error("Failed to fetch place details", error);
+      onChange({
+        name: suggestion.placePrediction.structuredFormat.mainText.text
+      });
     }
-  }, [onChange]);
+  };
 
-  const handleManualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ name: e.target.value });
+  const handleChange = (newValue: string) => {
+    // If the user types manually, we just update the name.
+    // We don't have coordinates for partial input.
+    onChange({ name: newValue });
   };
 
   return (
-    <div className="relative">
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-        <MapPin size={16} className="text-orange-400" />
-      </div>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={handleManualChange}
-        className={`w-full bg-gray-800 text-white pl-10 pr-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none ${className}`}
-        placeholder={placeholder}
-      />
-    </div>
+    <PlacesAutocomplete
+      value={value}
+      onChange={handleChange}
+      onSelect={handleSelect}
+      placeholder={placeholder}
+      className={className}
+    />
   );
 };
-
-// Update the GoogleFormActivityCard to use this component:
-// In the edit mode location field, replace the input with:

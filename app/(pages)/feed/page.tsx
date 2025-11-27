@@ -299,202 +299,7 @@ const FeedRightSidebar = ({ user, userData }: any) => {
   );
 };
 
-// IMPROVED POST MENU - Shows near the post
-const PostMenu = ({ post, user, onClose, onDelete, onEdit, anchorRef }: any) => {
-  const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportDescription, setReportDescription] = useState('');
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, right: 0 });
 
-  useEffect(() => {
-    const anchorEl = anchorRef?.current || anchorRef;
-    if (anchorEl && menuRef.current) {
-      const anchorRect = anchorEl.getBoundingClientRect();
-      const menuRect = menuRef.current.getBoundingClientRect();
-
-      // Position below and to the left of the anchor
-      let top = anchorRect.bottom + 8;
-      let right = window.innerWidth - anchorRect.right;
-
-      // Adjust if menu would go off-screen
-      if (top + menuRect.height > window.innerHeight) {
-        top = anchorRect.top - menuRect.height - 8;
-      }
-
-      if (right + menuRect.width > window.innerWidth) {
-        right = 16;
-      }
-
-      setPosition({ top, right });
-    }
-  }, [anchorRef]);
-
-  const handleCopyLink = () => {
-    const postUrl = `${window.location.origin}/post/${post.id}`;
-    navigator.clipboard.writeText(postUrl);
-    alert('Link copied to clipboard!');
-    onClose();
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        await deletePost(post.id, user!.uid);
-        onDelete?.();
-        onClose();
-      } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Failed to delete post');
-      }
-    }
-  };
-
-  const handleReport = async () => {
-    if (!reportReason) {
-      alert('Please select a reason');
-      return;
-    }
-
-    try {
-      await reportPost(post.id, user!.uid, reportReason, reportDescription);
-      alert('Post reported successfully');
-      setShowReportModal(false);
-      onClose();
-    } catch (error) {
-      console.error('Error reporting post:', error);
-      alert('Failed to report post');
-    }
-  };
-
-  if (showReportModal) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={() => setShowReportModal(false)}>
-        <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">Report Post</h3>
-            <button
-              onClick={() => setShowReportModal(false)}
-              className="p-1 hover:bg-gray-800 rounded-full transition-colors"
-            >
-              <X size={20} className="text-gray-400" />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-gray-300 mb-2 block">Reason</label>
-              <select
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none"
-              >
-                <option value="">Select a reason</option>
-                <option value="spam">Spam</option>
-                <option value="harassment">Harassment</option>
-                <option value="inappropriate">Inappropriate Content</option>
-                <option value="false_info">False Information</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-300 mb-2 block">Additional Details (Optional)</label>
-              <textarea
-                value={reportDescription}
-                onChange={(e) => setReportDescription(e.target.value)}
-                placeholder="Provide more details..."
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none resize-none"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="flex-1 bg-gray-700 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReport}
-                className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-40"
-        onClick={onClose}
-      />
-      <div
-        ref={menuRef}
-        style={{
-          position: 'fixed',
-          top: `${position.top}px`,
-          right: `${position.right}px`,
-        }}
-        className="bg-gray-900 rounded-xl w-64 border border-gray-700 overflow-hidden shadow-2xl z-50"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="py-2">
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
-          >
-            <Copy size={18} className="text-gray-400" />
-            <span className="text-sm">Copy Link</span>
-          </button>
-
-          {isOwnPost ? (
-            <>
-              <button
-                onClick={() => {
-                  onEdit?.();
-                  onClose();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
-              >
-                <Edit size={18} className="text-gray-400" />
-                <span className="text-sm">Edit Post</span>
-              </button>
-
-              <div className="border-t border-gray-800 my-1" />
-
-              <button
-                onClick={handleDelete}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
-              >
-                <Trash2 size={18} />
-                <span className="text-sm">Delete Post</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="border-t border-gray-800 my-1" />
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
-              >
-                <Flag size={18} />
-                <span className="text-sm">Report Post</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </>
-  );
-};
 
 // Share Modal
 const ShareModal = ({ post, onClose }: any) => {
@@ -1610,29 +1415,10 @@ const Feed = () => {
         }}
       />
 
-      {user && (
-        <>
-          <div className="fixed bottom-6 right-6 z-50">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
-              aria-label="Create new post"
-            >
-              <FaPlus className="text-xl" />
-            </button>
-          </div>
 
-          {showCreateModal && user && (
-            <CreatePostModal
-              onClose={() => setShowCreateModal(false)}
-              user={user}
-            />
-          )}
-        </>
-      )}
 
-      {selectedPostForMenu && menuAnchorRef && (
-        <PostMenu
+      {selectedPostForMenu && (
+        <MobilePostMenu
           post={selectedPostForMenu}
           user={user}
           onClose={() => {
@@ -1649,7 +1435,6 @@ const Feed = () => {
             setSelectedPostForMenu(null);
             setMenuAnchorRef(null);
           }}
-          anchorRef={menuAnchorRef}
         />
       )}
 
@@ -2719,26 +2504,6 @@ const MobileFeedPage = () => {
         />
       )}
 
-      {user && (
-        <>
-          <div className="fixed bottom-20 right-6 z-50">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
-              aria-label="Create new post"
-            >
-              <FaPlus className="text-xl" />
-            </button>
-          </div>
-
-          {showCreateModal && user && (
-            <CreatePostModal
-              onClose={() => setShowCreateModal(false)}
-              user={user}
-            />
-          )}
-        </>
-      )}
 
       <Footer />
     </div>
