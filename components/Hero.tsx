@@ -205,13 +205,13 @@ const Hero = () => {
           <div className='flex flex-col sm:flex-row justify-center items-center gap-4 mt-4'>
             <button 
               onClick={handleActionClick}
-              className='items-center text-white w-fit bg-[#EA6100] hover:bg-[#F86F0A] font-[450] rounded-3xl px-6 py-3 transition-colors'
+              className='items-center text-white w-3/5 sm:w-fit bg-[#EA6100] hover:bg-[#F86F0A] font-[450] rounded-3xl px-6 py-3 transition-colors'
             >
               Explore
             </button>
             <button 
               onClick={handleActionClick}
-              className='items-center text-white w-fit bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 font-[450] rounded-3xl px-6 py-3 transition-colors'
+              className='items-center text-white w-3/5 sm:w-fit bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 font-[450] rounded-3xl px-6 py-3 transition-colors'
             >
               Create Quest
             </button>

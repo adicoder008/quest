@@ -24,6 +24,7 @@ export interface Quest {
   sharesCount?: number;
   isPostedToFeed?: boolean;
   associatedPostId?: string | null;
+  description?: string;
 
   // FIXED: Single cover image URL (same format as posts)
   coverImageUrl?: string; // Compressed image URL (same as post photoUrl)

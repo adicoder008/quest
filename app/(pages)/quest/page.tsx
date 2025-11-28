@@ -29,13 +29,13 @@ interface TripData {
   destinationData?: PlaceData;
 }
 
-const PopularDestinationCard = ({ 
-  imageUrl, 
-  title, 
-  subtitle 
-}: { 
-  imageUrl: string; 
-  title: string; 
+const PopularDestinationCard = ({
+  imageUrl,
+  title,
+  subtitle
+}: {
+  imageUrl: string;
+  title: string;
   subtitle: string;
 }) => {
   return (
@@ -94,7 +94,7 @@ const useGooglePlaces = () => {
       if ((window as any).google) {
         const map = new (window as any).google.maps.Map(document.createElement('div'));
         const service = new (window as any).google.maps.places.PlacesService(map);
-        
+
         service.getDetails(
           {
             placeId,
@@ -136,7 +136,7 @@ const LocationSearch = ({ value, onChange, placeholder }: { value: string, onCha
     const newValue = e.target.value;
     setInputValue(newValue);
     onChange(newValue, undefined);
-    
+
     if (newValue.length >= 3) {
       setIsOpen(true);
       searchPlaces(newValue);
@@ -149,7 +149,7 @@ const LocationSearch = ({ value, onChange, placeholder }: { value: string, onCha
   const handlePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
     try {
       const placeDetails = await getPlaceDetails(prediction.place_id);
-      
+
       if (placeDetails) {
         const locationName = prediction.structured_formatting.main_text;
         setInputValue(locationName);
@@ -163,7 +163,7 @@ const LocationSearch = ({ value, onChange, placeholder }: { value: string, onCha
     } catch (error) {
       console.error('Error getting place details:', error);
     }
-    
+
     setIsOpen(false);
     clearPredictions();
   };
@@ -228,7 +228,7 @@ const DesktopShell = ({
   children: ReactNode;
 }) => {
   const totalFixedWidth = QUEST_LEFT_NAV_WIDTH + QUEST_SIDEBAR_GAP;
-  
+
   const containerStartExpression = `calc((100vw - (${QUEST_LEFT_NAV_WIDTH}px + ${QUEST_DESKTOP_MAIN_WIDTH}vw + ${QUEST_SIDEBAR_GAP}px)) / 2)`;
 
   const mainLeftExpression = `calc(${containerStartExpression} + ${QUEST_LEFT_NAV_WIDTH + QUEST_SIDEBAR_GAP}px)`;
@@ -241,9 +241,9 @@ const DesktopShell = ({
 
   return (
     <div className="hidden md:block min-h-screen bg-black text-white relative overflow-x-hidden">
-      <Navbar 
-        user={user} 
-        onSignOut={() => {/* implement signout */}} 
+      <Navbar
+        user={user}
+        onSignOut={() => {/* implement signout */ }}
         style={{
           left: containerStartExpression,
           right: 'auto',
@@ -340,7 +340,7 @@ const QuestPage = () => {
   if (!user) {
     return null;
   }
-  
+
   // Main quest options page
   if (!isCreating) {
     return (
@@ -355,10 +355,12 @@ const QuestPage = () => {
             />
 
             <div className="relative mx-auto flex flex-col justify-center items-center h-full w-full px-10 text-center">
-              <h1 className="text-5xl font-bold mb-4 text-white">Plan Your Next Quest!</h1>
+              <h1 className="text-5xl font-bold mb-4 text-white">Share Your Latest Trip</h1>
               <p className="text-xl text-gray-200 mb-8 max-w-2xl">
-                Create your own Quest from scratch or browse your saved Quests.
-              </p>
+                Inspire and help fellow follow travellers by posting your journey
+              </p><br></br>
+              <p> photos,moments,tips and memories that deserve to be seen</p>
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setIsCreating(true)}
@@ -402,7 +404,7 @@ const QuestPage = () => {
           <Header />
           <main>
             <div className="relative h-[360px] w-full">
-              <div 
+              <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
                   backgroundImage: 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url("https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop")'
@@ -459,39 +461,39 @@ const QuestPage = () => {
   const currentStepData = steps[currentStep];
 
   return (
-      <div className="min-h-screen bg-black text-white">
-        {/* Desktop Layout */}
-        <DesktopShell user={user}>
-          {/* Progress bar */}
-          <div className="mb-12">
-            <div className="flex justify-between mb-3">
-              <span className="text-lg text-gray-400">Create Quest</span>
-              <span className="text-lg text-gray-400">{currentStep + 1}/{steps.length}</span>
-            </div>
-            <div className="w-full bg-gray-800 rounded-full h-3">
-              <div 
-                className="bg-orange-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-              ></div>
-            </div>
+    <div className="min-h-screen bg-black text-white">
+      {/* Desktop Layout */}
+      <DesktopShell user={user}>
+        {/* Progress bar */}
+        <div className="mb-12">
+          <div className="flex justify-between mb-3">
+            <span className="text-lg text-gray-400">Create Quest</span>
+            <span className="text-lg text-gray-400">{currentStep + 1}/{steps.length}</span>
           </div>
+          <div className="w-full bg-gray-800 rounded-full h-3">
+            <div
+              className="bg-orange-500 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            ></div>
+          </div>
+        </div>
 
-          <h1 className="text-4xl font-bold mb-12">{currentStepData.title}</h1>
+        <h1 className="text-4xl font-bold mb-12">{currentStepData.title}</h1>
 
-          <div className="mb-12">
-            {currentStepData.key === 'destination' && (
-              <div className="max-w-2xl">
-                <LocationSearch
-                  value={tripData.destination}
-                  onChange={handleDestinationChange}
-                  placeholder="Where are you going?"
-                />
-              </div>
-            )}
+        <div className="mb-12">
+          {currentStepData.key === 'destination' && (
+            <div className="max-w-2xl">
+              <LocationSearch
+                value={tripData.destination}
+                onChange={handleDestinationChange}
+                placeholder="Where are you going?"
+              />
+            </div>
+          )}
 
-              {currentStepData.key === 'dates' && ( 
-              <div className="grid grid-cols-2 gap-6 max-w-2xl">
-                <div>
+          {currentStepData.key === 'dates' && (
+            <div className="grid grid-cols-2 gap-6 max-w-2xl">
+              <div>
                 <label className="block text-base text-gray-400 mb-3">Select Start Date</label>
                 <input
                   type="date"
@@ -501,8 +503,8 @@ const QuestPage = () => {
                   max={new Date().toISOString().split('T')[0]}
                   className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                 />
-                </div>
-                <div>
+              </div>
+              <div>
                 <label className="block text-base text-gray-400 mb-3">Select End Date</label>
                 <input
                   type="date"
@@ -512,26 +514,113 @@ const QuestPage = () => {
                   max={new Date().toISOString().split('T')[0]}
                   className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                 />
-                </div>
               </div>
-              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-6">
+          {currentStep > 0 ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsCreating(false)}
+              className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={handleNext}
+            disabled={
+              (currentStepData.key === 'destination' && !tripData.destination) ||
+              (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate))
+            }
+            className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
+          >
+            {currentStep === steps.length - 1 ? 'Upload Photos' : 'Next'}
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      </DesktopShell>
+
+      {/* Mobile Layout */}
+      <div className="md:hidden">
+        <Header />
+        <div className="px-4 py-4">
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="flex justify-between mb-2">
+              <span className="text-sm text-gray-400">Create Quest</span>
+              <span className="text-sm text-gray-400">{currentStep + 1}/{steps.length}</span>
+            </div>
+            <div className="w-full bg-gray-800 rounded-full h-2">
+              <div
+                className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+              ></div>
+            </div>
           </div>
 
-          <div className="flex gap-6">
+          <h1 className="text-2xl font-bold mb-8">{currentStepData.title}</h1>
+
+          <div className="mb-8">
+            {currentStepData.key === 'destination' && (
+              <LocationSearch
+                value={tripData.destination}
+                onChange={handleDestinationChange}
+                placeholder="Where are you going?"
+              />
+            )}
+
+            {currentStepData.key === 'dates' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Select Start Date</label>
+                  <input
+                    type="date"
+                    value={tripData.startDate}
+                    onChange={(e) => updateTripData('startDate', e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Select End Date</label>
+                  <input
+                    type="date"
+                    value={tripData.endDate}
+                    onChange={(e) => updateTripData('endDate', e.target.value)}
+                    min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-4 mb-20">
             {currentStep > 0 ? (
               <button
                 onClick={handleBack}
-                className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+                className="flex items-center gap-2 px-6 py-3 border border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
                 Back
               </button>
             ) : (
               <button
                 onClick={() => setIsCreating(false)}
-                className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+                className="flex items-center gap-2 px-6 py-3 border border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
                 Cancel
               </button>
             )}
@@ -541,103 +630,16 @@ const QuestPage = () => {
                 (currentStepData.key === 'destination' && !tripData.destination) ||
                 (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate))
               }
-              className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >
               {currentStep === steps.length - 1 ? 'Upload Photos' : 'Next'}
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </DesktopShell>
-
-        {/* Mobile Layout */}
-        <div className="md:hidden">
-          <Header />
-          <div className="px-4 py-4">
-            {/* Progress bar */}
-            <div className="mb-8">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-400">Create Quest</span>
-                <span className="text-sm text-gray-400">{currentStep + 1}/{steps.length}</span>
-              </div>
-              <div className="w-full bg-gray-800 rounded-full h-2">
-                <div 
-                  className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <h1 className="text-2xl font-bold mb-8">{currentStepData.title}</h1>
-
-            <div className="mb-8">
-              {currentStepData.key === 'destination' && (
-                <LocationSearch
-                  value={tripData.destination}
-                  onChange={handleDestinationChange}
-                  placeholder="Where are you going?"
-                />
-              )}
-
-              {currentStepData.key === 'dates' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Select Start Date</label>
-                    <input
-                      type="date"
-                      value={tripData.startDate}
-                      onChange={(e) => updateTripData('startDate', e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Select End Date</label>
-                    <input
-                      type="date"
-                      value={tripData.endDate}
-                      onChange={(e) => updateTripData('endDate', e.target.value)}
-                      min={tripData.startDate || new Date().toISOString().split('T')[0]}
-                      className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-4 mb-20">
-              {currentStep > 0 ? (
-                <button
-                  onClick={handleBack}
-                  className="flex items-center gap-2 px-6 py-3 border border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsCreating(false)}
-                  className="flex items-center gap-2 px-6 py-3 border border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Cancel
-                </button>
-              )}
-              <button
-                onClick={handleNext}
-                disabled={
-                  (currentStepData.key === 'destination' && !tripData.destination) ||
-                  (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate))
-                }
-                className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
-              >
-                {currentStep === steps.length - 1 ? 'Upload Photos' : 'Next'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <Footer />
         </div>
+        <Footer />
       </div>
+    </div>
   );
 };
 

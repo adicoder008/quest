@@ -1191,8 +1191,15 @@ export default function ChatsPage() {
       <div className="h-screen bg-black flex flex-col">
         {/* Header */}
         <div className="bg-gray-900 border-b border-gray-700 p-4">
-          <h1 className="text-2xl font-bold text-white mb-4">Chats</h1>
-
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => window.history.back()} // Or useRouter().back() if using Next.js router
+              className="text-white"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-2xl font-bold text-white">Chats</h1>
+          </div>
 
           
           <div className="relative mb-4">

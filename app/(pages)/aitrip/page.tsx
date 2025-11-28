@@ -8,7 +8,12 @@ import questService from '@/lib/questService';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
+import { PlacesAutocomplete } from '@/components/common/PlacesAutocomplete';
+import { PlaceSuggestion } from '@/hooks/usePlacesAutocomplete';
 
+const DESKTOP_MAIN_WIDTH = 50; // percentage of viewport width used for main content
+const LEFT_NAV_WIDTH = 300;
+const SIDEBAR_GAP = 5;
 interface PlaceData {
   coordinates: { lat: number; lng: number };
   fullAddress: string;
@@ -32,7 +37,7 @@ interface TripData {
 // Location Search Component
 const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, onLocationSelected?: (value: string) => void, placeholder: string }) => {
 
-  const handleSelect = async (suggestion: any) => {
+  const handleSelect = async (suggestion: PlaceSuggestion) => {
     const locationName = suggestion.placePrediction.structuredFormat.mainText.text;
 
     try {
@@ -358,8 +363,8 @@ const AITripPlannerPage = () => {
                         key={option.id}
                         onClick={() => toggleTransport(option.id)}
                         className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${isSelected
-                            ? 'border-orange-500 bg-orange-500/10'
-                            : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                          ? 'border-orange-500 bg-orange-500/10'
+                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
                           }`}
                       >
                         <Icon className={`w-10 h-10 mx-auto mb-3 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
@@ -379,8 +384,8 @@ const AITripPlannerPage = () => {
                         key={option.id}
                         onClick={() => updateTripData('tripType', option.id)}
                         className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${isSelected
-                            ? 'border-orange-500 bg-orange-500/10'
-                            : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                          ? 'border-orange-500 bg-orange-500/10'
+                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
                           }`}
                       >
                         <div className="text-4xl mb-3">{option.icon}</div>
@@ -408,8 +413,8 @@ const AITripPlannerPage = () => {
                               key={interest}
                               onClick={() => toggleInterest(interest)}
                               className={`px-6 py-3 rounded-full text-base transition-all hover:scale-105 ${isSelected
-                                  ? 'bg-orange-500 text-white'
-                                  : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
                                 }`}
                             >
                               {interest}
@@ -572,8 +577,8 @@ const AITripPlannerPage = () => {
                       key={option.id}
                       onClick={() => toggleTransport(option.id)}
                       className={`p-6 rounded-xl border-2 transition-all ${isSelected
-                          ? 'border-orange-500 bg-orange-500/10'
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-gray-600 bg-gray-800 hover:border-gray-500'
                         }`}
                     >
                       <Icon className={`w-8 h-8 mx-auto mb-2 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
@@ -593,8 +598,8 @@ const AITripPlannerPage = () => {
                       key={option.id}
                       onClick={() => updateTripData('tripType', option.id)}
                       className={`p-6 rounded-xl border-2 transition-all ${isSelected
-                          ? 'border-orange-500 bg-orange-500/10'
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-gray-600 bg-gray-800 hover:border-gray-500'
                         }`}
                     >
                       <div className="text-2xl mb-2">{option.icon}</div>
@@ -622,8 +627,8 @@ const AITripPlannerPage = () => {
                             key={interest}
                             onClick={() => toggleInterest(interest)}
                             className={`px-4 py-2 rounded-full text-sm transition-all ${isSelected
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
                               }`}
                           >
                             {interest}

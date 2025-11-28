@@ -792,180 +792,184 @@ const MobileExplore = () => {
                 </button>
               )}
             </div>
-          </div>
-          <div className="absolute bottom-0 left-0 p-4 w-full flex justify-center">
-            <button
-              onClick={() => router.push('/aitrip')}
-              className='group relative bg-white text-black px-8 py-3.5 rounded-full font-semibold text-base sm:text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl hover:scale-105'
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-              <span>Plan Your Trip with AI</span>
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="relative z-10 text-center mt-10 px-4">
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Not Sure Where to Start?</h1>
+              <p className="text-lg sm:text-xl text-gray-200">Let AI Guide your journey from first idea to final itinerary</p>
+            </div>
+            <div className="absolute bottom-0 left-0 p-4 w-full flex justify-center">
+              <button
+                onClick={() => router.push('/aitrip')}
+                className='group relative bg-white text-black px-8 py-3.5 rounded-full font-semibold text-base sm:text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl hover:scale-105'
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </button>
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+                <span>Plan Your Trip with AI</span>
+                <svg
+                  className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="m-6 pt-4">
-          {searchQuery && (
-            <div className="mb-6">
-              {searching ? (
-                <div className="text-center py-6">
-                  <p className="text-gray-400">Searching...</p>
-                </div>
-              ) : searchResults.length > 0 ? (
-                <div>
-                  <h3 className="text-white font-semibold text-lg mb-3">Search Results ({searchResults.length})</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {searchResults.map((post) => (
-                      <TrendingQuestCard
-                        key={post.id}
-                        postId={post.id}
-                        questId={post.questContext?.questId || ''}
-                        cardTitle={post.questContext?.questTitle || 'Untitled Quest'}
-                        cardContent={post.questContext?.description || post.text || ''}
-                        cardALT={post.questContext?.questTitle || 'Quest'}
-                        cardURL={post.photoUrl || post.imageUrls?.[0] || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb'}
-                        ownerName={post.userName || 'Anonymous'}
-                        ownerPhoto={post.userProfilePic || ''}
-                        xpEarned={post.questContext?.xpEarned}
-                        difficulty={post.questContext?.difficulty}
-                      />
-                    ))}
+          <div className="m-6 pt-4">
+            {searchQuery && (
+              <div className="mb-6">
+                {searching ? (
+                  <div className="text-center py-6">
+                    <p className="text-gray-400">Searching...</p>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div>
+                    <h3 className="text-white font-semibold text-lg mb-3">Search Results ({searchResults.length})</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {searchResults.map((post) => (
+                        <TrendingQuestCard
+                          key={post.id}
+                          postId={post.id}
+                          questId={post.questContext?.questId || ''}
+                          cardTitle={post.questContext?.questTitle || 'Untitled Quest'}
+                          cardContent={post.questContext?.description || post.text || ''}
+                          cardALT={post.questContext?.questTitle || 'Quest'}
+                          cardURL={post.photoUrl || post.imageUrls?.[0] || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb'}
+                          ownerName={post.userName || 'Anonymous'}
+                          ownerPhoto={post.userProfilePic || ''}
+                          xpEarned={post.questContext?.xpEarned}
+                          difficulty={post.questContext?.difficulty}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-gray-400">No results found for "{searchQuery}"</p>
+                    <p className="text-gray-500 text-sm mt-2">Try searching with different keywords</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className='mb-8'>
+              <div className='mb-3'>
+                <div className='flex justify-between items-center'>
+                  <div>
+                    <h3 className='font-semibold text-2xl'>Trending Quests</h3>
+                    <p className='text-gray-400 text-sm'>
+                      What other travelers are up to this week
+                    </p>
+                  </div>
+                  <div className='cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors'>
+                    <ChevronRight className='font-bold size-6 sm:size-8 text-gray-400' />
                   </div>
                 </div>
+              </div>
+
+              {loading ? (
+                <LoadingSkeleton />
+              ) : trendingPosts.length > 0 ? (
+                <div className='flex space-x-3 overflow-x-scroll scrollbar-none pb-4'>
+                  {trendingPosts.map((post) => (
+                    <TrendingQuestCard
+                      key={post.id}
+                      postId={post.id}
+                      questId={post.questContext?.questId || ''}
+                      cardTitle={
+                        post.questContext?.questTitle || 'Untitled Quest'
+                      }
+                      cardContent={
+                        post.questContext?.description || post.text || ''
+                      }
+                      cardALT={post.questContext?.questTitle || 'Quest'}
+                      cardURL={
+                        post.photoUrl ||
+                        post.imageUrls?.[0] ||
+                        'https://images.unsplash.com/photo-1506744038136-46273834b3fb'
+                      }
+                      ownerName={post.userName || 'Anonymous'}
+                      ownerPhoto={post.userProfilePic || ''}
+                      xpEarned={post.questContext?.xpEarned}
+                      difficulty={post.questContext?.difficulty}
+                    />
+                  ))}
+                </div>
               ) : (
-                <div className="text-center py-6">
-                  <p className="text-gray-400">No results found for "{searchQuery}"</p>
-                  <p className="text-gray-500 text-sm mt-2">Try searching with different keywords</p>
+                <div className='text-center py-12'>
+                  <p className='text-gray-400'>
+                    No trending quests available yet
+                  </p>
+                  <p className='text-gray-500 text-sm mt-2'>
+                    Be the first to share your quest!
+                  </p>
                 </div>
               )}
             </div>
-          )}
 
-          <div className='mb-8'>
-            <div className='mb-3'>
-              <div className='flex justify-between items-center'>
-                <div>
-                  <h3 className='font-semibold text-2xl'>Trending Quests</h3>
-                  <p className='text-gray-400 text-sm'>
-                    What other travelers are up to this week
+            <div className='mb-8'>
+              <div className='mb-3'>
+                <div className='flex justify-between items-center'>
+                  <div>
+                    <h3 className='font-semibold text-2xl'>
+                      Recommended for You
+                    </h3>
+                    <p className='text-gray-400 text-sm'>
+                      Handpicked just for you
+                    </p>
+                  </div>
+                  <div className='cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors'>
+                    <ChevronRight className='font-bold size-6 sm:size-8 text-gray-400' />
+                  </div>
+                </div>
+              </div>
+
+              {loading ? (
+                <LoadingSkeleton />
+              ) : recommendedPosts.length > 0 ? (
+                <div className='flex space-x-3 overflow-x-scroll scrollbar-none pb-4'>
+                  {recommendedPosts.map((post) => (
+                    <TrendingQuestCard
+                      key={post.id}
+                      postId={post.id}
+                      questId={post.questContext?.questId || ''}
+                      cardTitle={
+                        post.questContext?.questTitle || 'Untitled Quest'
+                      }
+                      cardContent={
+                        post.questContext?.description || post.text || ''
+                      }
+                      cardALT={post.questContext?.questTitle || 'Quest'}
+                      cardURL={
+                        post.photoUrl ||
+                        post.imageUrls?.[0] ||
+                        'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0'
+                      }
+                      ownerName={post.userName || 'Anonymous'}
+                      ownerPhoto={post.userProfilePic || ''}
+                      xpEarned={post.questContext?.xpEarned}
+                      difficulty={post.questContext?.difficulty}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className='text-center py-12'>
+                  <p className='text-gray-400'>
+                    No recommendations available yet
+                  </p>
+                  <p className='text-gray-500 text-sm mt-2'>
+                    Explore more quests to get personalized recommendations
                   </p>
                 </div>
-                <div className='cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors'>
-                  <ChevronRight className='font-bold size-6 sm:size-8 text-gray-400' />
-                </div>
-              </div>
+              )}
             </div>
-
-            {loading ? (
-              <LoadingSkeleton />
-            ) : trendingPosts.length > 0 ? (
-              <div className='flex space-x-3 overflow-x-scroll scrollbar-none pb-4'>
-                {trendingPosts.map((post) => (
-                  <TrendingQuestCard
-                    key={post.id}
-                    postId={post.id}
-                    questId={post.questContext?.questId || ''}
-                    cardTitle={
-                      post.questContext?.questTitle || 'Untitled Quest'
-                    }
-                    cardContent={
-                      post.questContext?.description || post.text || ''
-                    }
-                    cardALT={post.questContext?.questTitle || 'Quest'}
-                    cardURL={
-                      post.photoUrl ||
-                      post.imageUrls?.[0] ||
-                      'https://images.unsplash.com/photo-1506744038136-46273834b3fb'
-                    }
-                    ownerName={post.userName || 'Anonymous'}
-                    ownerPhoto={post.userProfilePic || ''}
-                    xpEarned={post.questContext?.xpEarned}
-                    difficulty={post.questContext?.difficulty}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className='text-center py-12'>
-                <p className='text-gray-400'>
-                  No trending quests available yet
-                </p>
-                <p className='text-gray-500 text-sm mt-2'>
-                  Be the first to share your quest!
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className='mb-8'>
-            <div className='mb-3'>
-              <div className='flex justify-between items-center'>
-                <div>
-                  <h3 className='font-semibold text-2xl'>
-                    Recommended for You
-                  </h3>
-                  <p className='text-gray-400 text-sm'>
-                    Handpicked just for you
-                  </p>
-                </div>
-                <div className='cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors'>
-                  <ChevronRight className='font-bold size-6 sm:size-8 text-gray-400' />
-                </div>
-              </div>
-            </div>
-
-            {loading ? (
-              <LoadingSkeleton />
-            ) : recommendedPosts.length > 0 ? (
-              <div className='flex space-x-3 overflow-x-scroll scrollbar-none pb-4'>
-                {recommendedPosts.map((post) => (
-                  <TrendingQuestCard
-                    key={post.id}
-                    postId={post.id}
-                    questId={post.questContext?.questId || ''}
-                    cardTitle={
-                      post.questContext?.questTitle || 'Untitled Quest'
-                    }
-                    cardContent={
-                      post.questContext?.description || post.text || ''
-                    }
-                    cardALT={post.questContext?.questTitle || 'Quest'}
-                    cardURL={
-                      post.photoUrl ||
-                      post.imageUrls?.[0] ||
-                      'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0'
-                    }
-                    ownerName={post.userName || 'Anonymous'}
-                    ownerPhoto={post.userProfilePic || ''}
-                    xpEarned={post.questContext?.xpEarned}
-                    difficulty={post.questContext?.difficulty}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className='text-center py-12'>
-                <p className='text-gray-400'>
-                  No recommendations available yet
-                </p>
-                <p className='text-gray-500 text-sm mt-2'>
-                  Explore more quests to get personalized recommendations
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -973,6 +977,7 @@ const MobileExplore = () => {
     </>
   );
 };
+
 // Main Responsive Component
 const ExplorePage = () => {
   const isDesktop = useResponsive(768);

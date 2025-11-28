@@ -7,16 +7,9 @@ const PhoneSection = () => {
         <div className='text-5xl pb-10 text-center font-arsenal font-[400] italic'>
           Plan, Explore, Share <span className='text-[#EA6100] font-[600]'>: The OnQuest Way</span>
         </div>
-        <div className='flex flex-col sm:flex-row justify-center items-center pl-14'>
-          <div>
-            <img className='rounded-xl hidden sm:block' src="/phone2.svg" alt="" />
-          </div>
-          <div>
-            <img className='rounded-xl translate-y-16 z-10' src="/phone4.svg" alt="" />
-          </div>
-          <div>
-            <img className='rounded-xl hidden sm:block' src="/phone3.svg" alt="" />
-          </div>
+        <div className='flex justify-center items-center '>
+          <img className='hidden sm:block rounded-xl w-full object-cover' src="/landscape.jpg" alt="App in landscape mode" />
+          <img className='sm:hidden rounded-xl w-cover max-w-xs' src="/mob.jpg" alt="App in mobile mode" />
         </div>
       </div>
     </>
