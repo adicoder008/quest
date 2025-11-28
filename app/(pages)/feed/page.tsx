@@ -26,7 +26,7 @@ import NavBar from '@/components/LeftSideNav';
 const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
 const LEFT_NAV_WIDTH = 280;
 const RIGHT_SIDEBAR_WIDTH = 380;
-const SIDEBAR_GAP = 0;
+const SIDEBAR_GAP = 2;
 
 const TRIP_BANNER_SRC = '/green_modern_travel_banner.svg';
 const AI_PLANNER_BANNER_SRC = '/aiTripPlanner.svg';
@@ -82,7 +82,7 @@ const ResponsiveFeedPage = () => {
 };
 
 // RIGHT SIDEBAR
-const FeedRightSidebar = ({ user, userData }: any) => {
+const FeedRightSidebar = ({ user, userData, style }: any) => {
   const [badges, setBadges] = useState<any[]>([]);
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
@@ -160,7 +160,7 @@ const FeedRightSidebar = ({ user, userData }: any) => {
   };
 
   return (
-    <div className="hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto">
+    <div className="hidden xl:block fixed top-0 h-screen border-l border-gray-700 bg-black p-4 overflow-y-auto" style={style}>
       {/* User Profile Card */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
         <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
@@ -1255,7 +1255,7 @@ const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className=" min-h-screen bg-black text-white">
       <NavBar
         user={user}
         onSignOut={handleSignOut}

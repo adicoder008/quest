@@ -4,7 +4,7 @@
 
 import React, { CSSProperties, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Search,User, Bell, Mail, Icon, Settings, LogOut, Menu } from 'lucide-react';
+import { Home, Search, User, Bell, Mail, Icon, Settings, LogOut, Menu } from 'lucide-react';
 
 
 interface User {
@@ -89,10 +89,10 @@ const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
       label: 'Quest',
       route: 'quest',
     },
-    { 
+    {
       icon: AITripPlannerIcon,
       label: 'AI Trip Planner',
-      route: 'aitrip' 
+      route: 'aitrip'
     },
     { icon: Bell, label: 'Notifications', route: 'notifications' },
     { icon: Mail, label: 'Messages', route: 'chats' },
@@ -114,10 +114,9 @@ const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
   };
 
   return (
-    <aside 
-      className={`fixed left-0 top-0 h-screen border-r border-gray-700 bg-black p-4 flex flex-col transition-all duration-300 z-50 ${
-        isExpanded ? 'w-[280px]' : 'w-[80px]'
-      } ${className}`}
+    <aside
+      className={`fixed left-0 top-0 h-screen border-r border-gray-700 bg-black p-4 flex flex-col transition-all duration-300 z-50 ${isExpanded ? 'w-[280px]' : 'w-[80px]'
+        } ${className}`}
       style={style}
       aria-label="Main navigation"
     >
@@ -147,11 +146,10 @@ const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
             <button
               key={item.route}
               onClick={() => handleNavClick(item.route)}
-              className={`w-full flex items-center gap-4 px-2 py-2 rounded-full transition-colors relative group ${ 
-                isActive 
-                  ? 'bg-[#ff6900] text-black font-medium' 
+              className={`w-full flex items-center gap-4 px-2 py-2 rounded-full transition-colors relative group ${isActive
+                  ? 'bg-[#ff6900] text-black font-medium'
                   : 'text-white hover:bg-gray-900'
-              }`}
+                }`}
               title={!isExpanded ? item.label : ''}
             >
               <span className="shrink-0 w-6 h-6 flex items-center justify-center">
@@ -178,8 +176,8 @@ const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
           {isExpanded ? (
             <>
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <img 
-                  src={user?.photoURL || '/default-avatar.png'} 
+                <img
+                  src={user?.photoURL || '/default-avatar.png'}
                   alt={user?.displayName || 'User'}
                   className="w-10 h-10 rounded-full object-cover shrink-0"
                 />
@@ -207,8 +205,8 @@ const NavBar = ({ user, onSignOut, className = '', style }: NavBarProps) => {
                 className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-[#EA6100] transition-all"
                 aria-label="Sign out"
               >
-                <img 
-                  src={user?.photoURL || '/default-avatar.png'} 
+                <img
+                  src={user?.photoURL || '/default-avatar.png'}
                   alt={user?.displayName || 'User'}
                   className="w-full h-full object-cover"
                 />

@@ -31,7 +31,7 @@ const generateUsername = (displayName: string | null | undefined): string => {
 };
 
 // Right Sidebar Component (similar to Feed)
-const ExploreRightSidebar = ({ user, userData }: any) => {
+const ExploreRightSidebar = ({ user, userData, style }: any) => {
   const [badges, setBadges] = useState<any[]>([]);
   const [rankInfo, setRankInfo] = useState<any>(null);
   const [trendingLocations, setTrendingLocations] = useState<any[]>([]);
@@ -87,7 +87,7 @@ const ExploreRightSidebar = ({ user, userData }: any) => {
   }, []);
 
   return (
-    <div className='hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto'>
+    <div className='hidden xl:block fixed right-0 top-0 h-screen w-[380px] border-l border-gray-700 bg-black p-4 overflow-y-auto' style={style}>
       {/* User Stats Card */}
       <div className='bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4'>
         <div className='h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]'></div>
@@ -253,8 +253,8 @@ const DesktopLoadingSkeleton = () => (
 
 
 const DESKTOP_MAIN_WIDTH = 50; // percentage of viewport width used for main content
-const LEFT_NAV_WIDTH = 300;
-const RIGHT_SIDEBAR_WIDTH = 350;
+const LEFT_NAV_WIDTH = 280;
+const RIGHT_SIDEBAR_WIDTH = 380;
 const SIDEBAR_GAP = 5;
 
 const DesktopExplore = () => {
