@@ -798,10 +798,10 @@ const QuestViewPage = () => {
                   {!isEditMode && (
                     <button
                       onClick={() => setIsEditMode(true)}
-                      className="hidden lg:flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"
+                      className="flex items-center gap-2 px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
                     >
                       <Edit3 size={16} />
-                      <span className="hidden md:inline">Edit</span>
+                      <span>Edit</span>
                     </button>
                   )}
                   {isEditMode && (
