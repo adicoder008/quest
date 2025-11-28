@@ -35,9 +35,13 @@ const Features = () => {
                 </h1>
 
                 {/* Desktop layout */}
-                <div className="hidden md:flex justify-around items-center gap-10 w-full max-w-5xl z-10">
-                    <img src="/Mobile1.svg" className="w-1/2 object-contain" />
-                    <img src="/Mobile2.svg" className="w-1/2 object-contain" />
+                <div className="hidden md:flex justify-center items-center gap-10 w-full max-w-5xl z-10 p-4">
+                    <div className="flex-1 min-w-0 max-w-[45%] flex justify-center items-center">
+                        <img src="/Mobile1.svg" className="w-full h-auto object-contain" alt="Feature 1" />
+                    </div>
+                    <div className="flex-1 min-w-0 max-w-[45%] flex justify-center items-center">
+                        <img src="/Mobile2.svg" className="w-full h-auto object-contain" alt="Feature 2" />
+                    </div>
                 </div>
 
                 {/* Mobile/tablet swipeable layout (Embla Carousel) */}
