@@ -2298,7 +2298,7 @@ const MobileFeedPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white">
-      <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-7">
+      <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-700">
         <Header />
 
         {/* <div className="px-4 py-3">
@@ -2310,7 +2310,7 @@ const MobileFeedPage = () => {
 
       {/* <CreatePostTrigger user={user} /> */}
 
-      <div className="px-4 pt-2">
+      <div className="px-4 pt-4">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input

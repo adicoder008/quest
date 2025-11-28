@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "render:quest": "node scripts/autoRender.js",
-    "remotion:studio": "remotion studio remotion/Root.tsx"
+    "remotion:studio": "remotion studio remotion/Root.tsx",
+    "remotion:deploy": "npx remotion lambda sites create remotion/Root.tsx --site-name=quest-video",
+    "remotion:deploy-function": "npx remotion lambda functions deploy"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",

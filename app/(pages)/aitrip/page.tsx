@@ -9,11 +9,11 @@ import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
 import { PlacesAutocomplete } from '@/components/common/PlacesAutocomplete';
-import { PlaceSuggestion } from '@/hooks/usePlacesAutocomplete';
 
-const DESKTOP_MAIN_WIDTH = 50; // percentage of viewport width used for main content
-const LEFT_NAV_WIDTH = 300;
-const SIDEBAR_GAP = 5;
+const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
+const LEFT_NAV_WIDTH = 280;
+const SIDEBAR_GAP = 0;
+
 interface PlaceData {
   coordinates: { lat: number; lng: number };
   fullAddress: string;
@@ -37,7 +37,7 @@ interface TripData {
 // Location Search Component
 const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, onLocationSelected?: (value: string) => void, placeholder: string }) => {
 
-  const handleSelect = async (suggestion: PlaceSuggestion) => {
+  const handleSelect = async (suggestion: any) => {
     const locationName = suggestion.placePrediction.structuredFormat.mainText.text;
 
     try {

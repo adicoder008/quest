@@ -36,7 +36,7 @@ const config: Config & { safelist?: any } = {
     extend: {
       fontFamily: {
         arsenal: ["Arsenal", "sans-serif"],
-        mont: ['var(--font-mont)'],
+        mont: ['var(--font-mont)', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

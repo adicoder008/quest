@@ -617,7 +617,7 @@ const questService = {
   async deleteQuest(questId: string, uid: string): Promise<{ success: boolean; error?: string }> {
     try {
       console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
-
+      
       const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
 

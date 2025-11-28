@@ -99,6 +99,7 @@ export interface QuestContext {
   xpEarned?: number;
   difficulty?: 'easy' | 'normal' | 'hard';
   location?: string;
+  isAiGenerated?: boolean;
 }
 
 export interface Post {

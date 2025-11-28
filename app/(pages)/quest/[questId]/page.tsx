@@ -627,8 +627,6 @@ const QuestViewPage = () => {
       })
     : [];
 
-
-
   const handleLike = async () => {
     if (!user?.uid || !quest?.associatedPostId) return;
 
@@ -713,6 +711,14 @@ const QuestViewPage = () => {
         onAdd={handleAddActivity}
       />
       <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
+      <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        questId={questId}
+        questTitle={quest.title}
+        onShareToFeed={handleShareToFeed}
+      />
 
       {/* Post Quest Modal */}
       <PostQuestModal
@@ -734,9 +740,12 @@ const QuestViewPage = () => {
       <header className="sticky top-0 z-20 bg-gray-950/80 border-b border-gray-800 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3">
           <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button onClick={() => router.back()} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+              <button onClick={() => router.back()} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
                 <ArrowLeft size={20} />
+              </button>
               </button>
               <div>
                 <div className="flex items-center gap-2">
@@ -750,17 +759,24 @@ const QuestViewPage = () => {
                       title="Edit quest details"
                     >
                       <Edit2 size={16} className="text-gray-400 hover:text-orange-500" />
+                      <Edit2 size={16} className="text-gray-400 hover:text-orange-500" />
                     </button>
                   )}
+                  
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                   <Calendar size={12} />
                   <span>
+                  <Calendar size={12} />
+                  <span>
                     {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
+                  </span>
                   </span>
                 </div>
               </div>
+              </div>
             </div>
+
 
             {/* ACTION BUTTONS - Different for Owner vs Viewer */}
             <div className="flex items-center gap-2">
