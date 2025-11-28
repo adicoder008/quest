@@ -14,6 +14,11 @@ interface PostMenuProps {
 }
 
 const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEdit }) => {
+  console.log('PostMenu debug:', {
+    userUid: user?.uid,
+    postAuthorId: post.authorId,
+    isOwnPost: user?.uid === post.authorId
+  });
   const isOwnPost = user?.uid === post.authorId;
 
   const handleDelete = async () => {
@@ -73,7 +78,7 @@ const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEd
     }
   };
 
-  
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={onClose}>
       <div
@@ -147,7 +152,7 @@ const PostMenu: React.FC<PostMenuProps> = ({ post, user, onClose, onDelete, onEd
       </div>
     </div>
   );
-  
+
 };
 
 export default PostMenu;

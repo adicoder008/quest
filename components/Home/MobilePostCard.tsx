@@ -50,24 +50,24 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
-    
+
     try {
       const date = new Date(timestamp);
       const now = new Date();
       const diff = now.getTime() - date.getTime();
-      
+
       const seconds = Math.floor(diff / 1000);
       const minutes = Math.floor(seconds / 60);
       const hours = Math.floor(minutes / 60);
       const days = Math.floor(hours / 24);
-      
+
       if (days > 7) {
         return date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         });
       }
-      
+
       if (days > 0) return `${days}d ago`;
       if (hours > 0) return `${hours}h ago`;
       if (minutes > 0) return `${minutes}m ago`;
@@ -81,12 +81,12 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
     <div className="bg-black border-b border-gray-800 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <div 
+        <div
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push(`/profile/${post.authorId}`)}
         >
-          <img 
-            src={post.userProfilePic || '/default-avatar.png'} 
+          <img
+            src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
             className="w-10 h-10 rounded-full object-cover"
             onError={(e) => {
@@ -98,7 +98,9 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
             {post.location && (
               <div className="flex items-center gap-1 text-gray-400 text-xs">
                 <MapPin className="w-3 h-3" />
-                <span>{post.location}</span>
+                <span className="truncate max-w-[200px]">
+                  {post.location.length > 30 ? `${post.location.slice(0, 30)}...` : post.location}
+                </span>
               </div>
             )}
           </div>
@@ -116,10 +118,10 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
               <div className="w-8 h-8 border-2 border-[#F7CEB0] border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
-          
+
           {!imageError ? (
-            <img 
-              src={post.imageUrls } 
+            <img
+              src={post.imageUrls}
               alt="Post content"
               className={`w-full h-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
               onLoad={() => setImageLoading(false)}
@@ -142,22 +144,22 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
       <div className="px-4 pt-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={onLike}
               className="hover:opacity-70 transition-opacity"
             >
-              <Heart 
+              <Heart
                 className={`w-6 h-6 ${isLiked ? 'fill-[#EA6100] text-[#EA6100]' : 'text-white'}`}
               />
             </button>
-            <button 
+            <button
               onClick={() => setShowCommentInput(!showCommentInput)}
               className="hover:opacity-70 transition-opacity"
             >
               <MessageCircle className="w-6 h-6 text-white" />
             </button>
           </div>
-          <button 
+          <button
             onClick={onSave}
             className="hover:opacity-70 transition-opacity"
           >
@@ -183,7 +185,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
             {post.caption.length > 100 && !showFullCaption ? (
               <>
                 <span className="text-white">{post.caption.slice(0, 100)}...</span>
-                <button 
+                <button
                   onClick={() => setShowFullCaption(true)}
                   className="text-gray-400 ml-1 hover:text-gray-300"
                 >
@@ -193,12 +195,16 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
             ) : (
               <span className="text-white">{post.caption}</span>
             )}
+            {/* @ts-ignore - updatedAt might not be in the type definition yet but we added it to the update payload */}
+            {post.updatedAt && post.createdAt && post.updatedAt !== post.createdAt && (
+              <span className="text-gray-500 text-xs ml-2">(edited)</span>
+            )}
           </div>
         )}
 
         {/* Comments Count */}
         {(post.commentCount || 0) > 0 && (
-          <button 
+          <button
             onClick={() => router.push(`/post/${post.id}`)}
             className="text-gray-400 text-sm mb-2 hover:text-gray-300 block"
           >
@@ -218,7 +224,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
       {showCommentInput && (
         <div className="px-4 pt-3 border-t border-gray-800 mt-3">
           <div className="flex items-center gap-2">
-            <img 
+            <img
               src={currentUser.photoURL || '/default-avatar.png'}
               alt="Your avatar"
               className="w-8 h-8 rounded-full object-cover"
