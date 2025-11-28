@@ -247,10 +247,6 @@ const EditTitleModal = ({ isOpen, onClose, currentTitle, currentDestination, onS
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Destination</label>
-            <input type="text" value={destination} onChange={(e) => setDestination(e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="e.g., Bali, Indonesia" />
-          </div>
-          <div>
             <label className="block text-sm text-gray-400 mb-2">Quest Title</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="e.g., Amazing Bali Adventure" />
           </div>
@@ -401,17 +397,16 @@ const QuestViewPage = () => {
     setSaving(false);
   };
 
-  const handleSaveTitle = async (newTitle: string, newDestination: string) => {
+  const handleSaveTitle = async (newTitle: string) => {
     if (!user?.uid || !quest) return;
     try {
       await questService.updateQuest(questId, user.uid, {
         title: newTitle,
-        destination: newDestination,
         updatedAt: new Date().toISOString()
       });
-      setQuest({ ...quest, title: newTitle, destination: newDestination });
+      setQuest({ ...quest, title: newTitle });
       if (editedQuest) {
-        setEditedQuest({ ...editedQuest, title: newTitle, destination: newDestination });
+        setEditedQuest({ ...editedQuest, title: newTitle });
       }
       showToast('Quest details updated! ✓', 'success');
     } catch (error) {
@@ -741,7 +736,7 @@ const QuestViewPage = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg md:text-xl font-bold truncate max-w-[150px] md:max-w-xs">
-                    {quest.destination}
+                    {quest.title}
                   </h1>
                   {canEdit && !isEditMode && (
                     <button

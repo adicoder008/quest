@@ -19,7 +19,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   questData,
   uid
 }) => {
-  const [step, setStep] = useState<'check' | 'generating' | 'completed' | 'error'>('check');
+  const [step, setStep] = useState<'check' | 'generating' | 'completed' | 'error' | 'loading'>('loading');
   const [credits, setCredits] = useState({ remaining: 0, resetAt: new Date() });
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -29,9 +29,38 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      checkCredits();
-      checkExistingVideo();
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+
+      const init = async () => {
+        try {
+          // First check if video already exists
+          const existingVideo = await videoService.getQuestVideo(questId);
+          if (existingVideo) {
+            setVideoUrl(existingVideo);
+            setStep('completed');
+          } else {
+            // If not, check credits and show generation screen
+            await checkCredits();
+            setStep('check');
+          }
+        } catch (error) {
+          console.error('Error initializing modal:', error);
+          // Even if error, try to show check screen so user can try generating
+          setStep('check');
+          checkCredits();
+        }
+      };
+
+      init();
+    } else {
+      // Restore body scroll
+      document.body.style.overflow = 'unset';
     }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen, questId]);
 
   const checkCredits = async () => {
@@ -41,7 +70,8 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     } catch (error: any) {
       console.error('Error checking credits:', error);
       setError(error.message);
-      setStep('error');
+      // Don't set error step here, just show 0 credits or error message in UI if needed
+      // But for now keeping it simple
     }
   };
 
@@ -177,10 +207,10 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-orange-500/10 to-purple-500/10">
+        <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-orange-500/10 to-purple-500/10 flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-gray-800 rounded-full transition-colors"
@@ -200,7 +230,15 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+          {/* LOADING STEP */}
+          {step === 'loading' && (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+              <p className="text-gray-400 text-sm">Checking video status...</p>
+            </div>
+          )}
+
           {/* CHECK CREDITS STEP */}
           {step === 'check' && (
             <div className="space-y-6">
