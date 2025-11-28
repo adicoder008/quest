@@ -762,19 +762,23 @@ const QuestViewPage = () => {
               {isOwner ? (
                 /* OWNER VIEW - Share and Edit */
                 <>
-                  {/* Owner Stats - Only show if posted */}
+                  {/* Owner Stats - Interactive Like Button */}
                   {quest.isPostedToFeed && quest.associatedPostId && (
-                    <div className="flex items-center gap-2 mr-2">
-                      <div className="flex items-center gap-1 px-2 py-1 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-                        <FaHeart size={12} />
-                        <span>{likeCount}</span>
-                      </div>
-                    </div>
+                    <button
+                      onClick={handleLike}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm mr-2 ${isLiked
+                        ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                        }`}
+                    >
+                      <FaHeart size={18} fill={isLiked ? 'currentColor' : 'none'} stroke={isLiked ? 'none' : 'currentColor'} strokeWidth={isLiked ? '0' : '20'} />
+                      <span className="hidden md:inline">{likeCount}</span>
+                    </button>
                   )}
 
                   <button
                     onClick={() => setShowVideoModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 via-purple-500 to-pink-600 hover:from-orange-600 hover:via-purple-600 hover:to-pink-700 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-sm font-medium"
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 from-orange-500 via-purple-500 to-pink-600 hover:from-orange-600 hover:via-purple-600 hover:to-pink-700 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-sm font-medium"
                   >
                     <Video size={18} className="animate-pulse" />
                     <span className="hidden md:inline">Generate Video</span>
@@ -794,7 +798,7 @@ const QuestViewPage = () => {
                   {!isEditMode && (
                     <button
                       onClick={() => setIsEditMode(true)}
-                      className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"
+                      className="hidden lg:flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-sm"
                     >
                       <Edit3 size={16} />
                       <span className="hidden md:inline">Edit</span>
@@ -832,7 +836,7 @@ const QuestViewPage = () => {
                       : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
                       }`}
                   >
-                    <FaHeart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+                    <FaHeart size={22} fill={isLiked ? 'currentColor' : 'none'} />
                     <span className="hidden md:inline">{likeCount}</span>
                   </button>
 
@@ -922,17 +926,29 @@ const QuestViewPage = () => {
         {!isEditMode && (
           <div className="sticky top-[65px] z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
             <div className="px-4 py-2 flex items-center justify-between">
-              {/* Map toggle button */}
-              <button
-                onClick={() => setShowMap(!showMap)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium text-sm ${showMap
-                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  : 'bg-orange-500 text-white'
-                  }`}
-              >
-                <Map size={18} />
-                <span>{showMap ? 'List View' : 'Map View'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Mobile Edit Button - Only for owners/editors */}
+                {canEdit && (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="flex items-center justify-center w-10 h-10 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-white"
+                  >
+                    <Edit3 size={20} />
+                  </button>
+                )}
+
+                {/* Map toggle button */}
+                <button
+                  onClick={() => setShowMap(!showMap)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium text-sm h-10 ${showMap
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    : 'bg-orange-500 text-white'
+                    }`}
+                >
+                  <Map size={18} />
+                  <span>{showMap ? 'List View' : 'Map View'}</span>
+                </button>
+              </div>
 
               {/* Day filters (only show when map is visible) */}
               {showMap && (

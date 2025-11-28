@@ -1113,14 +1113,13 @@ const Feed = () => {
               onClick={() => router.push(`/profile/${post.author.id}`)}
             />
             <div className="flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-baseline gap-2">
                 <h3 className="text-base font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.author.id}`)}>
                   {post.author.name}
                 </h3>
-              </div>
-              <div className="flex items-center gap-2">
                 <p className="text-gray-400 text-xs">@{generateUsername(post.author.name)}</p>
-                <span className="text-gray-400 text-xs">·</span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-gray-400 text-xs">{formatTime(post.metadata.createdAt)} · {post.metadata.location}</p>
               </div>
             </div>
@@ -1211,7 +1210,7 @@ const Feed = () => {
               className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
                 }`}
             >
-              <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
 
@@ -1675,25 +1674,30 @@ const MobilePostCard = ({
   return (
     <article className="border-b border-gray-800 bg-black p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <img
             src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
-            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity shrink-0"
             onClick={() => router.push(`/profile/${post.authorId}`)}
           />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.authorId}`)}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 truncate">
+              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline truncate" onClick={() => router.push(`/profile/${post.authorId}`)}>
                 {post.userName}
               </h3>
+              <p className="text-xs text-gray-400 truncate">@{generateUsername(post.userName)}</p>
             </div>
-            <div className="flex items-center gap-1">
-              <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
-              <span className="text-xs text-gray-400">·</span>
-              <p className="text-xs text-gray-400">
-                {formatTime(post.createdAt)} {post.location && `· ${post.location}`}
-              </p>
+            <div className="flex items-center gap-1 text-xs text-gray-400 truncate mt-0.5">
+              {post.location && (
+                <>
+                  <span className="truncate max-w-[150px]">
+                    {post.location.length > 25 ? `${post.location.slice(0, 25)}...` : post.location}
+                  </span>
+                  <span>·</span>
+                </>
+              )}
+              <span className="shrink-0">{formatTime(post.createdAt)}</span>
             </div>
           </div>
         </div>
@@ -1772,7 +1776,7 @@ const MobilePostCard = ({
           className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400'
             }`}
         >
-          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
           <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
 
