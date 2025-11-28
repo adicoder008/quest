@@ -199,14 +199,38 @@ const EditProfilePage = () => {
     );
   }
 
+  // Layout constants matching quest page
+  const QUEST_LEFT_NAV_WIDTH = 280;
+  const QUEST_SIDEBAR_GAP = 16;
+  const QUEST_DESKTOP_MAIN_WIDTH = 60;
+
+  const containerStartExpression = `calc((100vw - (${QUEST_LEFT_NAV_WIDTH}px + ${QUEST_DESKTOP_MAIN_WIDTH}vw + ${QUEST_SIDEBAR_GAP}px)) / 2)`;
+  const mainLeftExpression = `calc(${containerStartExpression} + ${QUEST_LEFT_NAV_WIDTH + QUEST_SIDEBAR_GAP}px)`;
+
+  const mainWidthStyle: React.CSSProperties = {
+    width: `${QUEST_DESKTOP_MAIN_WIDTH}vw`,
+    marginLeft: mainLeftExpression,
+    marginRight: 'auto',
+  };
+
   return (
-    <div className='min-h-screen bg-[#121212]'>
+    <div className='min-h-screen bg-black'>
+      {/* Desktop Navbar */}
       <div className="hidden lg:block">
-        <NavBar user={user} onSignOut={() => {}} />
+        <NavBar 
+          user={user} 
+          onSignOut={() => {}} 
+          style={{
+            left: containerStartExpression,
+            right: 'auto',
+            width: `${QUEST_LEFT_NAV_WIDTH}px`,
+          }}
+        />
       </div>
 
-      <div className='lg:ml-[280px]'>
-        <div className='max-w-4xl mx-auto'>
+      {/* Desktop Main Content */}
+      <div className='hidden lg:block' style={mainWidthStyle}>
+        <div className='w-full max-w-[65vw]'>
           
           {/* Header */}
           <div className='sticky top-0 z-10 bg-[#121212] border-b border-gray-700'>
