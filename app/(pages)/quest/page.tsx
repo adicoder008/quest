@@ -411,9 +411,9 @@ const QuestPage = () => {
                 }}
               />
               <div className="relative h-full flex flex-col justify-center items-center px-6">
-                <h1 className="text-2xl font-bold mb-3 text-white text-center">Plan Your Next Quest!</h1>
+                <h1 className="text-2xl font-bold mb-3 text-white text-center">Share Your Latest Trip</h1>
                 <p className="text-sm text-gray-200 mb-6 text-center">
-                  Create your own Quest or browse your saved adventures.
+                  Inspire fellow travellers by posting your journey from photos and moments to tips and memories, all deserving to be seen
                 </p>
                 <div className="flex flex-col gap-3 w-full max-w-xs">
                   <button

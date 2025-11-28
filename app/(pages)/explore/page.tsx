@@ -435,6 +435,15 @@ const DesktopExplore = () => {
                 )}
               </div>
             </div>
+            <div className="absolute bottom-42 left-0 w-full px-6">
+              <h1 className="text-xl sm:text-2xl font-bold mb-3 text-white text-center">
+                Share Your Latest Trip
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-200 mb-6 text-center">
+                Inspire fellow travellers by posting your journey from photos
+                and moments to tips and memories, all deserving to be seen
+              </p>
+            </div>
 
             <div className="absolute bottom-0 left-0 p-6 w-full flex justify-center">
               <button

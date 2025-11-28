@@ -10,12 +10,12 @@ const Mid = () => {
         <div className='flex flex-col justify-center items-center gap-6 sm:flex-row'>
           
           <div className='flex flex-col shadow-xl w-[85vw] min-h-[45vh] bg-[#FFFFFF]/80 rounded-2xl bg-opacity-80 gap-3 sm:w-[27vw]'>
-            <img className='p-4 rounded-xl' src="/Mid2.png" alt="" />
+            <img className='p-4 rounded-xl' src="/Mid1.png" alt="" />
             <div className='pl-4 text-xl font-[650]'>Create & Share Your Journey</div>
             <div className='pl-4 pb-4'>Turn your itinerary into a post :- share, build, and get ideas</div>
           </div>
-          <div className='flex flex-col shadow-xl w-[85vw] h-[25vh] min-h-[45vh] bg-[#FFFFFF]/80 rounded-xl bg-opacity-80 gap-3 sm:w-[27vw]'>
-            <img className='p-4 rounded-xl' src="/mid.png" alt="" />
+          <div className='flex flex-col shadow-xl w-[85vw] min-h-[45vh] bg-[#FFFFFF]/80 rounded-2xl bg-opacity-80 gap-3 sm:w-[27vw]'>
+            <img className='p-4 rounded-xl' src="/Mid2.png" alt="" />
             <div className='pl-4 text-xl font-[650]'>Explore Quests</div>
             <div className='pl-4 pb-4'>Explore Quests created by others, get inspired, and plan your own adventure.</div>
           </div>

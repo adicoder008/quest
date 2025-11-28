@@ -102,12 +102,15 @@ export const QuestPostCard = ({
             onClick={() => router.push(`/profile/${authorId}`)}
           />
           <div className="flex-1">
-            <h3
-              className="text-white font-medium text-sm cursor-pointer hover:underline"
-              onClick={() => router.push(`/profile/${authorId}`)}
-            >
-              {post.userName}
-            </h3>
+            <div className="flex items-baseline gap-2">
+              <h3
+                className="text-white font-medium text-sm cursor-pointer hover:underline"
+                onClick={() => router.push(`/profile/${authorId}`)}
+              >
+                {post.userName}
+              </h3>
+              <p className="text-gray-400 text-xs">@{post.userName.toLowerCase().replace(/\s+/g, '')}</p>
+            </div>
             <p className="text-gray-400 text-xs">Shared a Quest · {formatTime(post.createdAt)}</p>
           </div>
         </div>
@@ -333,13 +336,16 @@ export const MobileQuestPostCard = ({
             onClick={() => router.push(`/profile/${authorId}`)}
           />
           <div className="flex-1 min-w-0">
-            <span
-              className="text-white font-medium text-sm cursor-pointer hover:underline truncate block"
-              onClick={() => router.push(`/profile/${authorId}`)}
-            >
-              {post.userName}
-            </span>
-            <p className="text-gray-400 text-xs truncate">
+            <div className="flex items-baseline gap-2 truncate">
+              <span
+                className="text-white font-medium text-sm cursor-pointer hover:underline truncate block"
+                onClick={() => router.push(`/profile/${authorId}`)}
+              >
+                {post.userName}
+              </span>
+              <span className="text-gray-500 text-xs truncate">@{post.userName.toLowerCase().replace(/\s+/g, '')}</span>
+            </div>
+            <p className="text-gray-400 text-xs truncate mt-0.5">
               Shared a Quest · {formatTime(post.createdAt)}
             </p>
           </div>
@@ -390,12 +396,12 @@ export const MobileQuestPostCard = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
         {/* Quest Tag - Gen Z Style (Mobile) */}
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-9">
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 animate-pulse"></div>
             <div className="relative px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#F7CEB0]/60 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F7CEB0] shadow-[0_0_6px_#F7CEB0]"></span>
-              <span className="text-[10px] font-bold text-white tracking-widest uppercase"> 
+              <span className="text-[10px] font-bold text-white tracking-widest uppercase">
                 QUEST
               </span>
             </div>
