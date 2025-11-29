@@ -26,12 +26,13 @@ const Features = () => {
     return (
         <>
             {/* Desktop/Laptop Layout */}
-            <div className="relative bg-cover bg-center h-[75vh] flex flex-col items-center pt-10 ">
+            <div className="relative bg-cover bg-center h-auto flex flex-col items-center pt-10 ">
                 <div className="absolute inset-0 bg-[url('/bgc.svg')] bg-cover bg-center opacity-50 z-9"></div>
 
                 {/* Heading */}
-                <h1 className="text-xl md:text-4xl font-bold mb-10 z-10 font-mont">
-                    INTRODUCING QUESTS
+                <h1 className='text-5xl md:text-7xl font-normal font-italic text-black leading-[1.1] tracking-tight font-mont z-50'>
+                    Introducing 
+                    <span className='text-5xl md:text-7xl font-bold text-black leading-[1.1] tracking-tight font-mont z-50'> Quests</span>
                 </h1>
 
                 {/* Desktop layout */}

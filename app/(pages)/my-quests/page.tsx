@@ -18,13 +18,14 @@ interface Quest {
   startDate: string;
   endDate: string;
   createdAt: any;
+  isPublic?: boolean; // Added isPublic
 }
 
 const MyQuestsPage = () => {
   const [user, loading] = useAuthState(auth);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [questsLoading, setQuestsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'public' | 'private'>('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -67,15 +68,12 @@ const MyQuestsPage = () => {
 
   const filteredQuests = quests.filter(quest => {
     if (activeTab === 'all') return true;
-    const now = new Date();
-    const startDate = quest.startDate ? new Date(quest.startDate) : null;
-    const endDate = quest.endDate ? new Date(quest.endDate) : null;
 
-    if (activeTab === 'upcoming') {
-      return startDate && startDate > now;
+    if (activeTab === 'public') {
+      return quest.isPublic === true;
     }
-    if (activeTab === 'past') {
-      return endDate && endDate < now;
+    if (activeTab === 'private') {
+      return !quest.isPublic;
     }
     return true;
   });
@@ -102,7 +100,7 @@ const MyQuestsPage = () => {
       <main className="p-4 md:p-6">
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
-          {(['all', 'upcoming', 'past'] as const).map((tab) => (
+          {(['all', 'public', 'private'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -139,11 +137,11 @@ const MyQuestsPage = () => {
           ))}
         </div>
 
-        {filteredQuests.length === 0 && (
-          <div className="text-center py-20 col-span-full">
-            <p className="text-gray-500">No {activeTab} quests found.</p>
-          </div>
-        )}
+        <div className="text-center py-20 col-span-full">
+          <p className="text-gray-500">
+            {activeTab === 'all' ? 'No quests found.' : `No ${activeTab} quests found.`}
+          </p>
+        </div>
       </main>
     </div>
   );

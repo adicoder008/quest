@@ -125,9 +125,11 @@ export const PlacesAutocomplete = ({
                                 <div className="text-white text-sm font-medium">
                                     {suggestion.placePrediction.structuredFormat.mainText.text}
                                 </div>
-                                <div className="text-gray-400 text-xs mt-0.5">
-                                    {suggestion.placePrediction.structuredFormat.secondaryText.text}
-                                </div>
+                                {suggestion.placePrediction.structuredFormat.secondaryText?.text && (
+                                    <div className="text-gray-400 text-xs mt-0.5">
+                                        {suggestion.placePrediction.structuredFormat.secondaryText.text}
+                                    </div>
+                                )}
                             </div>
                         </button>
                     ))}

@@ -11,18 +11,20 @@ import Footer from '@/components/Footer'
 import Features from '@/components/Features'
 
 
+import LandingNavbar from '@/components/LandingNavbar'
+
 const page = () => {
   return (
     <>
-  
-    <Hero />
-    {/* <HowItWorks /> */}
-    <Features/>
-    <Mid/>
-    <PhoneSection/>
-    <FAQ/>
-    <Signup/>
-    <Footer/> 
+      <LandingNavbar />
+      <Hero />
+      {/* <HowItWorks /> */}
+      <Features />
+      <Mid />
+      <PhoneSection />
+      <FAQ />
+      <Signup />
+      <Footer />
 
     </>
   )

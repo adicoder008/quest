@@ -27,7 +27,7 @@ return (
         <div className='FOOTER flex flex-col'>
             <div className=' flex justify-around sm:justify-between'>
                 <div className='LEFT-HALF flex items-center flex-col sm:flex-row '>
-                    <img src="/OQLogoNew.svg" className='w-48 p-4' alt="" />
+                    <img src="/OQ_LOGO_OLD.svg" className='w-48 p-4' alt="" />
                     <div className='flex flex-col px-[4vw] py-[3vw] gap-2'>
                         <div className='font-semibold text-2xl'>Stay Updated!</div>
                         <div className='w-[25vw]'>Join our community for the latest events and offers.</div>
