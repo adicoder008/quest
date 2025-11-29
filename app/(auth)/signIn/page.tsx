@@ -41,7 +41,7 @@ const page = () => {
       //   setError('');
       await signInWithGoogle();
       toggleAuthModal();
-      router.push('/Feed');
+      router.push('/feed');
     } catch (error) {
       //   setError(error.message);
     }
