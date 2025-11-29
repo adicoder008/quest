@@ -21,16 +21,19 @@ import { QuestFeedGrid } from '@/components/quest/QuestFeedCard';
 import questService from '@/lib/questService';
 import { MobileQuestPostCard, QuestPostCard } from '@/components/Home/QuestPostCard';
 import { getPaginatedPosts } from '../../../lib/postService';
-import RightSidebar from '@/components/RightSidebar/page';
 import NavBar from '@/components/LeftSideNav';
 
 const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
 const LEFT_NAV_WIDTH = 280;
 const RIGHT_SIDEBAR_WIDTH = 380;
-const SIDEBAR_GAP = 0;
+const SIDEBAR_GAP = 2;
 
 const TRIP_BANNER_SRC = '/green_modern_travel_banner.svg';
 const AI_PLANNER_BANNER_SRC = '/aiTripPlanner.svg';
+import CommentModal from '@/components/Home/CommentModal';
+import EditPostModal from '@/components/Home/EditPostModal';
+import MobilePostMenu from '@/components/Home/PostMenu';
+import { getLevelInfo, getUserBadges } from '@/lib/firebaseSerive';
 
 // Helper function to generate username from display name
 const generateUsername = (displayName: string | null | undefined): string => {
@@ -43,6 +46,7 @@ const CreatePostTrigger = ({ user }: { user: UserType | null }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   if (!user) return null;
+
 
   return (
     <>
@@ -77,198 +81,225 @@ const ResponsiveFeedPage = () => {
   return <MobileFeedPage />;
 };
 
-// IMPROVED POST MENU - Shows near the post
-const PostMenu = ({ post, user, onClose, onDelete, anchorRef }: any) => {
-  const isOwnPost = user?.uid === post.author?.id || user?.uid === post.uid;
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportDescription, setReportDescription] = useState('');
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, right: 0 });
+// RIGHT SIDEBAR
+const FeedRightSidebar = ({ user, userData, style }: any) => {
+  const [badges, setBadges] = useState<any[]>([]);
+  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [popularUsers, setPopularUsers] = useState<any[]>([]);
+  const [followingList, setFollowingList] = useState<string[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
-    if (anchorRef?.current && menuRef.current) {
-      const anchorRect = anchorRef.current.getBoundingClientRect();
-      const menuRect = menuRef.current.getBoundingClientRect();
+    const fetchUserData = async () => {
+      if (!user?.uid) return;
 
-      // Position below and to the left of the anchor
-      let top = anchorRect.bottom + 8;
-      let right = window.innerWidth - anchorRect.right;
-
-      // Adjust if menu would go off-screen
-      if (top + menuRect.height > window.innerHeight) {
-        top = anchorRect.top - menuRect.height - 8;
-      }
-
-      if (right + menuRect.width > window.innerWidth) {
-        right = 16;
-      }
-
-      setPosition({ top, right });
-    }
-  }, [anchorRef]);
-
-  const handleCopyLink = () => {
-    const postUrl = `${window.location.origin}/post/${post.id}`;
-    navigator.clipboard.writeText(postUrl);
-    alert('Link copied to clipboard!');
-    onClose();
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
       try {
-        await deletePost(post.id, user!.uid);
-        onDelete?.();
-        onClose();
-      } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Failed to delete post');
-      }
-    }
-  };
+        const userBadges = await getUserBadges(user.uid);
+        setBadges(userBadges.slice(0, 3));
 
-  const handleReport = async () => {
-    if (!reportReason) {
-      alert('Please select a reason');
-      return;
-    }
+        const xp = userData?.totalXP || 0;
+        const level = getLevelInfo(xp);
+        setLevelInfo(level);
+
+        // Get following list
+        const following = await getFollowingList(user.uid);
+        setFollowingList(following);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, [user, userData]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'users'), orderBy('followersCount', 'desc')),
+      (snapshot) => {
+        const usersData = snapshot.docs
+          .map(docc => ({
+            id: docc.id,
+            ...docc.data(),
+            photoURL: docc.data().photoURL || '/default-avatar.png',
+            followers: docc.data().followers || [],
+            followersCount: docc.data().followersCount || 0
+          }))
+          .filter(u => u.id !== user?.uid); // Don't show yourself
+
+        setPopularUsers(usersData.slice(0, 4));
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid || targetUserId === user.uid) return;
 
     try {
-      await reportPost(post.id, user!.uid, reportReason, reportDescription);
-      alert('Post reported successfully');
-      setShowReportModal(false);
-      onClose();
+      const isFollowing = followingList.includes(targetUserId);
+
+      // Optimistically update UI
+      setFollowingList(prev =>
+        isFollowing
+          ? prev.filter(id => id !== targetUserId)
+          : [...prev, targetUserId]
+      );
+
+      if (isFollowing) {
+        await unfollowUserService(user.uid, targetUserId);
+      } else {
+        await followUserService(user.uid, targetUserId);
+      }
     } catch (error) {
-      console.error('Error reporting post:', error);
-      alert('Failed to report post');
+      console.error('Error toggling follow:', error);
+      // Revert optimistic update
+      const following = await getFollowingList(user.uid);
+      setFollowingList(following);
     }
   };
 
-  if (showReportModal) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={() => setShowReportModal(false)}>
-        <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-700 p-6" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">Report Post</h3>
-            <button
-              onClick={() => setShowReportModal(false)}
-              className="p-1 hover:bg-gray-800 rounded-full transition-colors"
-            >
-              <X size={20} className="text-gray-400" />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-gray-300 mb-2 block">Reason</label>
-              <select
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none"
-              >
-                <option value="">Select a reason</option>
-                <option value="spam">Spam</option>
-                <option value="harassment">Harassment</option>
-                <option value="inappropriate">Inappropriate Content</option>
-                <option value="false_info">False Information</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-300 mb-2 block">Additional Details (Optional)</label>
-              <textarea
-                value={reportDescription}
-                onChange={(e) => setReportDescription(e.target.value)}
-                placeholder="Provide more details..."
-                className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:outline-none resize-none"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="flex-1 bg-gray-700 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReport}
-                className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40"
-        onClick={onClose}
-      />
-      <div
-        ref={menuRef}
-        style={{
-          position: 'fixed',
-          top: `${position.top}px`,
-          right: `${position.right}px`,
-        }}
-        className="bg-gray-900 rounded-xl w-64 border border-gray-700 overflow-hidden shadow-2xl z-50"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="py-2">
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
-          >
-            <Copy size={18} className="text-gray-400" />
-            <span className="text-sm">Copy Link</span>
-          </button>
+    <div className="hidden xl:block fixed top-0 h-screen border-l border-gray-700 bg-black p-4 overflow-y-auto" style={style}>
+      {/* User Profile Card */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
+        <div className="h-24 bg-gradient-to-r from-[#F7CEB0] to-[#EA6100]"></div>
 
-          {isOwnPost ? (
-            <>
-              <button
-                onClick={() => {/* Edit functionality */ }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-white text-left"
-              >
-                <Edit size={18} className="text-gray-400" />
-                <span className="text-sm">Edit Post</span>
-              </button>
+        <div className="px-4 pb-4">
+          <img
+            src={user?.photoURL || '/default-avatar.png'}
+            alt={user?.displayName}
+            className="w-20 h-20 rounded-full border-4 border-gray-900 -mt-10 mb-3 object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => router.push(`/profile/${user?.uid}`)}
+          />
 
-              <div className="border-t border-gray-800 my-1" />
+          <h3 className="text-white text-lg font-bold mb-1 cursor-pointer hover:underline" onClick={() => router.push(`/profile/${user?.uid}`)}>
+            {user?.displayName || 'User'}
+          </h3>
+          <p className="text-gray-400 text-sm mb-3">
+            @{generateUsername(user?.displayName)}
+          </p>
 
-              <button
-                onClick={handleDelete}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
-              >
-                <Trash2 size={18} />
-                <span className="text-sm">Delete Post</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="border-t border-gray-800 my-1" />
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors text-red-500 text-left"
-              >
-                <Flag size={18} />
-                <span className="text-sm">Report Post</span>
-              </button>
-            </>
+          {userData?.bio && (
+            <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+              {userData.bio}
+            </p>
+          )}
+
+          {/* Stats */}
+          <div className="flex gap-4 mb-4">
+            <div>
+              <span className="text-white font-bold">{userData?.followingCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Following</span>
+            </div>
+            <div>
+              <span className="text-white font-bold">{userData?.followersCount || 0}</span>
+              <span className="text-gray-400 text-sm ml-1">Followers</span>
+            </div>
+          </div>
+
+          {/* Level Progress */}
+          {levelInfo && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[#F7CEB0] font-medium text-sm">
+                  {levelInfo.currentLevel.name}
+                </span>
+                {levelInfo.nextLevel && (
+                  <span className="text-gray-400 text-xs">
+                    {levelInfo.xpToNext} XP to {levelInfo.nextLevel.name}
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-[#F7CEB0] to-[#EA6100] h-2 rounded-full transition-all"
+                  style={{ width: `${(levelInfo.progress || 0) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {badges.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white font-medium text-sm">Earned Badges</h4>
+                <button
+                  onClick={() => router.push(`/profile/${user?.uid}#badges`)}
+                  className="text-[#F7CEB0] text-xs hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {badges.map(badge => (
+                  <div
+                    key={badge.id}
+                    className="bg-[#F8EBE2] rounded-lg p-2 flex flex-col items-center min-w-[70px]"
+                    title={badge.description}
+                  >
+                    <img
+                      src={badge.iconUrl}
+                      alt={badge.name}
+                      className="w-10 h-10 object-contain mb-1"
+                    />
+                    <span className="text-[#402B09] text-[10px] font-semibold text-center">
+                      {badge.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
-    </>
+
+      {/* Popular Travelers */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+        <h4 className="text-white font-medium text-base mb-4">Popular Travelers</h4>
+        <div className="space-y-3">
+          {popularUsers.map((traveler) => (
+            <div key={traveler.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/profile/${traveler.id}`)}>
+                <img
+                  src={traveler.photoURL}
+                  alt={traveler.displayName}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-white text-sm font-medium hover:underline truncate">
+                    {traveler.displayName}
+                  </h5>
+                  <p className="text-gray-400 text-xs truncate">
+                    {traveler.followersCount} followers
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFollow(traveler.id);
+                }}
+                className={`text-xs px-3 py-1 rounded-full transition-colors flex-shrink-0 ml-2 ${followingList.includes(traveler.id)
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-[#F7CEB0] text-black hover:bg-[#f5c094]'
+                  }`}
+              >
+                {followingList.includes(traveler.id) ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="text-[#F7CEB0] text-sm font-medium mt-4 hover:underline w-full text-left">
+          Explore more
+        </button>
+      </div>
+    </div>
   );
 };
+
+
 
 // Share Modal
 const ShareModal = ({ post, onClose }: any) => {
@@ -388,12 +419,28 @@ const ShareModal = ({ post, onClose }: any) => {
 };
 
 // Inline Comments Component
-const InlineComments = ({ post, user, onCommentSubmit }: any) => {
+const InlineComments = ({ post, user, onCommentSubmit, isOpen, onToggle }: any) => {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+  const [internalShowComments, setInternalShowComments] = useState(false);
   const router = useRouter();
+
+  const showComments = isOpen !== undefined ? isOpen : internalShowComments;
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalShowComments(!internalShowComments);
+    }
+  };
+
+  useEffect(() => {
+    if (showComments) {
+      loadComments();
+    }
+  }, [showComments]);
 
   const loadComments = async () => {
     if (!post?.id) return;
@@ -474,86 +521,84 @@ const InlineComments = ({ post, user, onCommentSubmit }: any) => {
   return (
     <div className="mt-3 border-t border-gray-700 pt-3">
       <button
-        onClick={() => {
-          setShowComments(!showComments);
-          if (!showComments) {
-            loadComments();
-          }
-        }}
+        onClick={handleToggle}
         className="text-gray-400 hover:text-[#F7CEB0] text-sm font-medium mb-3 transition-colors"
       >
         {showComments ? 'Hide' : 'View'} Comments ({post.stats?.comments || 0})
       </button>
 
-      {showComments && (
-        <div className="space-y-3">
-          <form onSubmit={handleSubmit} className="flex items-start gap-3">
-            <img
-              src={user?.photoURL || '/default-avatar.png'}
-              alt="Your profile"
-              className="w-8 h-8 rounded-full object-cover shrink-0"
-            />
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
-                className="w-full bg-gray-800 text-white px-3 py-2 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
-                required
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim()}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${commentText.trim()
-                  ? 'text-[#F7CEB0] hover:text-[#f5c094]'
-                  : 'text-gray-600 cursor-not-allowed'
-                  }`}
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </form>
 
-          {loading ? (
-            <div className="text-center py-4">
-              <div className="text-gray-400 text-sm">Loading comments...</div>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-gray-400 text-sm">No comments yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-2">
-                  <img
-                    src={comment.author.avatar}
-                    alt={comment.author.name}
-                    className="w-6 h-6 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => router.push(`/profile/${comment.author.uid}`)}
-                  />
-                  <div className="flex-1">
-                    <div className="bg-gray-800 rounded-lg p-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-xs font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
-                          {comment.author.name}
-                        </h4>
-                        <span className="text-gray-400 text-xs">·</span>
-                        <span className="text-gray-400 text-xs">
-                          {formatCommentTime(comment.createdAt)}
-                        </span>
+      {
+        showComments && (
+          <div className="space-y-3">
+            <form onSubmit={handleSubmit} className="flex items-start gap-3">
+              <img
+                src={user?.photoURL || '/default-avatar.png'}
+                alt="Your profile"
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="w-full bg-gray-800 text-white px-3 py-2 pr-12 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#F7CEB0] focus:border-transparent focus:outline-none text-sm"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${commentText.trim()
+                    ? 'text-[#F7CEB0] hover:text-[#f5c094]'
+                    : 'text-gray-600 cursor-not-allowed'
+                    }`}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </form>
+
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="text-gray-400 text-sm">Loading comments...</div>
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-gray-400 text-sm">No comments yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex items-start gap-2">
+                    <img
+                      src={comment.author.avatar}
+                      alt={comment.author.name}
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => router.push(`/profile/${comment.author.uid}`)}
+                    />
+                    <div className="flex-1">
+                      <div className="bg-gray-800 rounded-lg p-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-xs font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${comment.author.uid}`)}>
+                            {comment.author.name}
+                          </h4>
+                          <span className="text-gray-400 text-xs">·</span>
+                          <span className="text-gray-400 text-xs">
+                            {formatCommentTime(comment.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-white text-sm">{comment.text}</p>
                       </div>
-                      <p className="text-white text-sm">{comment.text}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+    </div >
   );
 };
 
@@ -569,6 +614,8 @@ const Feed = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [selectedPostForComments, setSelectedPostForComments] = useState<any>(null);
+  const [selectedPostForEdit, setSelectedPostForEdit] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [menuAnchorRef, setMenuAnchorRef] = useState<HTMLButtonElement | null>(null);
   const router = useRouter();
@@ -983,32 +1030,75 @@ const Feed = () => {
     const postText = post.content?.text || post.text;
     const postImages = post.content?.images || post.photoUrls || [];
     const [currentImageIdx, setCurrentImageIdx] = useState(0);
+    const [showQuestComments, setShowQuestComments] = useState(false);
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
+    // Handle Query Params (scrollTo & openComments)
+    useEffect(() => {
+      if (!posts.length || !searchParams) return;
+
+      const scrollToId = searchParams.get('scrollTo');
+      const openComments = searchParams.get('openComments') === 'true';
+
+      if (scrollToId) {
+        const element = document.getElementById(`post-${scrollToId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          if (openComments) {
+            const post = posts.find(p => p.id === scrollToId);
+            if (post) {
+              setSelectedPostForComments(post);
+              // Clear params to prevent reopening on refresh
+              window.history.replaceState({}, '', '/feed');
+            }
+          }
+        }
+      }
+    }, [posts, searchParams]);
+
+    // ... (inside DesktopPost)
     if (post.postType === 'quest_completion' || post.questContext) {
       return (
-        <QuestPostCard
-          post={{
-            id: post.id,
-            uid: post.author.id,
-            userName: post.author.name,
-            userProfilePic: post.author.avatar,
-            text: post.content.text || '',
-            photoUrl: post.content.images?.[0] || '',
-            createdAt: post.metadata.createdAt,
-            likeCount: post.stats.likes || 0,
-            commentCount: post.stats.comments || 0,
-            shareCount: post.stats.shares || 0,
-            likedBy: post.stats.likedBy || [],
-            questContext: post.questContext
-          }}
-          currentUser={user}
-          onLike={() => handleLike(post.id)}
-          onComment={() => handleCommentSubmit(post.id, '')}
-          onShare={() => handleShare(post.id)}
-          onSave={() => handleSave(post.id)}
-          onMenu={() => setSelectedPostForMenu(post)}
-          isSaved={isSaved}
-        />
+        <div id={`post-${post.id}`}>
+          <QuestPostCard
+            post={{
+              id: post.id,
+              uid: post.author.id,
+              userName: post.author.name,
+              userProfilePic: post.author.avatar,
+              text: post.content.text || '',
+              photoUrl: post.content.images?.[0] || '',
+              createdAt: post.metadata.createdAt,
+              likeCount: post.stats.likes || 0,
+              commentCount: post.stats.comments || 0,
+              shareCount: post.stats.shares || 0,
+              likedBy: post.stats.likedBy || [],
+              questContext: post.questContext
+            }}
+            currentUser={user}
+            onLike={() => handleLike(post.id)}
+            onComment={() => setShowQuestComments(!showQuestComments)}
+            onShare={() => handleShare(post.id)}
+            onSave={() => handleSave(post.id)}
+            onMenu={(e) => {
+              setMenuAnchorRef(e.currentTarget);
+              setSelectedPostForMenu(post);
+            }}
+            isSaved={isSaved}
+            followingList={followingList}
+            onFollow={handleFollow}
+          />
+          <div className="px-4 pb-4">
+            <InlineComments
+              post={post}
+              user={user}
+              onCommentSubmit={handleCommentSubmit}
+              isOpen={showQuestComments}
+              onToggle={() => setShowQuestComments(!showQuestComments)}
+            />
+          </div>
+        </div>
       );
     }
 
@@ -1023,14 +1113,13 @@ const Feed = () => {
               onClick={() => router.push(`/profile/${post.author.id}`)}
             />
             <div className="flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-baseline gap-2">
                 <h3 className="text-base font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.author.id}`)}>
                   {post.author.name}
                 </h3>
-              </div>
-              <div className="flex items-center gap-2">
                 <p className="text-gray-400 text-xs">@{generateUsername(post.author.name)}</p>
-                <span className="text-gray-400 text-xs">·</span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-gray-400 text-xs">{formatTime(post.metadata.createdAt)} · {post.metadata.location}</p>
               </div>
             </div>
@@ -1060,11 +1149,6 @@ const Feed = () => {
             )}
 
             <button
-              ref={(el) => {
-                if (selectedPostForMenu?.id === post.id) {
-                  setMenuAnchorRef(el);
-                }
-              }}
               onClick={(e) => {
                 setMenuAnchorRef(e.currentTarget);
                 setSelectedPostForMenu(post);
@@ -1126,7 +1210,7 @@ const Feed = () => {
               className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
                 }`}
             >
-              <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+              <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{post.stats.likes || 0}</span>
             </button>
 
@@ -1170,7 +1254,7 @@ const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className=" min-h-screen bg-black text-white">
       <NavBar
         user={user}
         onSignOut={handleSignOut}
@@ -1224,30 +1308,43 @@ const Feed = () => {
                     <div className="text-gray-400 text-sm">Loading...</div>
                   </div>
                 ) : (
-                  <div
-                    className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
-                    style={{
-                      width: `${banners.length * 100}%`,
-                      transform: `translateX(-${currentBannerIndex * (100 / banners.length)}%)`
-                    }}
-                  >
-                    {banners.map((banner, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => router.push('/aitrip')}
-                        className="relative w-full"
-                        style={{ width: `${100 / banners.length}%` }}
-                        aria-label="Plan your AI-powered trip"
-                      >
-                        <img
-                          src={banner}
-                          alt="Plan your next adventure with AI"
-                          className="w-full h-auto object-cover hover:opacity-95 transition-opacity cursor-pointer"
+                  <>
+                    <div
+                      className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+                      style={{
+                        width: `${banners.length * 100}%`,
+                        transform: `translateX(-${currentBannerIndex * (100 / banners.length)}%)`
+                      }}
+                    >
+                      {banners.map((banner, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => router.push('/quest')}
+                          className="relative w-full"
+                          style={{ width: `${100 / banners.length}%` }}
+                          aria-label="Plan your AI-powered trip"
+                        >
+                          <img
+                            src={banner}
+                            alt="Plan your next adventure with AI"
+                            className="w-full h-auto object-cover hover:opacity-95 transition-opacity cursor-pointer"
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Banner Dots Indicator */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                      {banners.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentBannerIndex ? 'bg-white scale-110' : 'bg-white/40'
+                            }`}
                         />
-                      </button>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1307,7 +1404,7 @@ const Feed = () => {
         </div>
       </main>
 
-      <RightSidebar
+      <FeedRightSidebar
         user={user}
         userData={userData}
         style={{
@@ -1317,29 +1414,10 @@ const Feed = () => {
         }}
       />
 
-      {user && (
-        <>
-          <div className="fixed bottom-6 right-6 z-50">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
-              aria-label="Create new post"
-            >
-              <FaPlus className="text-xl" />
-            </button>
-          </div>
 
-          {showCreateModal && user && (
-            <CreatePostModal
-              onClose={() => setShowCreateModal(false)}
-              user={user}
-            />
-          )}
-        </>
-      )}
 
-      {selectedPostForMenu && menuAnchorRef && (
-        <PostMenu
+      {selectedPostForMenu && (
+        <MobilePostMenu
           post={selectedPostForMenu}
           user={user}
           onClose={() => {
@@ -1351,7 +1429,11 @@ const Feed = () => {
             setSelectedPostForMenu(null);
             setMenuAnchorRef(null);
           }}
-          anchorRef={menuAnchorRef}
+          onEdit={() => {
+            setSelectedPostForEdit(selectedPostForMenu);
+            setSelectedPostForMenu(null);
+            setMenuAnchorRef(null);
+          }}
         />
       )}
 
@@ -1359,6 +1441,27 @@ const Feed = () => {
         <ShareModal
           post={selectedPostForShare}
           onClose={() => setSelectedPostForShare(null)}
+        />
+      )}
+
+      {selectedPostForComments && (
+        <CommentModal
+          post={selectedPostForComments}
+          user={user}
+          onClose={() => setSelectedPostForComments(null)}
+          onCommentSubmit={handleCommentSubmit}
+        />
+      )}
+
+      {selectedPostForEdit && user && (
+        <EditPostModal
+          post={selectedPostForEdit}
+          user={user}
+          onClose={() => setSelectedPostForEdit(null)}
+          onPostUpdated={(updatedPost) => {
+            setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSelectedPostForEdit(null);
+          }}
         />
       )}
     </div>
@@ -1571,25 +1674,30 @@ const MobilePostCard = ({
   return (
     <article className="border-b border-gray-800 bg-black p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <img
             src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
-            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity shrink-0"
             onClick={() => router.push(`/profile/${post.authorId}`)}
           />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline" onClick={() => router.push(`/profile/${post.authorId}`)}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 truncate">
+              <h3 className="text-sm font-medium text-white cursor-pointer hover:underline truncate" onClick={() => router.push(`/profile/${post.authorId}`)}>
                 {post.userName}
               </h3>
+              <p className="text-xs text-gray-400 truncate">@{generateUsername(post.userName)}</p>
             </div>
-            <div className="flex items-center gap-1">
-              <p className="text-xs text-gray-400">@{generateUsername(post.userName)}</p>
-              <span className="text-xs text-gray-400">·</span>
-              <p className="text-xs text-gray-400">
-                {formatTime(post.createdAt)} {post.location && `· ${post.location}`}
-              </p>
+            <div className="flex items-center gap-1 text-xs text-gray-400 truncate mt-0.5">
+              {post.location && (
+                <>
+                  <span className="truncate max-w-[150px]">
+                    {post.location.length > 25 ? `${post.location.slice(0, 25)}...` : post.location}
+                  </span>
+                  <span>·</span>
+                </>
+              )}
+              <span className="shrink-0">{formatTime(post.createdAt)}</span>
             </div>
           </div>
         </div>
@@ -1668,7 +1776,7 @@ const MobilePostCard = ({
           className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-400'
             }`}
         >
-          <FaHeartbeat className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          <FaHeart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
           <span className="text-xs font-medium">{post.likeCount || 0}</span>
         </button>
 
@@ -1776,6 +1884,7 @@ const MobileFeedPage = () => {
   const [userData, setUserData] = useState<any>(null);
   const [selectedPostForMenu, setSelectedPostForMenu] = useState<any>(null);
   const [selectedPostForShare, setSelectedPostForShare] = useState<any>(null);
+  const [selectedPostForEdit, setSelectedPostForEdit] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [followingList, setFollowingList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -2237,48 +2346,61 @@ const MobileFeedPage = () => {
         </div>
       </div>
 
-      <div className="w-screen overflow-hidden relative" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
+      <div className="w-screen overflow-hidden relative py-2" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
         {!bannersLoaded ? (
           <div className="w-full h-48 bg-black flex items-center justify-center">
             <div className="text-gray-400">Loading banners...</div>
           </div>
         ) : (
-          <div
-            className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
-            style={{
-              transform: `translateX(-${currentBannerIndex * 100}vw)`,
-              width: `${banners.length * 100}vw`
-            }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            {banners.map((banner, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => window.location.href = '/aitrip'}
-                className="shrink-0 flex justify-center items-center bg-black"
-                style={{ width: '100vw', minHeight: '200px' }}
-                aria-label="Plan your AI-powered trip"
-              >
-                <img
-                  src={banner}
-                  alt="Plan your next adventure with AI"
-                  className="w-full h-full object-contain hover:opacity-95 transition-opacity cursor-pointer"
-                  style={{ maxHeight: '50vh', width: '100%' }}
-                  onError={(e) => {
-                    console.error('Failed to load banner:', banner, 'at index:', index);
-                    e.currentTarget.style.opacity = '0.5';
-                  }}
-                  onLoad={(e) => {
-                    e.currentTarget.style.display = 'block';
-                    e.currentTarget.style.opacity = '1';
-                  }}
+          <>
+            <div
+              className="flex transition-transform duration-[2000ms] ease-in-out will-change-transform"
+              style={{
+                transform: `translateX(-${currentBannerIndex * 100}vw)`,
+                width: `${banners.length * 100}vw`
+              }}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              {banners.map((banner, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => window.location.href = '/quest'}
+                  className="shrink-0 flex justify-center items-center bg-black"
+                  style={{ width: '100vw', minHeight: '200px' }}
+                  aria-label="Plan your AI-powered trip"
+                >
+                  <img
+                    src={banner}
+                    alt="Plan your next adventure with AI"
+                    className="w-full h-full object-contain hover:opacity-95 transition-opacity cursor-pointer"
+                    style={{ maxHeight: '50vh', width: '100%' }}
+                    onError={(e) => {
+                      console.error('Failed to load banner:', banner, 'at index:', index);
+                      e.currentTarget.style.opacity = '0.5';
+                    }}
+                    onLoad={(e) => {
+                      e.currentTarget.style.display = 'block';
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Banner Dots Indicator */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {banners.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentBannerIndex ? 'bg-white scale-110' : 'bg-white/40'
+                    }`}
                 />
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -2351,7 +2473,7 @@ const MobileFeedPage = () => {
       </div>
 
       {selectedPostForMenu && (
-        <PostMenu
+        <MobilePostMenu
           post={selectedPostForMenu}
           user={user}
           onClose={() => setSelectedPostForMenu(null)}
@@ -2359,7 +2481,10 @@ const MobileFeedPage = () => {
             setPosts(prev => prev.filter(p => p.id !== selectedPostForMenu.id));
             setSelectedPostForMenu(null);
           }}
-          anchorRef={null}
+          onEdit={() => {
+            setSelectedPostForEdit(selectedPostForMenu);
+            setSelectedPostForMenu(null);
+          }}
         />
       )}
 
@@ -2370,26 +2495,19 @@ const MobileFeedPage = () => {
         />
       )}
 
-      {user && (
-        <>
-          <div className="fixed bottom-20 right-6 z-50">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center w-14 h-14 bg-[#F7CEB0] text-black rounded-full shadow-lg hover:bg-[#f5c094] transition-all duration-200"
-              aria-label="Create new post"
-            >
-              <FaPlus className="text-xl" />
-            </button>
-          </div>
-
-          {showCreateModal && user && (
-            <CreatePostModal
-              onClose={() => setShowCreateModal(false)}
-              user={user}
-            />
-          )}
-        </>
+      {selectedPostForEdit && user && (
+        <EditPostModal
+          post={selectedPostForEdit}
+          user={user}
+          onClose={() => setSelectedPostForEdit(null)}
+          onPostUpdated={(updatedPost) => {
+            setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSearchResults(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+            setSelectedPostForEdit(null);
+          }}
+        />
       )}
+
 
       <Footer />
     </div>

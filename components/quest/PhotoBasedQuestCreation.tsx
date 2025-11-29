@@ -83,6 +83,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   const [showWarning, setShowWarning] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [questContacts, setQuestContacts] = useState<OnQuestPersonData[]>([]);
+  const [description, setDescription] = useState('');
   const photoRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const start = new Date(startDate);
@@ -104,7 +105,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-   
+
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) return false;
       if (file.size > 10 * 1024 * 1024) {
@@ -117,7 +118,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
     const newPhotosPromises = validFiles.map(async (file) => {
       const preview = URL.createObjectURL(file);
       const photoId = `${Date.now()}-${Math.random().toString(36)}`;
-     
+
       let location: PhotoWithMetadata['location'] | undefined;
       try {
         const exifLocation = await extractLocationFromPhoto(file);
@@ -127,7 +128,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       } catch (error) {
         console.log(`No location data in ${file.name}`);
       }
-     
+
       return {
         id: photoId,
         file,
@@ -140,7 +141,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
 
     const newPhotos = await Promise.all(newPhotosPromises);
     setPhotos(prev => [...prev, ...newPhotos]);
-   
+
     const photosWithLocation = newPhotos.filter(p => p.location);
     if (photosWithLocation.length > 0) {
       setExifToast({ show: true, count: photosWithLocation.length });
@@ -150,16 +151,16 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
 
   const uploadPhotos = async () => {
     setUploading(true);
-   
+
     const uploadPromises = photos.map(async (photo) => {
       if (photo.uploadStatus === 'success') return photo;
-     
+
       try {
         setPhotos(prev => prev.map(p =>
           p.id === photo.id ? { ...p, uploadStatus: 'uploading' as const, uploadProgress: 0 } : p
         ));
         const url = await compressAndUploadImage(photo.file, 'quests', userId);
-       
+
         const successUpdate = {
           uploadStatus: 'success' as const,
           imageUrl: url,
@@ -188,7 +189,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       if (photo) URL.revokeObjectURL(photo.preview);
       return prev.filter(p => p.id !== photoId);
     });
-   
+
     setDayGroups(prev => prev.map(group => ({
       ...group,
       photos: group.photos.filter(p => p.id !== photoId)
@@ -215,7 +216,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       }));
 
       const targetGroup = newGroups.find(g => g.day === selectedDay);
-     
+
       if (targetGroup) {
         targetGroup.photos.push(updatedPhoto);
       }
@@ -228,7 +229,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
     setPhotos(prev => prev.map(p =>
       p.id === photoId ? { ...p, ...updates } : p
     ));
-   
+
     setDayGroups(prev => prev.map(group => ({
       ...group,
       photos: group.photos.map(p => p.id === photoId ? { ...p, ...updates } : p)
@@ -238,7 +239,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   const isCurrentDayValid = () => {
     const currentDayPhotos = dayGroups[selectedDay - 1]?.photos || [];
     if (currentDayPhotos.length === 0) return true;
-   
+
     return currentDayPhotos.every(photo =>
       photo.location?.name &&
       photo.title?.trim() &&
@@ -253,7 +254,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         setTimeout(() => setShowWarning(false), 4000);
         return;
       }
-      
+
       if (selectedDay < dayCount) {
         setSelectedDay(selectedDay + 1);
       } else {
@@ -312,7 +313,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
 
   const handleCreateQuest = async () => {
     setCreating(true);
-   
+
     try {
       const getTimeSlot = (idx: number) => {
         if (idx < 3) return 'Morning';
@@ -356,7 +357,8 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         tripType: 'solo',
         preferences: [],
         budget: 0,
-        title: `Trip to ${destination}`
+        title: `Trip to ${destination}`,
+        description: description.trim(),
       };
 
       let coverImageFile: File | undefined;
@@ -376,7 +378,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         coverImageFile,
         []
       );
-     
+
       if (result.success && result.questId) {
         // Add all contacts to the quest
         for (const contact of questContacts) {
@@ -386,7 +388,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             userId: userId,
           });
         }
-        
+
         router.push(`/quest/${result.questId}`);
       } else {
         throw new Error('Failed to create quest');
@@ -468,7 +470,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                   alt="Travel photo"
                   className="w-full h-32 sm:h-48 object-cover rounded-lg"
                 />
-               
+
                 <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   {photo.uploadStatus === 'pending' && (
                     <span className="text-white text-xs sm:text-sm">Pending</span>
@@ -541,7 +543,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
               Add Photos to This Day ({unassignedPhotos.length} remaining)
             </h3>
-           
+
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3">
               {unassignedPhotos.map(photo => (
                 <button
@@ -645,11 +647,10 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
                               setCurrentPhotoForLocation(photo.id);
                               setShowLocationModal(true);
                             }}
-                            className={`w-full bg-gray-700 text-left text-white px-3 py-2 rounded-lg border ${
-                              photo.location?.name
-                                ? 'border-green-500'
-                                : 'border-gray-600'
-                            } hover:border-orange-500 focus:border-orange-500 focus:outline-none transition-colors text-xs sm:text-sm`}
+                            className={`w-full bg-gray-700 text-left text-white px-3 py-2 rounded-lg border ${photo.location?.name
+                              ? 'border-green-500'
+                              : 'border-gray-600'
+                              } hover:border-orange-500 focus:border-orange-500 focus:outline-none transition-colors text-xs sm:text-sm`}
                           >
                             {photo.location?.name || 'Click to search location...'}
                           </button>
@@ -818,11 +819,24 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   const renderCoverStep = () => (
     <div className="max-w-4xl mx-auto pb-32 px-4 sm:px-0">
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Choose Cover Image</h2>
-        <p className="text-sm sm:text-base text-gray-400">Select a photo or upload a new one as your quest cover</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Final Touches</h2>
+        <p className="text-sm sm:text-base text-gray-400">Add a description and choose a cover image for your quest</p>
+      </div>
+
+      <div className="mb-8">
+        <label className="text-white font-medium mb-2 block text-sm sm:text-base">
+          Quest Description
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Tell people what this quest is about..."
+          className="w-full bg-gray-900 text-white p-4 rounded-xl border border-gray-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none resize-none min-h-[120px] text-base"
+        />
       </div>
 
       <div className="mb-6 sm:mb-8">
+        <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Choose Cover Image</h3>
         <label className="block cursor-pointer">
           <div className="border-2 border-dashed border-gray-600 rounded-2xl p-6 sm:p-8 text-center hover:border-orange-500 transition-colors bg-gray-900/50">
             <Camera className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
@@ -868,9 +882,8 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
               <button
                 key={photo.id}
                 onClick={() => setSelectedCoverPhotoId(photo.id)}
-                className={`relative hover:scale-105 transition-transform ${
-                  selectedCoverPhotoId === photo.id ? 'ring-4 ring-orange-500 scale-105' : ''
-                }`}
+                className={`relative hover:scale-105 transition-transform ${selectedCoverPhotoId === photo.id ? 'ring-4 ring-orange-500 scale-105' : ''
+                  }`}
               >
                 <img
                   src={photo.preview}
@@ -896,7 +909,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
       {currentStep === 'organize' && renderOrganizeStep()}
       {currentStep === 'contacts' && renderContactsStep()}
       {currentStep === 'cover' && renderCoverStep()}
-     
+
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-gray-800 z-50 safe-bottom">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex justify-between items-center gap-3">
@@ -907,7 +920,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Back</span>
             </button>
-           
+
             {currentStep === 'upload' ? (
               <button
                 onClick={() => {
@@ -986,7 +999,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             : undefined
         }
       />
-     
+
       {exifToast.show && (
         <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-8 z-50 animate-slide-up max-w-xs sm:max-w-sm">
           <div className="bg-green-600 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-green-500">
@@ -1016,7 +1029,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
           </div>
         </div>
       )}
-     
+
       <style jsx>{`
         @keyframes slide-up {
           from {

@@ -10,6 +10,7 @@ interface QuestCardProps {
   backgroundImage: string;
   travelers: string[]; // Array of image URLs
   orientation?: 'landscape' | 'portrait';
+  onClick?: () => void;
 }
 
 const QuestCard: React.FC<QuestCardProps> = ({
@@ -20,12 +21,14 @@ const QuestCard: React.FC<QuestCardProps> = ({
   duration,
   backgroundImage,
   travelers,
-  orientation = 'landscape'
+  orientation = 'landscape',
+  onClick
 }) => {
   const isLandscape = orientation === 'landscape';
 
   return (
     <div
+      onClick={onClick}
       className={`relative overflow-hidden rounded-xl shadow-lg group cursor-pointer ${isLandscape ? 'w-full max-w-md h-64' : 'w-40 h-56'
         }`}
     >

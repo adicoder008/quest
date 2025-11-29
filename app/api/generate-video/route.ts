@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, storage, admin } from '@/lib/firebaseAdmin';
 import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda/client';
-const IS_PRODUCTION = true; 
+const IS_PRODUCTION = true;
 
 const REMOTION_FUNCTION_NAME = process.env.REMOTION_LAMBDA_FUNCTION_NAME!;
 const REMOTION_REGION = process.env.REMOTION_AWS_REGION as any;
@@ -31,10 +31,10 @@ export async function POST(request: NextRequest) {
 
     const requestData = requestDoc.data();
     if (!requestData) {
-        return NextResponse.json(
-            { success: false, error: 'Video request data is empty' },
-            { status: 404 }
-        );
+      return NextResponse.json(
+        { success: false, error: 'Video request data is empty' },
+        { status: 404 }
+      );
     }
 
     if (IS_PRODUCTION) {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
           codec: 'h264',
           inputProps: requestData.questData,
           privacy: 'public',
-          concurrency: 8 
+          concurrency: 5
         });
 
         // Admin SDK Firestore syntax
@@ -85,12 +85,12 @@ export async function POST(request: NextRequest) {
       // --- DEVELOPMENT: Simulate video generation ---
       console.log('🎬 Simulating video generation for development...');
       console.log('Quest Data:', requestData.questData);
-      
+
       for (let progress = 20; progress <= 100; progress += 20) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       const placeholderVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-      
+
       // Admin SDK Firestore syntax
       await requestRef.update({
         status: 'completed',
@@ -152,12 +152,12 @@ export async function GET(request: NextRequest) {
 
     const data = requestDoc.data();
     if (!data) {
-        return NextResponse.json(
-            { success: false, error: 'Video request data is empty' },
-            { status: 404 }
-        );
+      return NextResponse.json(
+        { success: false, error: 'Video request data is empty' },
+        { status: 404 }
+      );
     }
-    
+
     // Convert Timestamps to ISO strings for JSON serialization
     const createdAt = (data.createdAt as admin.firestore.Timestamp)?.toDate().toISOString();
     const completedAt = (data.completedAt as admin.firestore.Timestamp)?.toDate().toISOString();
@@ -177,8 +177,8 @@ export async function GET(request: NextRequest) {
 
     // --- Status is 'processing', so we must check Remotion ---
     if (!IS_PRODUCTION) {
-        // This 'else' block will not be reached if IS_PRODUCTION is true
-        return NextResponse.json({ success: true, status: 'processing', progress: data.progress });
+      // This 'else' block will not be reached if IS_PRODUCTION is true
+      return NextResponse.json({ success: true, status: 'processing', progress: data.progress });
     }
 
     // --- Production: Check progress with Remotion Lambda ---
@@ -210,13 +210,13 @@ export async function GET(request: NextRequest) {
       // 2. Render is Done!
       if (progress.done && progress.outputFile) {
         const videoBuffer = await fetch(progress.outputFile).then(r => r.arrayBuffer());
-        
+
         // Admin SDK Storage syntax
         const videoRef = storage.file(`quest-videos/${data.questId}/${requestId}.mp4`);
-        
+
         // Save the file
         await videoRef.save(Buffer.from(videoBuffer));
-        
+
         // Make the file public so it's viewable
         await videoRef.makePublic();
         const videoUrl = videoRef.publicUrl(); // Get the public URL
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ success: true, status: 'completed', videoUrl, progress: 100 });
       }
-      
+
       // 3. Render Failed
       if (progress.fatalErrorEncountered) {
         const errorMsg = progress.errors?.[0]?.message || 'Video rendering failed';

@@ -349,10 +349,9 @@ const questService = {
   async postQuestToFeed(
     questId: string,
     uid: string,
-    visibility: 'public' | 'private',
     coverImageFile?: File | null,
     existingCoverUrl?: string | null // NEW PARAM: Pass existing URL if user selected one without uploading new file
-  ): Promise<{ success: boolean; error?: string; postId?: string }> {
+  ): Promise<{ success: boolean; error?: string; postId?: string; qpAwarded?: number }> {
     try {
       const auth = getAuth();
       const currentUser = auth.currentUser;
@@ -378,7 +377,7 @@ const questService = {
       }
 
       // 2. Prevent duplicate posting for public quests
-      if (visibility === 'public' && questData.isPostedToFeed) {
+      if (questData.isPostedToFeed) {
         return {
           success: false,
           error: 'This quest has already been posted to the feed.'
@@ -420,47 +419,75 @@ const questService = {
       }
 
       // 5. Enforce image for public posts
-      if (visibility === 'public' && !finalCoverImageUrl) {
+      if (!finalCoverImageUrl) {
         return {
           success: false,
-          error: 'A cover image is required to post a quest publicly.'
+          error: 'A cover image is required to post a quest.'
         };
       }
 
       let postId: string | undefined;
 
-      // 6. Create the feed post if public
-      if (visibility === 'public') {
-        const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
-        const dayCount = questData.itinerary?.days?.length || 0;
+      // 6. Create the feed post (Always Public)
+      const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
+      const dayCount = questData.itinerary?.days?.length || 0;
 
-        const postResult = await createPost({
-          uid: uid,
-          userName: userName,
-          userProfilePic: userProfilePic,
-          text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'Untitled QUest!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
-          photoUrl: finalCoverImageUrl,
-          postType: 'quest_completion',
-          questContext: {
-            questId: questId,
-            questTitle: questData.title || `Quest to ${questData.destination}`,
-            description: questData.description || '',
-          }
-        });
+      const postResult = await createPost({
+        uid: uid,
+        userName: userName,
+        userProfilePic: userProfilePic,
+        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'Untitled Quest!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
+        photoUrl: finalCoverImageUrl,
+        postType: 'quest_completion',
+        questContext: {
+          questId: questId,
+          questTitle: questData.title || `Quest to ${questData.destination}`,
+          description: questData.description || '',
+        }
+      });
 
-        postId = postResult.id;
-      }
+      postId = postResult.id;
 
       // 7. Update the quest document
       await updateDoc(questRef, {
         coverImageUrl: finalCoverImageUrl, // Ensures the chosen image (new or existing) is saved
-        isPublic: visibility === 'public',
-        isPostedToFeed: visibility === 'public' ? true : (questData.isPostedToFeed || false),
-        associatedPostId: postId || questData.associatedPostId || null,
+        isPublic: true,
+        isPostedToFeed: true,
+        associatedPostId: postId,
         updatedAt: serverTimestamp()
       });
 
-      return { success: true, postId };
+      // 8. Award QPs
+      let qpAwarded = 0;
+      try {
+        const qpResult = await awardQuestSubmissionQPs(uid, questId);
+        qpAwarded = qpResult.qpAwarded;
+      } catch (qpError) {
+        console.error('Error awarding QPs:', qpError);
+        // Don't fail the whole post if QP award fails, but log it
+      }
+
+      // 9. Notify Followers
+      try {
+        const { getFollowersList } = await import('./followService'); // Dynamic import to avoid circular dependency if any
+        const { notifyNewPost } = await import('./notificationService');
+
+        const followers = await getFollowersList(uid);
+        if (followers.length > 0 && postId) {
+          await notifyNewPost(
+            postId,
+            uid,
+            userName,
+            userProfilePic,
+            questData.title || questData.destination || 'New Quest',
+            followers
+          );
+        }
+      } catch (notifError) {
+        console.error('Error notifying followers:', notifError);
+      }
+
+      return { success: true, postId, qpAwarded };
     } catch (error) {
       console.error('Error posting quest to feed:', error);
       return {
@@ -572,7 +599,48 @@ const questService = {
         day: i + 1,
         date: currentDate.toISOString().split('T')[0],
         title: `Day ${i + 1}`,
-        activities: []
+        activities: [
+          {
+            time: 'Morning',
+            title: 'Morning Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: !(i === 0), // Only expand first day's first activity
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Afternoon',
+            title: 'Afternoon Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Evening',
+            title: 'Evening Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Night',
+            title: 'Night Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          }
+        ]
       };
     });
 
@@ -581,6 +649,67 @@ const questService = {
       generated: false,
       tripData: questData
     };
+  },
+  // File: services/questService.ts
+
+  /**
+   * Deletes a quest and cleans up associated data
+   */
+  async deleteQuest(questId: string, uid: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
+
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
+
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
+
+      const questData = questSnap.data();
+
+      // [FIX] Check ownership using BOTH the direct field and the members map
+      const isOwner = questData.owner === uid || questData.members?.[uid] === 'owner';
+
+      if (!isOwner) {
+        console.error('Ownership check failed:', { owner: questData.owner, uid, members: questData.members });
+        throw new Error('Only the owner can delete this quest.');
+      }
+
+      await runTransaction(db, async (transaction) => {
+        // 1. Delete the Quest document
+        transaction.delete(questRef);
+
+        // 2. Remove questId from user's profile
+        const userRef = doc(db, 'users', uid);
+        transaction.update(userRef, {
+          questIds: arrayRemove(questId)
+        });
+
+        // 3. Delete associated chat if it exists
+        if (questData.chatId) {
+          const chatRef = doc(db, 'chats', questData.chatId);
+          // Note: This requires 'allow delete' in firestore.rules for chats
+          transaction.delete(chatRef);
+        }
+
+        // 4. Delete associated feed post if it exists
+        if (questData.associatedPostId) {
+          const postRef = doc(db, 'posts', questData.associatedPostId);
+          // Note: This requires 'allow delete' in firestore.rules for posts
+          transaction.delete(postRef);
+        }
+      });
+
+      console.log('Quest deleted successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting quest:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete quest'
+      };
+    }
   }
 };
 

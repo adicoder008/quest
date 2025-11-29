@@ -2,6 +2,8 @@
 'use client'
 import React, { useState, useEffect, Children } from "react";
 import { IoClose } from "react-icons/io5";
+import { initializeUserGamification } from '@/lib/qpService';
+
 
 const layout = (props: { children?: React.ReactNode }) => {
     //  const navigate = useNavigate();

@@ -8,6 +8,11 @@ import questService from '@/lib/questService';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
+import { PlacesAutocomplete } from '@/components/common/PlacesAutocomplete';
+
+const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
+const LEFT_NAV_WIDTH = 280;
+const SIDEBAR_GAP = 0;
 
 interface PlaceData {
   coordinates: { lat: number; lng: number };
@@ -29,177 +34,53 @@ interface TripData {
   destinationData?: PlaceData;
 }
 
-// Google Places Autocomplete Hook
-const useGooglePlaces = () => {
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const searchPlaces = async (input: string) => {
-    if (!input || input.length < 3) {
-      setPredictions([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (window.google) {
-        const service = new google.maps.places.AutocompleteService();
-        service.getPlacePredictions(
-          {
-            input,
-            types: ['(cities)'],
-          },
-          (predictions, status) => {
-            setLoading(false);
-            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-              setPredictions(predictions.slice(0, 8));
-            } else {
-              setPredictions([]);
-            }
-          }
-        );
-      }
-    } catch (error) {
-      setLoading(false);
-      console.error('Error fetching place predictions:', error);
-    }
-  };
-
-  const getPlaceDetails = async (placeId: string): Promise<any> => {
-    return new Promise((resolve) => {
-      if (window.google) {
-        const map = new google.maps.Map(document.createElement('div'));
-        const service = new google.maps.places.PlacesService(map);
-        
-        service.getDetails(
-          {
-            placeId,
-            fields: ['name', 'geometry', 'formatted_address', 'types']
-          },
-          (place, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-              resolve({
-                name: place.name || '',
-                coordinates: {
-                  lat: place.geometry?.location?.lat() || 0,
-                  lng: place.geometry?.location?.lng() || 0
-                },
-                formatted_address: place.formatted_address || '',
-                types: place.types || []
-              });
-            } else {
-              resolve(null);
-            }
-          }
-        );
-      }
-    });
-  };
-
-  return { predictions, loading, searchPlaces, getPlaceDetails, clearPredictions: () => setPredictions([]) };
-};
-
-const DESKTOP_MAIN_WIDTH = 60; // percentage of viewport width used for desktop content
-const LEFT_NAV_WIDTH = 280;
-const SIDEBAR_GAP = 5;
-
 // Location Search Component
 const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, onLocationSelected?: (value: string) => void, placeholder: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-  const { predictions, loading, searchPlaces, getPlaceDetails, clearPredictions } = useGooglePlaces();
 
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
+  const handleSelect = async (suggestion: any) => {
+    const locationName = suggestion.placePrediction.structuredFormat.mainText.text;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onChange(newValue, undefined);
-    
-    if (newValue.length >= 3) {
-      setIsOpen(true);
-      searchPlaces(newValue);
-    } else {
-      setIsOpen(false);
-      clearPredictions();
-    }
-  };
-
-  const handlePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
     try {
-      const placeDetails = await getPlaceDetails(prediction.place_id);
-      
-      if (placeDetails) {
-        const locationName = prediction.structured_formatting.main_text;
-        setInputValue(locationName);
+      const response = await fetch('/api/place-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId: suggestion.placePrediction.placeId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const place = data.place;
+
         onChange(locationName, {
-          coordinates: placeDetails.coordinates,
-          fullAddress: placeDetails.formatted_address,
-          placeId: prediction.place_id,
-          types: placeDetails.types
+          coordinates: {
+            lat: place.location?.latitude || 0,
+            lng: place.location?.longitude || 0
+          },
+          fullAddress: place.formattedAddress,
+          placeId: suggestion.placePrediction.placeId,
+          types: place.types
         });
-        
-        if (onLocationSelected) {
-          onLocationSelected(locationName);
-        }
+      } else {
+        // Fallback if details fail
+        onChange(locationName, undefined);
       }
     } catch (error) {
-      console.error('Error getting place details:', error);
+      console.error("Failed to fetch place details", error);
+      onChange(locationName, undefined);
     }
-    
-    setIsOpen(false);
-    clearPredictions();
+
+    if (onLocationSelected) {
+      onLocationSelected(locationName);
+    }
   };
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => {
-            if (inputValue.length >= 3) setIsOpen(true);
-          }}
-          className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
-        />
-        {inputValue && (
-          <button
-            onClick={() => {
-              setInputValue('');
-              onChange('', undefined);
-              setIsOpen(false);
-              clearPredictions();
-            }}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-          >
-            <X className="h-5 w-5 text-gray-400 hover:text-white" />
-          </button>
-        )}
-      </div>
-
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-gray-800 border border-gray-600 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-          {loading && <div className="p-4 text-center text-gray-400">Loading...</div>}
-          {!loading && predictions.length > 0 && predictions.map((p) => (
-            <button
-              key={p.place_id}
-              onClick={() => handlePlaceSelect(p)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-700 text-left"
-            >
-              <MapPin className="w-5 h-5 text-orange-500 flex-shrink-0" />
-              <div>
-                <div className="font-medium text-white">{p.structured_formatting.main_text}</div>
-                <div className="text-sm text-gray-400">{p.structured_formatting.secondary_text}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <PlacesAutocomplete
+      value={value}
+      onChange={(val) => onChange(val, undefined)}
+      onSelect={handleSelect}
+      placeholder={placeholder}
+    />
   );
 };
 
@@ -228,7 +109,7 @@ const AITripPlannerPage = () => {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth');
+      router.push('/');
     }
   }, [user, loading, router]);
 
@@ -268,7 +149,7 @@ const AITripPlannerPage = () => {
     }
     setLoadingpreferences(false);
   };
-  
+
   const handleSourceChange = (source: string, placeData?: PlaceData) => {
     setTripData(prev => ({ ...prev, source, sourceData: placeData }));
   };
@@ -276,7 +157,7 @@ const AITripPlannerPage = () => {
   const handleDestinationChange = (destination: string, placeData?: PlaceData) => {
     setTripData(prev => ({ ...prev, destination, destinationData: placeData }));
   };
-  
+
   const handleDestinationSelected = (destination: string) => {
     fetchDestinationpreferences(destination);
   };
@@ -413,215 +294,212 @@ const AITripPlannerPage = () => {
         />
         <div className="relative min-h-screen" style={desktopMainStyle}>
           <div className="border-x border-gray-800 min-h-screen px-8 py-6">
-          {/* Progress bar */}
-          <div className="mb-12">
-            <div className="flex justify-between mb-3">
-              <span className="text-lg text-gray-400">AI Trip Planner</span>
-              <span className="text-lg text-gray-400">{currentStep + 1}/{steps.length}</span>
-            </div>
-            <div className="w-full bg-gray-800 rounded-full h-3">
-              <div 
-                className="bg-orange-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <h1 className="text-4xl font-bold mb-12">{currentStepData.title}</h1>
-
-          {/* Step content */}
-          <div className="mb-12">
-            {currentStepData.key === 'locations' && (
-              <div className="space-y-6 max-w-2xl">
-                <LocationSearch
-                  value={tripData.source}
-                  onChange={handleSourceChange}
-                  placeholder="Where are you starting from?"
-                />
-                <LocationSearch
-                  value={tripData.destination}
-                  onChange={handleDestinationChange}
-                  onLocationSelected={handleDestinationSelected}
-                  placeholder="Where are you going?"
-                />
+            {/* Progress bar */}
+            <div className="mb-12">
+              <div className="flex justify-between mb-3">
+                <span className="text-lg text-gray-400">AI Trip Planner</span>
+                <span className="text-lg text-gray-400">{currentStep + 1}/{steps.length}</span>
               </div>
-            )}
+              <div className="w-full bg-gray-800 rounded-full h-3">
+                <div
+                  className="bg-orange-500 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                ></div>
+              </div>
+            </div>
 
-            {currentStepData.key === 'dates' && (
-              <div className="grid grid-cols-2 gap-6 max-w-2xl">
-                <div>
-                  <label className="block text-base text-gray-400 mb-3">Select start Date</label>
-                  <input
-                    type="date"
-                    value={tripData.startDate}
-                    onChange={(e) => updateTripData('startDate', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+            <h1 className="text-4xl font-bold mb-12">{currentStepData.title}</h1>
+
+            {/* Step content */}
+            <div className="mb-12">
+              {currentStepData.key === 'locations' && (
+                <div className="space-y-6 max-w-2xl">
+                  <LocationSearch
+                    value={tripData.source}
+                    onChange={handleSourceChange}
+                    placeholder="Where are you starting from?"
+                  />
+                  <LocationSearch
+                    value={tripData.destination}
+                    onChange={handleDestinationChange}
+                    onLocationSelected={handleDestinationSelected}
+                    placeholder="Where are you going?"
                   />
                 </div>
-                <div>
-                  <label className="block text-base text-gray-400 mb-3">Select End Date</label>
-                  <input
-                    type="date"
-                    value={tripData.endDate}
-                    onChange={(e) => updateTripData('endDate', e.target.value)}
-                    min={tripData.startDate || new Date().toISOString().split('T')[0]}
-                    className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
-                  />
-                </div>
-              </div>
-            )}
+              )}
 
-            {currentStepData.key === 'transport' && (
-              <div className="grid grid-cols-3 lg:grid-cols-5 gap-6 max-w-3xl">
-                {transportOptions.map((option) => {
-                  const Icon = option.icon;
-                  const isSelected = tripData.transportMode.includes(option.id);
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleTransport(option.id)}
-                      className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
-                    >
-                      <Icon className={`w-10 h-10 mx-auto mb-3 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
-                      <span className="text-base">{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {currentStepData.key === 'tripType' && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-3xl">
-                {tripTypeOptions.map((option) => {
-                  const isSelected = tripData.tripType === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => updateTripData('tripType', option.id)}
-                      className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
-                    >
-                      <div className="text-4xl mb-3">{option.icon}</div>
-                      <span className="text-base">{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {currentStepData.key === 'preferences' && (
-              <div className="max-w-3xl">
-                {loadingpreferences ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
-                    <span className="ml-4 text-gray-400 text-lg">Loading preferences for {tripData.destination}...</span>
+              {currentStepData.key === 'dates' && (
+                <div className="grid grid-cols-2 gap-6 max-w-2xl">
+                  <div>
+                    <label className="block text-base text-gray-400 mb-3">Select start Date</label>
+                    <input
+                      type="date"
+                      value={tripData.startDate}
+                      onChange={(e) => updateTripData('startDate', e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+                    />
                   </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-3 mb-6">
-                      {interestOptions.map((interest) => {
-                        const isSelected = tripData.preferences.includes(interest);
-                        return (
-                          <button
-                            key={interest}
-                            onClick={() => toggleInterest(interest)}
-                            className={`px-6 py-3 rounded-full text-base transition-all hover:scale-105 ${
-                              isSelected 
-                                ? 'bg-orange-500 text-white' 
-                                : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
-                            }`}
-                          >
-                            {interest}
-                          </button>
-                        );
-                      })}
+                  <div>
+                    <label className="block text-base text-gray-400 mb-3">Select End Date</label>
+                    <input
+                      type="date"
+                      value={tripData.endDate}
+                      onChange={(e) => updateTripData('endDate', e.target.value)}
+                      min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                      className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {currentStepData.key === 'transport' && (
+                <div className="grid grid-cols-3 lg:grid-cols-5 gap-6 max-w-3xl">
+                  {transportOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isSelected = tripData.transportMode.includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => toggleTransport(option.id)}
+                        className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${isSelected
+                          ? 'border-orange-500 bg-orange-500/10'
+                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                          }`}
+                      >
+                        <Icon className={`w-10 h-10 mx-auto mb-3 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
+                        <span className="text-base">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {currentStepData.key === 'tripType' && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-3xl">
+                  {tripTypeOptions.map((option) => {
+                    const isSelected = tripData.tripType === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => updateTripData('tripType', option.id)}
+                        className={`p-8 rounded-2xl border-2 transition-all hover:scale-105 ${isSelected
+                          ? 'border-orange-500 bg-orange-500/10'
+                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                          }`}
+                      >
+                        <div className="text-4xl mb-3">{option.icon}</div>
+                        <span className="text-base">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {currentStepData.key === 'preferences' && (
+                <div className="max-w-3xl">
+                  {loadingpreferences ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
+                      <span className="ml-4 text-gray-400 text-lg">Loading preferences for {tripData.destination}...</span>
                     </div>
-                    <button className="flex items-center gap-2 text-orange-500 text-base hover:text-orange-400 transition-colors">
-                      <Plus className="w-5 h-5" />
-                      Add Interest +
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap gap-3 mb-6">
+                        {interestOptions.map((interest) => {
+                          const isSelected = tripData.preferences.includes(interest);
+                          return (
+                            <button
+                              key={interest}
+                              onClick={() => toggleInterest(interest)}
+                              className={`px-6 py-3 rounded-full text-base transition-all hover:scale-105 ${isSelected
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
+                                }`}
+                            >
+                              {interest}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button className="flex items-center gap-2 text-orange-500 text-base hover:text-orange-400 transition-colors">
+                        <Plus className="w-5 h-5" />
+                        Add Interest +
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
-            {currentStepData.key === 'budget' && (
-              <div className="max-w-2xl">
-                <div className="mb-8">
-                  <label className="block text-base text-gray-400 mb-4">per person per night</label>
-                  <div className="text-center relative">
-                  <span className="text-5xl font-bold">₹ {tripData.budget.toLocaleString()}</span>
-                  <button
-                    onClick={() => {
-                    const value = prompt('Enter budget amount:', tripData.budget.toString());
-                    if (value && !isNaN(Number(value))) {
-                      const numValue = Number(value);
-                      if (numValue >= 500 && numValue <= 20000) {
-                      updateTripData('budget', numValue);
-                      } else {
-                      alert('Please enter a value between ₹500 and ₹20,000');
-                      }
-                    }
-                    }}
-                    className="ml-4 inline-flex items-center text-gray-400 hover:text-orange-500 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-                    </svg>
-                  </button>
+              {currentStepData.key === 'budget' && (
+                <div className="max-w-2xl">
+                  <div className="mb-8">
+                    <label className="block text-base text-gray-400 mb-4">per person per night</label>
+                    <div className="text-center relative">
+                      <span className="text-5xl font-bold">₹ {tripData.budget.toLocaleString()}</span>
+                      <button
+                        onClick={() => {
+                          const value = prompt('Enter budget amount:', tripData.budget.toString());
+                          if (value && !isNaN(Number(value))) {
+                            const numValue = Number(value);
+                            if (numValue >= 500 && numValue <= 20000) {
+                              updateTripData('budget', numValue);
+                            } else {
+                              alert('Please enter a value between ₹500 and ₹20,000');
+                            }
+                          }
+                        }}
+                        className="ml-4 inline-flex items-center text-gray-400 hover:text-orange-500 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="500"
+                    max="20000"
+                    step="500"
+                    value={tripData.budget}
+                    onChange={(e) => updateTripData('budget', parseInt(e.target.value))}
+                    className="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <div className="flex justify-between text-sm text-gray-400 mt-3">
+                    <span>₹ 1,000</span>
+                    <span>₹ 1,00,000</span>
                   </div>
                 </div>
-                <input
-                  type="range"
-                  min="500"
-                  max="20000"
-                  step="500"
-                  value={tripData.budget}
-                  onChange={(e) => updateTripData('budget', parseInt(e.target.value))}
-                  className="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
-                />
-                <div className="flex justify-between text-sm text-gray-400 mt-3">
-                  <span>₹ 1,000</span>
-                  <span>₹ 1,00,000</span>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Navigation buttons */}
-          <div className="flex gap-6">
-            {currentStep > 0 && (
+            {/* Navigation buttons */}
+            <div className="flex gap-6">
+              {currentStep > 0 && (
+                <button
+                  onClick={handleBack}
+                  className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back
+                </button>
+              )}
               <button
-                onClick={handleBack}
-                className="flex items-center gap-2 px-8 py-4 border-2 border-gray-600 rounded-xl text-gray-300 hover:border-gray-500 transition-all text-lg"
+                onClick={handleNext}
+                disabled={
+                  (currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
+                  (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
+                  (currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
+                  (currentStepData.key === 'tripType' && !tripData.tripType) ||
+                  loadingpreferences
+                }
+                className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
               >
-                <ArrowLeft className="w-5 h-5" />
-                Back
+                {currentStep === steps.length - 1 ? 'Generate Quest' : 'Next'}
+                <ArrowRight className="w-5 h-5" />
               </button>
-            )}
-            <button
-              onClick={handleNext}
-              disabled={
-                (currentStepData.key === 'locations' && (!tripData.source || !tripData.destination)) ||
-                (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
-                (currentStepData.key === 'transport' && tripData.transportMode.length === 0) ||
-                (currentStepData.key === 'tripType' && !tripData.tripType) ||
-                loadingpreferences
-              }
-              className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
-            >
-              {currentStep === steps.length - 1 ? 'Generate Quest' : 'Next'}
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
+            </div>
           </div>
         </div>
       </div>
@@ -637,7 +515,7 @@ const AITripPlannerPage = () => {
               <span className="text-sm text-gray-400">{currentStep + 1}/{steps.length}</span>
             </div>
             <div className="w-full bg-gray-800 rounded-full h-2">
-              <div 
+              <div
                 className="bg-orange-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               ></div>
@@ -698,11 +576,10 @@ const AITripPlannerPage = () => {
                     <button
                       key={option.id}
                       onClick={() => toggleTransport(option.id)}
-                      className={`p-6 rounded-xl border-2 transition-all ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
+                      className={`p-6 rounded-xl border-2 transition-all ${isSelected
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                        }`}
                     >
                       <Icon className={`w-8 h-8 mx-auto mb-2 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
                       <span className="text-sm">{option.label}</span>
@@ -720,11 +597,10 @@ const AITripPlannerPage = () => {
                     <button
                       key={option.id}
                       onClick={() => updateTripData('tripType', option.id)}
-                      className={`p-6 rounded-xl border-2 transition-all ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
-                          : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
+                      className={`p-6 rounded-xl border-2 transition-all ${isSelected
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                        }`}
                     >
                       <div className="text-2xl mb-2">{option.icon}</div>
                       <span className="text-sm">{option.label}</span>
@@ -750,11 +626,10 @@ const AITripPlannerPage = () => {
                           <button
                             key={interest}
                             onClick={() => toggleInterest(interest)}
-                            className={`px-4 py-2 rounded-full text-sm transition-all ${
-                              isSelected 
-                                ? 'bg-orange-500 text-white' 
-                                : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
-                            }`}
+                            className={`px-4 py-2 rounded-full text-sm transition-all ${isSelected
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
+                              }`}
                           >
                             {interest}
                           </button>

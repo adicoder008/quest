@@ -1,82 +1,76 @@
-// import React from 'react'
-
-// const Features = () => {
-//   return (
-//     <>
-//     <div className="bg-[url('/bgc.svg')] h-[600px] flex justify-around  ">
-//         <img src="./Mobile1.svg" alt="" />
-//         <img src="./Mobile2.svg" alt="" />
-//     </div>
-
-//     </>
-//   )
-// }
-
-// export default Features
-
-// ..................................
-
-// import React from 'react'
-
-// const Features = () => {
-//   return (
-//     <>
-//       {/* Desktop/Laptop Layout */}
-//       <div className="hidden md:flex bg-[url('/bgc.svg')] h-[600px] justify-around items-center">
-//         <img src="/Mobile1.svg" alt="" />
-//         <img src="/Mobile2.svg" alt="" />
-//       </div>
-
-//       {/* Tablet + Mobile Sliding Layout */}
-//       <div className="flex md:hidden bg-[url('/bgc.svg')] h-[600px] overflow-hidden items-center justify-center">
-//         <div className="flex animate-slide gap-10">
-//           <img src="/Mobile1.svg" className="w-[250px]" />
-//           <img src="/Mobile2.svg" className="w-[250px]" />
-//           <img src="/Mobile1.svg" className="w-[250px]" />
-//           <img src="/Mobile2.svg" className="w-[250px]" />
-//         </div>
-//       </div>
-//     </>
-//   )
-// }
-
-// export default Features
-
-// .........................
-
-
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 
 const Features = () => {
+    // Destructure both emblaRef and the emblaApi instance
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+    
+    // State to manage which dot is currently selected
+    const [selectedIndex, setSelectedIndex] = useState(0);
+
+    // Function to update the selectedIndex state when the carousel scrolls
+    const onSelect = useCallback((emblaApi) => {
+        setSelectedIndex(emblaApi.selectedScrollSnap());
+    }, []);
+
+    // Effect hook to initialize the event listener and clean it up
+    useEffect(() => {
+        if (!emblaApi) return;
+        onSelect(emblaApi);
+        emblaApi.on('select', onSelect);
+        return () => {
+            emblaApi.off('select', onSelect);
+        };
+    }, [emblaApi, onSelect]);
+
     return (
         <>
-
             {/* Desktop/Laptop Layout */}
-            <div className="bg-[url('/bgc.svg')] bg-cover bg-center h-[120vh] flex flex-col items-center pt-10">
+            <div className="relative bg-cover bg-center h-[75vh] flex flex-col items-center pt-10 ">
+                <div className="absolute inset-0 bg-[url('/bgc.svg')] bg-cover bg-center opacity-50 z-9"></div>
 
                 {/* Heading */}
-                <h1 className="text-xl md:text-3xl font-semibold mb-10">
+                <h1 className="text-xl md:text-4xl font-bold mb-10 z-10 font-mont">
                     INTRODUCING QUESTS
                 </h1>
 
                 {/* Desktop layout */}
-                <div className="hidden md:flex justify-around items-center gap-10 w-full max-w-5xl">
-                    <img src="/Mobile1.svg" className="w-[400px]" />
-                    <img src="/Mobile2.svg" className="w-[400px]" />
+                <div className="hidden md:flex justify-center items-center gap-10 w-full max-w-5xl z-10 p-4">
+                    <div className="flex-1 min-w-0 max-w-[45%] flex justify-center items-center">
+                        <img src="/Mobile1.svg" className="w-full h-auto object-contain" alt="Feature 1" />
+                    </div>
+                    <div className="flex-1 min-w-0 max-w-[45%] flex justify-center items-center">
+                        <img src="/Mobile2.svg" className="w-full h-auto object-contain" alt="Feature 2" />
+                    </div>
                 </div>
 
-                {/* Mobile/tablet swipeable layout */}
-                <div className="md:hidden w-full overflow-x-auto scroll-smooth snap-x snap-mandatory px-[20vw] flex gap-10">
-                    <img src="/Mobile1.svg" className="w-[280px] snap-center" />
-                    <img src="/Mobile2.svg" className="w-[280px] snap-center" />
+                {/* Mobile/tablet swipeable layout (Embla Carousel) */}
+                <div className="md:hidden w-full overflow-hidden z-10" ref={emblaRef}>
+                    <div className="flex touch-pan-y">
+                        <div className="flex-[0_0_100%] min-w-0 flex justify-center items-center">
+                            <img src="/Mobile1.svg" className="w-[80%] object-contain" />
+                        </div>
+                        <div className="flex-[0_0_100%] min-w-0 flex justify-center items-center">
+                            <img src="/Mobile2.svg" className="w-[80%] object-contain" />
+                        </div>
+                    </div>
                 </div>
-
+                
+                {/* Dots for navigation */}
+                <div className="md:hidden flex justify-center mt-4 z-10">
+                    {/* Check that emblaApi exists before trying to call methods on it */}
+                    {emblaApi && emblaApi.scrollSnapList().map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => emblaApi.scrollTo(index)}
+                            // Use the selectedIndex state variable to determine active state
+                            className={`w-2 h-2 mx-1 rounded-full ${index === selectedIndex ? 'bg-blue-500' : 'bg-gray-300'}`}
+                        />
+                    ))}
+                </div>
             </div>
-
-
-
         </>
     )
 }
 
-export default Features
+export default Features;

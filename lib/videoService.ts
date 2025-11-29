@@ -20,15 +20,15 @@ export const videoService = {
     try {
       const userRef = doc(db, 'users', uid);
       const userDoc = await getDoc(userRef);
-      
+
       if (!userDoc.exists()) {
         throw new Error('User not found');
       }
 
       const userData = userDoc.data();
       const today = new Date().toDateString();
-      const lastReset = userData.videoCredits?.lastReset 
-        ? new Date(userData.videoCredits.lastReset).toDateString() 
+      const lastReset = userData.videoCredits?.lastReset
+        ? new Date(userData.videoCredits.lastReset).toDateString()
         : null;
 
       // Reset credits if it's a new day
@@ -37,11 +37,11 @@ export const videoService = {
           'videoCredits.count': 10,
           'videoCredits.lastReset': new Date().toISOString()
         });
-        
+
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
-        
+
         return {
           canGenerate: true,
           remaining: 10,
@@ -134,25 +134,29 @@ export const videoService = {
   },
 
   /**
-   * Get video generation status
+   * Get video generation status (via API which checks Remotion Lambda)
    */
   async getVideoStatus(requestId: string): Promise<VideoGenerationStatus | null> {
     try {
-      const requestRef = doc(db, 'videoRequests', requestId);
-      const requestDoc = await getDoc(requestRef);
+      const response = await fetch(`/api/generate-video?requestId=${requestId}`);
 
-      if (!requestDoc.exists()) {
-        return null;
+      if (!response.ok) {
+        throw new Error('Failed to fetch video status');
       }
 
-      const data = requestDoc.data();
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get video status');
+      }
+
       return {
         status: data.status,
         videoUrl: data.videoUrl,
         error: data.error,
-        progress: data.progress,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        completedAt: data.completedAt?.toDate()
+        progress: data.progress || 0,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined
       };
     } catch (error) {
       console.error('Error getting video status:', error);

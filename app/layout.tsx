@@ -1,12 +1,13 @@
 import { Inter, Montserrat } from 'next/font/google'
 import Script from 'next/script'
 import '@/app/globals.css'
+import { GamificationProvider } from '@/components/gamification/GamificationProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 const mont = Montserrat({
   subsets: ['latin'],
   variable: '--font-mont',
-  weight: ['400','500','600','700']
+  weight: ['400', '500', '600', '700']
 })
 
 
@@ -24,10 +25,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-     <html lang="en" className={mont.variable}>
-  <body className={inter.className}>
-    {children}
-        
+    <html lang="en" className={mont.variable}>
+      <body className={inter.className}>
+        <GamificationProvider>
+          {children}
+        </GamificationProvider>
+
         {/* Hotjar Tracking Code */}
         <Script
           id="hotjar-tracking"

@@ -122,8 +122,13 @@ const Footer = () => {
 
           <Link href={'/quest'}><div className="flex flex-col items-center text-white">
             {/* <Quest size={22} className="" /> */}
-            <img src="/oq_logo.svg" alt="OQ logo" className="w-6 h-6 object-contain filter invert" />
-            <span className="text-xs ">Quest</span>
+            <img 
+              src="/oq_logo.svg" 
+              alt="OQ logo" 
+              className={`w-6 h-6 object-contain ${isActive('/quest') ? 'filter-orange' : 'filter invert'}`} 
+              style={isActive('/quest') ? { filter: 'invert(58%) sepia(80%) saturate(2476%) hue-rotate(358deg) brightness(101%) contrast(99%)' } : {}}
+            />
+            <span className={`text-xs ${getActiveClass('/quest')}`}>Quest</span> 
           </div></Link>
 
           {/* Account Link */}

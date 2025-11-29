@@ -1,14 +1,14 @@
 // lib/notificationService.ts
 
-import { 
-  collection, 
-  addDoc, 
-  serverTimestamp, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  updateDoc, 
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  updateDoc,
   doc,
   getDocs,
   deleteDoc,
@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-export type NotificationType = 
+export type NotificationType =
   | 'message'           // New message in chat
   | 'like'              // Someone liked your post
   | 'comment'           // Someone commented on your post
@@ -107,7 +107,7 @@ export const subscribeToNotifications = (
       createdAt: doc.data().createdAt?.toDate(),
       updatedAt: doc.data().updatedAt?.toDate()
     }));
-    
+
     callback(notifications);
   });
 };
@@ -118,7 +118,7 @@ export const subscribeToNotifications = (
 export const markAsRead = async (notificationId: string) => {
   try {
     const notifRef = doc(db, 'notifications', notificationId);
-    await updateDoc(notifRef, { 
+    await updateDoc(notifRef, {
       read: true,
       updatedAt: serverTimestamp()
     });
@@ -142,7 +142,7 @@ export const markAllAsRead = async (userId: string) => {
     const batch = writeBatch(db);
 
     snapshot.docs.forEach(doc => {
-      batch.update(doc.ref, { 
+      batch.update(doc.ref, {
         read: true,
         updatedAt: serverTimestamp()
       });
@@ -372,6 +372,31 @@ export const notifyMention = async (
         actionUrl: `/chats?chatId=${chatId}`
       })
     );
+
+  await Promise.all(promises);
+};
+
+export const notifyNewPost = async (
+  postId: string,
+  postAuthorId: string,
+  postAuthorName: string,
+  postAuthorPhoto: string,
+  postTitle: string,
+  followerIds: string[]
+) => {
+  const promises = followerIds.map(recipientId =>
+    createNotification({
+      recipientId,
+      type: 'follow', // Using 'follow' as generic update from followed user for now
+      senderId: postAuthorId,
+      senderName: postAuthorName,
+      senderPhoto: postAuthorPhoto,
+      title: 'New Quest Posted',
+      message: `${postAuthorName} posted a new quest: ${postTitle}`,
+      postId,
+      actionUrl: `/post/${postId}`
+    })
+  );
 
   await Promise.all(promises);
 };

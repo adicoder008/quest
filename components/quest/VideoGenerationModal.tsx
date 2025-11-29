@@ -19,7 +19,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   questData,
   uid
 }) => {
-  const [step, setStep] = useState<'check' | 'generating' | 'completed' | 'error'>('check');
+  const [step, setStep] = useState<'check' | 'generating' | 'completed' | 'error' | 'loading'>('loading');
   const [credits, setCredits] = useState({ remaining: 0, resetAt: new Date() });
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -29,9 +29,38 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      checkCredits();
-      checkExistingVideo();
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+
+      const init = async () => {
+        try {
+          // First check if video already exists
+          const existingVideo = await videoService.getQuestVideo(questId);
+          if (existingVideo) {
+            setVideoUrl(existingVideo);
+            setStep('completed');
+          } else {
+            // If not, check credits and show generation screen
+            await checkCredits();
+            setStep('check');
+          }
+        } catch (error) {
+          console.error('Error initializing modal:', error);
+          // Even if error, try to show check screen so user can try generating
+          setStep('check');
+          checkCredits();
+        }
+      };
+
+      init();
+    } else {
+      // Restore body scroll
+      document.body.style.overflow = 'unset';
     }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen, questId]);
 
   const checkCredits = async () => {
@@ -41,7 +70,8 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     } catch (error: any) {
       console.error('Error checking credits:', error);
       setError(error.message);
-      setStep('error');
+      // Don't set error step here, just show 0 credits or error message in UI if needed
+      // But for now keeping it simple
     }
   };
 
@@ -59,7 +89,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   const startGeneration = async () => {
     if (isGenerating) return;
-    
+
     try {
       setIsGenerating(true);
       setStep('generating');
@@ -93,13 +123,13 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   };
 
   const pollVideoStatus = async (reqId: string) => {
-    const maxAttempts = 120; // 2 minutes max (120 * 1 second)
+    const maxAttempts = 600; // 10 minutes max (600 * 1 second) - videos can take 3-5 minutes
     let attempts = 0;
 
     const checkStatus = async () => {
       try {
         const status = await videoService.getVideoStatus(reqId);
-        
+
         if (!status) {
           throw new Error('Video request not found');
         }
@@ -121,7 +151,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         if (attempts < maxAttempts && status.status !== 'completed') {
           setTimeout(checkStatus, 1000); // Check every second
         } else if (attempts >= maxAttempts) {
-          throw new Error('Video generation timed out');
+          throw new Error('Video generation timed out after 10 minutes. The video may still be processing - please check back in a few minutes.');
         }
 
       } catch (error: any) {
@@ -148,7 +178,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
 
   const shareToInstagram = async () => {
     if (!videoUrl) return;
-    
+
     // For web, we can only provide download and copy link
     // Native apps can use Instagram's sharing API
     if (navigator.share) {
@@ -177,17 +207,17 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-orange-500/10 to-purple-500/10">
+        <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-orange-500/10 to-purple-500/10 flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-gray-800 rounded-full transition-colors"
           >
             <X size={20} className="text-gray-400" />
           </button>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl">
               <Video size={24} className="text-white" />
@@ -200,7 +230,15 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+          {/* LOADING STEP */}
+          {step === 'loading' && (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+              <p className="text-gray-400 text-sm">Checking video status...</p>
+            </div>
+          )}
+
           {/* CHECK CREDITS STEP */}
           {step === 'check' && (
             <div className="space-y-6">
@@ -293,7 +331,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
               </div>
 
               <p className="text-sm text-center text-gray-400">
-                This usually takes 30-60 seconds. Please don't close this window.
+                This usually takes 1-2 minutes. Please don't close this window. We are working on optimizing the process 👉 👈
               </p>
             </div>
           )}
