@@ -69,7 +69,7 @@ const Mid = () => {
             <div className="absolute bottom-0 left-0 md:top-0 md:left-0 md:h-full w-full md:w-1/2 p-8 z-20 flex flex-col justify-center">
               <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center mb-4 text-white">🏆</div>
               <h3 className="text-2xl font-bold text-white mb-2">Earn Badges</h3>
-              <p className="text-gray-300">Level up your traveler rank and unlock exclusive rewards.</p>
+              <p className="text-white">Level up your traveler rank and unlock exclusive rewards.</p>
             </div>
           </div>
 

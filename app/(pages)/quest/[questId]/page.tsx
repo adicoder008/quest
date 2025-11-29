@@ -2,7 +2,7 @@
 
 'use client'
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db, storage } from '@/lib/firebase';
 import questService from '@/lib/questService';
@@ -21,6 +21,8 @@ import { VideoGenerationModal } from '@/components/quest/VideoGenerationModal';
 import { Video } from 'lucide-react';
 import OnQuestPeopleSection from '@/components/quest/OnQuestPeopleSection';
 import ShareModal from '@/components/quest/ShareModal';
+import { compressAndUploadImage } from '@/lib/imageService';
+import { Loader2 } from 'lucide-react';
 
 interface ActivityLocation {
   name: string;
@@ -46,13 +48,14 @@ interface Activity {
 
 
 
-const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
+const AddActivityModal = ({ isOpen, onClose, onAdd, uid }: any) => {
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('Morning');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState<{ name: string; coordinates?: { lat: number; lng: number } }>({ name: '' });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -60,45 +63,68 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
       setTime('Morning');
       setDescription('');
       setLocation({ name: '' });
-      setImageFile(null);
-      setImagePreview('');
+      setImageFiles([]);
+      setImagePreviews([]);
+      setIsUploading(false);
     }
   }, [isOpen]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const newFiles = [...imageFiles, ...files];
+      setImageFiles(newFiles);
+
+      const newPreviews = files.map(file => URL.createObjectURL(file));
+      setImagePreviews([...imagePreviews, ...newPreviews]);
     }
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview('');
+  const removeImage = (index: number) => {
+    const newFiles = [...imageFiles];
+    newFiles.splice(index, 1);
+    setImageFiles(newFiles);
+
+    const newPreviews = [...imagePreviews];
+    URL.revokeObjectURL(newPreviews[index]);
+    newPreviews.splice(index, 1);
+    setImagePreviews(newPreviews);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) {
       alert('Please enter a title');
       return;
     }
 
-    const newActivity = {
-      time: time,
-      title: title.trim(),
-      description: description.trim(),
-      location: location,
-      tags: [],
-      collapsed: false,
-      media: imagePreview ? [{ url: imagePreview, type: 'image' as const }] : []
-    };
+    setIsUploading(true);
+    try {
+      const media = [];
+      if (imageFiles.length > 0 && uid) {
+        const uploadPromises = imageFiles.map(file =>
+          compressAndUploadImage(file, 'quest-activities', uid)
+        );
+        const urls = await Promise.all(uploadPromises);
+        media.push(...urls.map(url => ({ url, type: 'image' as const })));
+      }
 
-    onAdd(newActivity);
+      const newActivity = {
+        time: time,
+        title: title.trim(),
+        description: description.trim(),
+        location: location,
+        tags: [],
+        collapsed: false,
+        media: media
+      };
+
+      onAdd(newActivity);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Failed to upload images. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -164,37 +190,37 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Add Image</label>
-            {!imagePreview ? (
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Plus size={32} className="text-gray-500 mb-2" />
-                  <p className="text-sm text-gray-400">Click to upload image</p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+            <label className="block text-sm text-gray-400 mb-2">Add Images</label>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {imagePreviews.map((preview, index) => (
+                <div key={index} className="relative h-24 rounded-lg overflow-hidden group">
+                  <img
+                    src={preview}
+                    alt={`Preview ${index}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove image"
+                  >
+                    <X size={12} className="text-white" />
+                  </button>
                 </div>
+              ))}
+              <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800">
+                <Plus size={24} className="text-gray-500" />
+                <span className="text-xs text-gray-400 mt-1">Add</span>
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageChange}
                   className="hidden"
                 />
               </label>
-            ) : (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-                <button
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 rounded-full transition-colors"
-                  title="Remove image"
-                >
-                  <X size={16} className="text-white" />
-                </button>
-              </div>
-            )}
+            </div>
+            <p className="text-xs text-gray-500">PNG, JPG up to 10MB each</p>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -206,10 +232,17 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }: any) => {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!title.trim()}
-              className="flex-1 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!title.trim() || isUploading}
+              className="flex-1 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Add Activity
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                'Add Activity'
+              )}
             </button>
           </div>
         </div>
@@ -279,8 +312,7 @@ const QuestViewPage = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditTitleModal, setShowEditTitleModal] = useState(false);
-  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
-  const [addActivityContext, setAddActivityContext] = useState<{ dayIndex: number; afterIndex: number } | null>(null);
+
   const { toasts, showToast, removeToast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -310,7 +342,12 @@ const QuestViewPage = () => {
 
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const questId = params.questId as string;
+
+  const userRole = quest?.members?.[user?.uid || ''];
+  const canEdit = userRole === 'owner' || userRole === 'editor';
+  const isOwner = userRole === 'owner';
 
   useEffect(() => {
     if (loading) return;
@@ -320,6 +357,13 @@ const QuestViewPage = () => {
       loadQuest();
     }
   }, [user, loading, questId, router]);
+
+  // Check for edit mode query param
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && canEdit) {
+      setIsEditMode(true);
+    }
+  }, [searchParams, canEdit]);
 
   useEffect(() => {
     const fetchPostStats = async () => {
@@ -375,9 +419,7 @@ const QuestViewPage = () => {
     }
   };
 
-  const userRole = quest?.members?.[user?.uid || ''];
-  const canEdit = userRole === 'owner' || userRole === 'editor';
-  const isOwner = userRole === 'owner';
+
 
   const handleSave = async () => {
     if (!user?.uid || !editedQuest) return;
@@ -489,20 +531,24 @@ const QuestViewPage = () => {
     }
   };
 
-  const openAddActivityModal = (dayIndex: number, afterIndex: number) => {
-    setAddActivityContext({ dayIndex, afterIndex });
-    setShowAddActivityModal(true);
-  };
-
-  const handleAddActivity = (activity: any) => {
-    if (!editedQuest || !addActivityContext) return;
-    const { dayIndex, afterIndex } = addActivityContext;
+  const handleAddActivityInline = (dayIndex: number, afterIndex: number) => {
+    if (!editedQuest) return;
     const updated = { ...editedQuest };
-    updated.itinerary.days[dayIndex].activities.splice(afterIndex + 1, 0, activity);
+
+    const newActivity: Activity = {
+      time: 'Morning',
+      title: '',
+      description: '',
+      location: { name: '' },
+      tags: [],
+      collapsed: false,
+      type: 'activity',
+      media: []
+    };
+
+    updated.itinerary.days[dayIndex].activities.splice(afterIndex + 1, 0, newActivity);
     setEditedQuest(updated);
-    setShowAddActivityModal(false);
-    setAddActivityContext(null);
-    showToast('Activity added successfully!', 'success');
+    showToast('New activity added', 'success');
   };
 
   const deleteActivity = (dayIndex: number, activityIndex: number) => {
@@ -517,6 +563,22 @@ const QuestViewPage = () => {
     if (!editedQuest) return;
     const updated = { ...editedQuest };
     (updated.itinerary.days[dayIndex].activities[activityIndex] as any)[field] = value;
+
+    if (field === 'time') {
+      const timeOrder: { [key: string]: number } = {
+        'Morning': 0,
+        'Afternoon': 1,
+        'Evening': 2,
+        'Night': 3
+      };
+
+      updated.itinerary.days[dayIndex].activities.sort((a: any, b: any) => {
+        const timeA = timeOrder[a.time] ?? 0;
+        const timeB = timeOrder[b.time] ?? 0;
+        return timeA - timeB;
+      });
+    }
+
     setEditedQuest(updated);
   };
 
@@ -525,6 +587,58 @@ const QuestViewPage = () => {
     const updated = { ...editedQuest };
     updated.itinerary.days[dayIndex].activities[activityIndex].collapsed = !updated.itinerary.days[dayIndex].activities[activityIndex].collapsed;
     setEditedQuest(updated);
+  };
+
+  const handleSaveNext = (dayIndex: number, activityIndex: number) => {
+    if (!editedQuest) return;
+    const updated = { ...editedQuest };
+
+    // Collapse current activity
+    updated.itinerary.days[dayIndex].activities[activityIndex].collapsed = true;
+
+    // Find next activity
+    let nextDayIndex = dayIndex;
+    let nextActivityIndex = activityIndex + 1;
+
+    // If we've reached the end of activities for this day, move to next day
+    if (nextActivityIndex >= updated.itinerary.days[dayIndex].activities.length) {
+      nextDayIndex = dayIndex + 1;
+      nextActivityIndex = 0;
+    }
+
+    // Check if next activity exists
+    if (
+      updated.itinerary.days[nextDayIndex] &&
+      updated.itinerary.days[nextDayIndex].activities[nextActivityIndex]
+    ) {
+      // Expand next activity
+      updated.itinerary.days[nextDayIndex].activities[nextActivityIndex].collapsed = false;
+
+      // Ensure the day is expanded if it was collapsed
+      if (collapsedDays.has(nextDayIndex)) {
+        const newCollapsed = new Set(collapsedDays);
+        newCollapsed.delete(nextDayIndex);
+        setCollapsedDays(newCollapsed);
+      }
+    }
+
+    setEditedQuest(updated);
+    // We don't need to call handleSave() here because we are just updating the local state (editedQuest).
+    // The user can click the main "Save" button to persist changes to the backend, 
+    // OR if they want "Save & Next" to actually persist to DB, we should call handleSave().
+    // Given the user said "save button inside activity", it implies persistence.
+    // However, saving the whole quest on every step might be slow. 
+    // Let's assume they mean "Save local state & Next" for smooth flow, and final Save at the end.
+    // BUT, the prompt said "save button", so maybe they want persistence?
+    // "save button inside activity and close that activity and ope next activity automatically"
+    // I will stick to local state update for speed, as the main Save button exists. 
+    // Wait, if I don't persist, "Save" is a bit misleading if the app crashes.
+    // But `handleSave` saves the *entire* quest. Doing that 12 times for a 3 day trip is heavy.
+    // I'll stick to local state update but maybe trigger a debounced save or just keep it local.
+    // Actually, let's look at `updateActivity`. It updates `editedQuest`. 
+    // So "Save" in this context likely means "Confirm changes and move on".
+    // I will add a small toast "Activity updated" to give feedback.
+    showToast('Activity updated', 'success');
   };
 
   const toggleDayCollapse = (dayIndex: number) => {
@@ -699,14 +813,7 @@ const QuestViewPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-20 lg:pb-0">
-      <AddActivityModal
-        isOpen={showAddActivityModal}
-        onClose={() => {
-          setShowAddActivityModal(false);
-          setAddActivityContext(null);
-        }}
-        onAdd={handleAddActivity}
-      />
+
       <EditTitleModal isOpen={showEditTitleModal} onClose={() => setShowEditTitleModal(false)} currentTitle={quest.title} currentDestination={quest.destination} onSave={handleSaveTitle} />
 
       {/* Post Quest Modal */}
@@ -1053,12 +1160,14 @@ const QuestViewPage = () => {
                               onDrop={handleDrop}
                               onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
                               onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                              uid={user?.uid}
+                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
                             />
                           )}
                           {isEditMode && (
                             <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
                               <button
-                                onClick={() => openAddActivityModal(dayIndex, activityIndex)}
+                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
                                 className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
                                 title="Add activity"
                               >
@@ -1119,12 +1228,14 @@ const QuestViewPage = () => {
                               onDrop={handleDrop}
                               onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
                               onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                              uid={user?.uid}
+                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
                             />
                           )}
                           {isEditMode && (
                             <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
                               <button
-                                onClick={() => openAddActivityModal(dayIndex, activityIndex)}
+                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
                                 className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
                                 title="Add activity"
                               >
@@ -1188,12 +1299,14 @@ const QuestViewPage = () => {
                             onDrop={handleDrop}
                             onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
                             onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                            uid={user?.uid}
+                            onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
                           />
                         )}
                         {isEditMode && (
                           <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
                             <button
-                              onClick={() => openAddActivityModal(dayIndex, activityIndex)}
+                              onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
                               className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
                               title="Add activity"
                             >
@@ -1453,35 +1566,44 @@ const GoogleFormActivityCard = ({
   onDragOver,
   onDrop,
   onMoveUp,
-  onMoveDown
+  onMoveDown,
+  uid,
+  onSaveNext
 }: any) => {
   const isCollapsed = activity.collapsed || false;
   const [isHovered, setIsHovered] = React.useState(false);
-  const [imagePreview, setImagePreview] = React.useState<string>('');
+  const [isUploading, setIsUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Handle image file selection
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const imageUrl = reader.result as string;
-        setImagePreview(imageUrl);
-        // Update activity with new image
-        onUpdate('media', [{ url: imageUrl, type: 'image' }]);
-      };
-      reader.readAsDataURL(file);
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0 && uid) {
+      setIsUploading(true);
+      try {
+        const uploadPromises = files.map(file =>
+          compressAndUploadImage(file, 'quest-activities', uid)
+        );
+        const urls = await Promise.all(uploadPromises);
+        const newMedia = urls.map(url => ({ url, type: 'image' as const }));
+
+        // Append to existing media
+        const currentMedia = activity.media || [];
+        onUpdate('media', [...currentMedia, ...newMedia]);
+      } catch (error) {
+        console.error('Error uploading images:', error);
+        alert('Failed to upload images');
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
   // Handle image removal
-  const handleRemoveImage = () => {
-    setImagePreview('');
-    onUpdate('media', []);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const handleRemoveImage = (index: number) => {
+    const currentMedia = [...(activity.media || [])];
+    currentMedia.splice(index, 1);
+    onUpdate('media', currentMedia);
   };
 
   // Handle add image button click
@@ -1489,7 +1611,7 @@ const GoogleFormActivityCard = ({
     fileInputRef.current?.click();
   };
 
-  const currentImage = activity.media?.[0]?.url || imagePreview;
+  const currentMedia = activity.media || [];
 
   return (
     <div
@@ -1625,64 +1747,67 @@ const GoogleFormActivityCard = ({
           {/* Image Section with Edit Controls */}
           {isEditMode ? (
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Activity Image</label>
-              {currentImage ? (
-                <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800 group">
-                  <img
-                    src={currentImage}
-                    alt={activity.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Image Controls Overlay */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      onClick={handleRemoveImage}
-                      className="p-3 bg-red-500 hover:bg-red-600 rounded-full transition-colors shadow-lg"
-                      title="Remove image"
-                    >
-                      <Trash2 size={20} className="text-white" />
-                    </button>
-                    <button
-                      onClick={handleAddImageClick}
-                      className="p-3 bg-orange-500 hover:bg-orange-600 rounded-full transition-colors shadow-lg"
-                      title="Change image"
-                    >
-                      <Edit2 size={20} className="text-white" />
-                    </button>
+              <label className="block text-sm text-gray-400 mb-2">Activity Images</label>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {currentMedia.map((mediaItem: any, index: number) => (
+                  <div key={index} className="relative h-24 rounded-lg overflow-hidden bg-gray-800 group">
+                    <img
+                      src={mediaItem.url}
+                      alt={`Activity ${index}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        onClick={() => handleRemoveImage(index)}
+                        className="p-1.5 bg-red-500 hover:bg-red-600 rounded-full transition-colors shadow-lg"
+                        title="Remove image"
+                      >
+                        <Trash2 size={14} className="text-white" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                ))}
+
                 <button
                   onClick={handleAddImageClick}
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800/50 group"
+                  disabled={isUploading}
+                  className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-orange-500 transition-colors bg-gray-800/50 group"
                 >
-                  <Plus size={40} className="text-gray-500 group-hover:text-orange-500 transition-colors mb-2" />
-                  <p className="text-sm text-gray-400 group-hover:text-orange-400 transition-colors">
-                    Click to add image
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                  {isUploading ? (
+                    <Loader2 size={24} className="text-orange-500 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus size={24} className="text-gray-500 group-hover:text-orange-500 transition-colors mb-1" />
+                      <span className="text-xs text-gray-400 group-hover:text-orange-400">Add</span>
+                    </>
+                  )}
                 </button>
-              )}
+              </div>
 
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageChange}
                 className="hidden"
               />
             </div>
           ) : (
-            // View Mode - Show image if exists
-            currentImage && (
-              <div className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
-                <img
-                  src={currentImage}
-                  alt={activity.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }}
-                />
+            // View Mode - Show images if exist
+            currentMedia.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {currentMedia.map((mediaItem: any, index: number) => (
+                  <div key={index} className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
+                    <img
+                      src={mediaItem.url}
+                      alt={activity.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }}
+                    />
+                  </div>
+                ))}
               </div>
             )
           )}
@@ -1736,6 +1861,14 @@ const GoogleFormActivityCard = ({
                   Start typing to search with Google Places
                 </p>
               </div>
+
+              <button
+                onClick={onSaveNext}
+                className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 mt-4"
+              >
+                <Save size={18} />
+                <span>Save & Next</span>
+              </button>
             </div>
           ) : (
             <>

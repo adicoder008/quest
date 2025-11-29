@@ -10,6 +10,7 @@ import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
 import PhotoBasedQuestCreation from '@/components/quest/PhotoBasedQuestCreation';
+import questService from '@/lib/questService';
 
 const QUEST_DESKTOP_MAIN_WIDTH = 60;
 const QUEST_LEFT_NAV_WIDTH = 280;
@@ -264,6 +265,7 @@ const QuestPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [showPhotoFlow, setShowPhotoFlow] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const [tripData, setTripData] = useState<TripData>({
@@ -304,7 +306,44 @@ const QuestPage = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      setShowPhotoFlow(true);
+      // Simplified Quest Creation Flow
+      if (!user?.uid) return;
+      setIsLoading(true);
+
+      try {
+        const questPayload = {
+          destination: tripData.destination,
+          startDate: tripData.startDate,
+          endDate: tripData.endDate,
+          title: `Trip to ${tripData.destination}`,
+          description: '',
+          source: '',
+          transportMode: [],
+          tripType: 'solo',
+          preferences: [],
+          budget: 0,
+        };
+
+        const blankItinerary = questService.createBlankItinerary(questPayload);
+
+        const result = await questService.createQuest(
+          user.uid,
+          questPayload,
+          blankItinerary,
+          undefined,
+          []
+        );
+
+        if (result.success && result.questId) {
+          router.push(`/quest/${result.questId}?edit=true`);
+        } else {
+          console.error('Failed to create quest');
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error creating quest:', error);
+        setIsLoading(false);
+      }
     }
   };
 
@@ -545,7 +584,7 @@ const QuestPage = () => {
             }
             className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
           >
-            {currentStep === steps.length - 1 ? 'Upload Photos' : 'Next'}
+            {currentStep === steps.length - 1 ? 'Create Quest' : 'Next'}
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
@@ -632,7 +671,7 @@ const QuestPage = () => {
               }
               className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >
-              {currentStep === steps.length - 1 ? 'Upload Photos' : 'Next'}
+              {currentStep === steps.length - 1 ? 'Create Quest' : 'Next'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

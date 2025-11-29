@@ -599,7 +599,48 @@ const questService = {
         day: i + 1,
         date: currentDate.toISOString().split('T')[0],
         title: `Day ${i + 1}`,
-        activities: []
+        activities: [
+          {
+            time: 'Morning',
+            title: 'Morning Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: !(i === 0), // Only expand first day's first activity
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Afternoon',
+            title: 'Afternoon Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Evening',
+            title: 'Evening Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Night',
+            title: 'Night Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          }
+        ]
       };
     });
 
@@ -617,7 +658,7 @@ const questService = {
   async deleteQuest(questId: string, uid: string): Promise<{ success: boolean; error?: string }> {
     try {
       console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
-      
+
       const questRef = doc(db, 'quest', questId);
       const questSnap = await getDoc(questRef);
 
