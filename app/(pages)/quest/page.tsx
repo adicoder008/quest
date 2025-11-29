@@ -5,12 +5,13 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { MapPin, Calendar, Sparkles, Plus, Folder, ArrowLeft, ArrowRight, X } from 'lucide-react';
+import { MapPin, Calendar, Sparkles, Plus, Folder, ArrowLeft, ArrowRight } from 'lucide-react';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
 import PhotoBasedQuestCreation from '@/components/quest/PhotoBasedQuestCreation';
 import questService from '@/lib/questService';
+import { LocationInput } from '@/components/common/LocationInput';
 
 const QUEST_DESKTOP_MAIN_WIDTH = 60;
 const QUEST_LEFT_NAV_WIDTH = 280;
@@ -55,171 +56,7 @@ const PopularDestinationCard = ({
   );
 };
 
-const useGooglePlaces = () => {
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const searchPlaces = async (input: string) => {
-    if (!input || input.length < 3) {
-      setPredictions([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if ((window as any).google) {
-        const service = new (window as any).google.maps.places.AutocompleteService();
-        service.getPlacePredictions(
-          {
-            input,
-            types: ['(cities)'],
-          },
-          (preds: any, status: any) => {
-            setLoading(false);
-            if (status === (window as any).google.maps.places.PlacesServiceStatus.OK && preds) {
-              setPredictions(preds.slice(0, 8));
-            } else {
-              setPredictions([]);
-            }
-          }
-        );
-      }
-    } catch (error) {
-      setLoading(false);
-      console.error('Error fetching place predictions:', error);
-    }
-  };
-
-  const getPlaceDetails = async (placeId: string): Promise<any> => {
-    return new Promise((resolve) => {
-      if ((window as any).google) {
-        const map = new (window as any).google.maps.Map(document.createElement('div'));
-        const service = new (window as any).google.maps.places.PlacesService(map);
-
-        service.getDetails(
-          {
-            placeId,
-            fields: ['name', 'geometry', 'formatted_address', 'types']
-          },
-          (place: any, status: any) => {
-            if (status === (window as any).google.maps.places.PlacesServiceStatus.OK && place) {
-              resolve({
-                name: place.name || '',
-                coordinates: {
-                  lat: place.geometry?.location?.lat() || 0,
-                  lng: place.geometry?.location?.lng() || 0
-                },
-                formatted_address: place.formatted_address || '',
-                types: place.types || []
-              });
-            } else {
-              resolve(null);
-            }
-          }
-        );
-      }
-    });
-  };
-
-  return { predictions, loading, searchPlaces, getPlaceDetails, clearPredictions: () => setPredictions([]) };
-};
-
-const LocationSearch = ({ value, onChange, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, placeholder: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-  const { predictions, loading, searchPlaces, getPlaceDetails, clearPredictions } = useGooglePlaces();
-
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onChange(newValue, undefined);
-
-    if (newValue.length >= 3) {
-      setIsOpen(true);
-      searchPlaces(newValue);
-    } else {
-      setIsOpen(false);
-      clearPredictions();
-    }
-  };
-
-  const handlePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
-    try {
-      const placeDetails = await getPlaceDetails(prediction.place_id);
-
-      if (placeDetails) {
-        const locationName = prediction.structured_formatting.main_text;
-        setInputValue(locationName);
-        onChange(locationName, {
-          coordinates: placeDetails.coordinates,
-          fullAddress: placeDetails.formatted_address,
-          placeId: prediction.place_id,
-          types: placeDetails.types
-        });
-      }
-    } catch (error) {
-      console.error('Error getting place details:', error);
-    }
-
-    setIsOpen(false);
-    clearPredictions();
-  };
-
-  return (
-    <div className="relative">
-      <div className="relative">
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => {
-            if (inputValue.length >= 3) setIsOpen(true);
-          }}
-          className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
-          aria-label={placeholder}
-        />
-        {inputValue && (
-          <button
-            onClick={() => {
-              setInputValue('');
-              onChange('', undefined);
-              setIsOpen(false);
-              clearPredictions();
-            }}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            aria-label="clear"
-          >
-            <X className="h-5 w-5 text-gray-400 hover:text-white" />
-          </button>
-        )}
-      </div>
-
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-gray-800 border border-gray-600 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-          {loading && <div className="p-4 text-center text-gray-400">Loading...</div>}
-          {!loading && predictions.length > 0 && predictions.map((p) => (
-            <button
-              key={p.place_id}
-              onClick={() => handlePlaceSelect(p)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-700 text-left"
-            >
-              <MapPin className="w-5 h-5 text-orange-500 shrink-0" />
-              <div>
-                <div className="font-medium text-white">{p.structured_formatting.main_text}</div>
-                <div className="text-sm text-gray-400">{p.structured_formatting.secondary_text}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const DesktopShell = ({
   user,
@@ -294,8 +131,17 @@ const QuestPage = () => {
     { title: "When did you travel?", key: "dates" },
   ];
 
-  const handleDestinationChange = (destination: string, placeData?: PlaceData) => {
-    setTripData(prev => ({ ...prev, destination, destinationData: placeData }));
+  const handleDestinationChange = (locationData: { name: string; coordinates?: { lat: number; lng: number } }) => {
+    setTripData(prev => ({
+      ...prev,
+      destination: locationData.name,
+      destinationData: locationData.coordinates ? {
+        coordinates: locationData.coordinates,
+        fullAddress: locationData.name,
+        placeId: '',
+        types: []
+      } : undefined
+    }));
   };
 
   const updateTripData = (key: keyof TripData, value: any) => {
@@ -522,7 +368,7 @@ const QuestPage = () => {
         <div className="mb-12">
           {currentStepData.key === 'destination' && (
             <div className="max-w-2xl">
-              <LocationSearch
+              <LocationInput
                 value={tripData.destination}
                 onChange={handleDestinationChange}
                 placeholder="Where are you going?"
@@ -612,7 +458,7 @@ const QuestPage = () => {
 
           <div className="mb-8">
             {currentStepData.key === 'destination' && (
-              <LocationSearch
+              <LocationInput
                 value={tripData.destination}
                 onChange={handleDestinationChange}
                 placeholder="Where are you going?"
@@ -627,7 +473,8 @@ const QuestPage = () => {
                     type="date"
                     value={tripData.startDate}
                     onChange={(e) => updateTripData('startDate', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min="2019-01-01"
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -637,7 +484,8 @@ const QuestPage = () => {
                     type="date"
                     value={tripData.endDate}
                     onChange={(e) => updateTripData('endDate', e.target.value)}
-                    min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                    min={tripData.startDate || "2019-01-01"}
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>

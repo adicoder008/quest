@@ -1164,42 +1164,56 @@ const QuestViewPage = () => {
 
                   {!collapsedDays.has(dayIndex) && (
                     <div className="space-y-0 pl-2">
-                      {day.activities?.map((activity: any, activityIndex: number) => (
-                        <React.Fragment key={activityIndex}>
-                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                          ) : (
-                            <GoogleFormActivityCard
-                              activity={activity}
-                              isEditMode={isEditMode}
-                              dayIndex={dayIndex}
-                              activityIndex={activityIndex}
-                              totalActivities={day.activities.length}
-                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                              onDragStart={handleDragStart}
-                              onDragOver={handleDragOver}
-                              onDrop={handleDrop}
-                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                              uid={user?.uid}
-                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                            />
-                          )}
-                          {isEditMode && (
-                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                              <button
-                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                                title="Add activity"
-                              >
-                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                              </button>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      ))}
+                      {day.activities && day.activities.length > 0 ? (
+                        day.activities.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard
+                                activity={activity}
+                                isEditMode={isEditMode}
+                                dayIndex={dayIndex}
+                                activityIndex={activityIndex}
+                                totalActivities={day.activities.length}
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                                uid={user?.uid}
+                                onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button
+                                  onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        isEditMode && (
+                          <div className="flex justify-center items-center py-8">
+                            <button
+                              onClick={() => handleAddActivityInline(dayIndex, -1)}
+                              className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -1232,42 +1246,56 @@ const QuestViewPage = () => {
 
                   {!collapsedDays.has(dayIndex) && (
                     <div className="space-y-0 pl-2">
-                      {day.activities?.map((activity: any, activityIndex: number) => (
-                        <React.Fragment key={activityIndex}>
-                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                          ) : (
-                            <GoogleFormActivityCard
-                              activity={activity}
-                              isEditMode={isEditMode}
-                              dayIndex={dayIndex}
-                              activityIndex={activityIndex}
-                              totalActivities={day.activities.length}
-                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                              onDragStart={handleDragStart}
-                              onDragOver={handleDragOver}
-                              onDrop={handleDrop}
-                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                              uid={user?.uid}
-                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                            />
-                          )}
-                          {isEditMode && (
-                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                              <button
-                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                                title="Add activity"
-                              >
-                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                              </button>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      ))}
+                      {day.activities && day.activities.length > 0 ? (
+                        day.activities.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard
+                                activity={activity}
+                                isEditMode={isEditMode}
+                                dayIndex={dayIndex}
+                                activityIndex={activityIndex}
+                                totalActivities={day.activities.length}
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                                uid={user?.uid}
+                                onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button
+                                  onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        isEditMode && (
+                          <div className="flex justify-center items-center py-8">
+                            <button
+                              onClick={() => handleAddActivityInline(dayIndex, -1)}
+                              className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -1303,42 +1331,56 @@ const QuestViewPage = () => {
 
                 {!collapsedDays.has(dayIndex) && (
                   <div className="space-y-0">
-                    {day.activities?.map((activity: any, activityIndex: number) => (
-                      <React.Fragment key={activityIndex}>
-                        {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                        ) : (
-                          <GoogleFormActivityCard
-                            activity={activity}
-                            isEditMode={isEditMode}
-                            dayIndex={dayIndex}
-                            activityIndex={activityIndex}
-                            totalActivities={day.activities.length}
-                            onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                            onDragStart={handleDragStart}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                            onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                            uid={user?.uid}
-                            onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                          />
-                        )}
-                        {isEditMode && (
-                          <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                            <button
-                              onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                              className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                              title="Add activity"
-                            >
-                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                            </button>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ))}
+                    {day.activities && day.activities.length > 0 ? (
+                      day.activities.map((activity: any, activityIndex: number) => (
+                        <React.Fragment key={activityIndex}>
+                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                          ) : (
+                            <GoogleFormActivityCard
+                              activity={activity}
+                              isEditMode={isEditMode}
+                              dayIndex={dayIndex}
+                              activityIndex={activityIndex}
+                              totalActivities={day.activities.length}
+                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                              onDragStart={handleDragStart}
+                              onDragOver={handleDragOver}
+                              onDrop={handleDrop}
+                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                              uid={user?.uid}
+                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                            />
+                          )}
+                          {isEditMode && (
+                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                              <button
+                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                title="Add activity"
+                              >
+                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              </button>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      isEditMode && (
+                        <div className="flex justify-center items-center py-8">
+                          <button
+                            onClick={() => handleAddActivityInline(dayIndex, -1)}
+                            className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                          >
+                            <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                            <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                          </button>
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -1908,25 +1950,41 @@ const GoogleFormActivityCard = ({
             )
           )}
 
+
           {isEditMode ? (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Title</label>
+                <label className="block text-sm text-gray-400 mb-2">Location <span className="text-red-400">*</span></label>
+                <LocationInput
+                  value={activity.location?.name || ''}
+                  onChange={(locationData) => onUpdate('location', locationData)}
+                  placeholder="Search for a location..."
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Start typing to search with Google Places
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Title <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={activity.title}
                   onChange={(e) => onUpdate('title', e.target.value)}
                   className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none"
                   placeholder="Activity title"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Time</label>
+                <label className="block text-sm text-gray-400 mb-2">Time <span className="text-red-400">*</span></label>
                 <select
                   value={activity.time || 'Morning'}
                   onChange={(e) => onUpdate('time', e.target.value)}
                   className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none font-bold cursor-pointer"
+                  required
                 >
                   <option value="Morning">Morning</option>
                   <option value="Afternoon">Afternoon</option>
@@ -1936,26 +1994,16 @@ const GoogleFormActivityCard = ({
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Description</label>
+                <label className="block text-sm text-gray-400 mb-2">Description <span className="text-red-400">*</span></label>
+                <p className="text-xs text-gray-500 mb-2">How did you get there? Any tips on what not to do?</p>
                 <textarea
                   value={activity.description}
                   onChange={(e) => onUpdate('description', e.target.value)}
                   className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none"
-                  placeholder="Describe the activity"
+                  placeholder="Start typing your review here..."
                   rows={4}
+                  required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Location</label>
-                <LocationInput
-                  value={activity.location?.name || ''}
-                  onChange={(locationData) => onUpdate('location', locationData)}
-                  placeholder="Search for a location..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Start typing to search with Google Places
-                </p>
               </div>
 
               <button

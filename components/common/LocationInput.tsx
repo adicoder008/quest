@@ -7,13 +7,15 @@ interface LocationInputProps {
   onChange: (location: { name: string; coordinates?: { lat: number; lng: number } }) => void;
   placeholder?: string;
   className?: string;
+  required?: boolean;
 }
 
 export const LocationInput = ({
   value,
   onChange,
   placeholder = "Search for a place...",
-  className = ""
+  className = "",
+  required = false
 }: LocationInputProps) => {
 
   const handleSelect = async (suggestion: PlaceSuggestion) => {
@@ -70,6 +72,7 @@ export const LocationInput = ({
       onSelect={handleSelect}
       placeholder={placeholder}
       className={className}
+      required={required}
     />
   );
 };
