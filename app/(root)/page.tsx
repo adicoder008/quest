@@ -1,17 +1,28 @@
 'use client'
 import React from 'react'
-import Nav from '@/components/LeftSideNav'
+import dynamic from 'next/dynamic'
 import Hero from '@/components/Hero'
-import HowItWorks from '@/components/HowItWorks'
-import Mid from '@/components/Mid'
-import PhoneSection from '@/components/PhoneSection'
-import FAQ from '@/components/FAQ'
-import Signup from '@/components/Signup'
-import Footer from '@/components/Footer'
-import Features from '@/components/Features'
-
-
 import LandingNavbar from '@/components/LandingNavbar'
+
+// Lazy load below-the-fold components
+const Features = dynamic(() => import('@/components/Features'), {
+  loading: () => <div className="min-h-[400px]" />
+})
+const Mid = dynamic(() => import('@/components/Mid'), {
+  loading: () => <div className="min-h-[400px]" />
+})
+const PhoneSection = dynamic(() => import('@/components/PhoneSection'), {
+  loading: () => <div className="min-h-[400px]" />
+})
+const FAQ = dynamic(() => import('@/components/FAQ'), {
+  loading: () => <div className="min-h-[400px]" />
+})
+const Signup = dynamic(() => import('@/components/Signup'), {
+  loading: () => <div className="min-h-[400px]" />
+})
+const Footer = dynamic(() => import('@/components/Footer'), {
+  loading: () => <div className="min-h-[200px]" />
+})
 
 const page = () => {
   return (

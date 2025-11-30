@@ -1,4 +1,5 @@
 import React from 'react'
+import Image from 'next/image';
 
 const Mid = () => {
   const features = [
@@ -44,7 +45,7 @@ const Mid = () => {
           <div className='group relative bg-gray-900/40 backdrop-blur-sm border border-white/5 rounded-3xl overflow-hidden hover:border-[#EA6100]/30 transition-all duration-500 h-[400px]'>
             <div className="absolute inset-0 bg-black/20 z-10"></div>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81?q=80&w=1974&auto=format&fit=crop" alt="Create" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81?q=80&w=1974&auto=format&fit=crop" alt="Create" width={1974} height={1316} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             <div className="absolute bottom-0 left-0 w-full p-8 z-20">
               <div className="w-12 h-12 rounded-full bg-[#EA6100] flex items-center justify-center mb-4 text-white text-xl">✍️</div>
               <h3 className="text-2xl font-bold text-white mb-2">Create & Share</h3>
@@ -56,7 +57,7 @@ const Mid = () => {
           <div className='group relative bg-gray-900/40 backdrop-blur-sm border border-white/5 rounded-3xl overflow-hidden hover:border-[#EA6100]/30 transition-all duration-500 h-[400px]'>
             <div className="absolute inset-0 bg-black/20 z-10"></div>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop" alt="Explore" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop" alt="Explore" width={2021} height={1347} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             <div className="absolute bottom-0 left-0 w-full p-8 z-20">
               <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center mb-4 text-white text-xl">🌍</div>
               <h3 className="text-2xl font-bold text-white mb-2">Explore the World</h3>
@@ -68,7 +69,7 @@ const Mid = () => {
           <div className='group relative bg-gray-900/40 backdrop-blur-sm border border-white/5 rounded-3xl overflow-hidden hover:border-[#EA6100]/30 transition-all duration-500 h-[400px]'>
             <div className="absolute inset-0 bg-black/20 z-10"></div>
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
-            <img src="/CommunityChampion.svg" alt="Gamify" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+            <Image src="/CommunityChampion.svg" alt="Gamify" width={400} height={400} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             <div className="absolute bottom-0 left-0 w-full p-8 z-20">
               <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center mb-4 text-white text-xl">🏆</div>
               <h3 className="text-2xl font-bold text-white mb-2">Earn Badges</h3>

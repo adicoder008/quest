@@ -3,6 +3,14 @@ const { IgnorePlugin } = require('webpack'); // or `import { IgnorePlugin } from
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
   // ... any other config you have
   webpack: (config: { plugins: any[]; }) => {
     // Original fixes
