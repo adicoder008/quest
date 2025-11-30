@@ -435,13 +435,12 @@ const DesktopExplore = () => {
                 )}
               </div>
             </div>
-            <div className="absolute bottom-42 left-0 w-full px-6">
+            <div className="absolute bottom-24 md:bottom-42 left-0 w-full px-6">
               <h1 className="text-xl sm:text-2xl font-bold mb-3 text-white text-center">
-                Share Your Latest Trip
+                Not sure Where to Start?
               </h1>
               <p className="text-xs sm:text-sm text-gray-200 mb-6 text-center">
-                Inspire fellow travellers by posting your journey from photos
-                and moments to tips and memories, all deserving to be seen
+                Let AI guide your journey form first idea to final itinerary
               </p>
             </div>
 

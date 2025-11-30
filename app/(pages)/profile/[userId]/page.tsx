@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { getUserData, getUserBadges } from '@/lib/firebaseSerive';
@@ -95,12 +95,16 @@ interface Post {
 
 const AccountPage = () => {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const params = useParams();
+  const profileUserId = params?.userId as string; // The profile we're viewing
+
+  const [user, setUser] = useState<any>(null); // Currently logged-in user
   const [userData, setUserData] = useState<UserData | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [gamificationInfo, setGamificationInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   // Posts state
   const [activePostTab, setActivePostTab] = useState<'your-posts' | 'saved-posts'>('your-posts');
@@ -120,29 +124,43 @@ const AccountPage = () => {
       setUser(currentUser);
       setIsLoggedIn(!!currentUser);
 
-      if (currentUser) {
+      // Check if this is the user's own profile
+      const isOwn = currentUser?.uid === profileUserId;
+      setIsOwnProfile(isOwn);
+
+      if (profileUserId) {
         try {
-          const data = await getUserData(currentUser.uid);
+          // Fetch the profile owner's data (not necessarily the logged-in user)
+          const data = await getUserData(profileUserId);
           setUserData(data as UserData);
 
-          const following = await getFollowingList(currentUser.uid);
+          const following = await getFollowingList(profileUserId);
           setFollowingList(following);
 
-          const userBadges = await getUserBadges(currentUser.uid);
+          const userBadges = await getUserBadges(profileUserId);
           setBadges(userBadges.slice(0, 3));
 
           // Updated gamification logic
-          const gData = await getUserGamificationData(currentUser.uid);
+          const gData = await getUserGamificationData(profileUserId);
           const rankInfo = calculateRankInfo(gData);
           setGamificationInfo(rankInfo);
 
-          await fetchUserPosts(currentUser.uid);
+          // Get logged-in user's data for saved posts check
+          let loggedInUserData = null;
+          if (currentUser && currentUser.uid !== profileUserId) {
+            loggedInUserData = await getUserData(currentUser.uid);
+          } else if (currentUser) {
+            loggedInUserData = data;
+          }
 
-          if (data?.savedPosts && data.savedPosts.length > 0) {
+          await fetchUserPosts(profileUserId, data as UserData, loggedInUserData?.savedPosts || []);
+
+          // Only fetch saved posts if viewing own profile
+          if (isOwn && data?.savedPosts && data.savedPosts.length > 0) {
             await fetchSavedPosts(data.savedPosts);
           }
 
-          await fetchUserQuests(currentUser.uid);
+          await fetchUserQuests(profileUserId);
         } catch (error) {
           console.error('Error fetching user data:', error);
         }
@@ -151,9 +169,9 @@ const AccountPage = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profileUserId]);
 
-  const fetchUserPosts = async (uid: string) => {
+  const fetchUserPosts = async (uid: string, profileData: UserData, savedPostIds: string[] = []) => {
     setLoadingPosts(true);
     try {
       const postsRef = collection(db, 'posts');
@@ -169,8 +187,8 @@ const AccountPage = () => {
         return {
           id: doc.id,
           uid: data.uid || uid,
-          userName: data.userName || userData?.displayName || 'User',
-          userProfilePic: data.userProfilePic || userData?.photoURL || '/default-avatar.png',
+          userName: data.userName || profileData?.displayName || 'User',
+          userProfilePic: data.userProfilePic || profileData?.photoURL || '/default-avatar.png',
           text: data.text || '',
           photoUrl: data.photoUrl || '',
           createdAt: data.createdAt,
@@ -179,7 +197,7 @@ const AccountPage = () => {
           shareCount: data.shareCount || 0,
           location: data.location || '',
           likedBy: data.likedBy || [],
-          isSaved: userData?.savedPosts?.includes(doc.id) || false,
+          isSaved: savedPostIds.includes(doc.id),
           postType: data.postType || 'regular',
           questData: data.questData || null,
           questContext: data.questContext || null,
@@ -335,23 +353,6 @@ const AccountPage = () => {
     );
   }
 
-  if (!isLoggedIn) {
-    return (
-      <div className='min-h-screen bg-[#121212] text-white flex items-center justify-center px-4'>
-        <div className='text-center max-w-md'>
-          <h2 className='text-3xl font-bold text-[#EA6100] mb-4'>Welcome to OnQuest</h2>
-          <p className='text-gray-400 mb-6'>Please log in to view your profile</p>
-          <button
-            onClick={() => navigateTo('/login')}
-            className='bg-[#EA6100] text-black px-8 py-3 rounded-lg font-medium hover:bg-[#f5c094] transition-colors'
-          >
-            Log In
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className='min-h-screen bg-[#121212]'>
       <style>{styles}</style>
@@ -413,15 +414,17 @@ const AccountPage = () => {
                   </div>
                 </div>
 
-                <div className='hidden lg:flex lg:mb-4'>
-                  <button
-                    onClick={() => navigateTo('/settings/edit-profile')}
-                    className='flex items-center gap-2 bg-[#292929] hover:bg-[#3a3a3a] text-white px-6 py-2.5 rounded-lg transition-colors'
-                  >
-                    <Edit2 size={18} />
-                    <span>Edit Profile</span>
-                  </button>
-                </div>
+                {isOwnProfile && (
+                  <div className='hidden lg:flex lg:mb-4'>
+                    <button
+                      onClick={() => navigateTo('/settings/edit-profile')}
+                      className='flex items-center gap-2 bg-[#292929] hover:bg-[#3a3a3a] text-white px-6 py-2.5 rounded-lg transition-colors'
+                    >
+                      <Edit2 size={18} />
+                      <span>Edit Profile</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
@@ -568,24 +571,28 @@ const AccountPage = () => {
               >
                 Public
               </button>
-              <button
-                onClick={() => setActiveQuestTab('private-quests')}
-                className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'private-quests'
-                  ? 'bg-[#EA6100] text-black'
-                  : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-              >
-                Private
-              </button>
-              <button
-                onClick={() => setActiveQuestTab('saved-quests')}
-                className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'saved-quests'
-                  ? 'bg-[#EA6100] text-black'
-                  : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                  }`}
-              >
-                Saved Quests
-              </button>
+              {isOwnProfile && (
+                <>
+                  <button
+                    onClick={() => setActiveQuestTab('private-quests')}
+                    className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'private-quests'
+                      ? 'bg-[#EA6100] text-black'
+                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                  >
+                    Private
+                  </button>
+                  <button
+                    onClick={() => setActiveQuestTab('saved-quests')}
+                    className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeQuestTab === 'saved-quests'
+                      ? 'bg-[#EA6100] text-black'
+                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                      }`}
+                  >
+                    Saved Quests
+                  </button>
+                </>
+              )}
             </div>
 
             {loadingQuests ? (
@@ -647,9 +654,9 @@ const AccountPage = () => {
             )}
           </div>
 
-          <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+          <div className={`grid grid-cols-1 ${isOwnProfile ? 'lg:grid-cols-3' : ''} gap-6`}>
             {/* Left Column - Posts */}
-            <div className='lg:col-span-2 space-y-6'>
+            <div className={`${isOwnProfile ? 'lg:col-span-2' : ''} space-y-6`}>
               {/* Posts Section */}
               <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6'>
                 <div className='flex items-center justify-between mb-4'>
@@ -670,17 +677,19 @@ const AccountPage = () => {
                       : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
                       }`}
                   >
-                    Your Posts ({yourPosts.length})
+                    {isOwnProfile ? `Your Posts (${yourPosts.length})` : `Posts (${yourPosts.length})`}
                   </button>
-                  <button
-                    onClick={() => setActivePostTab('saved-posts')}
-                    className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activePostTab === 'saved-posts'
-                      ? 'bg-[#EA6100] text-black'
-                      : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-                      }`}
-                  >
-                    Saved Posts ({savedPosts.length})
-                  </button>
+                  {isOwnProfile && (
+                    <button
+                      onClick={() => setActivePostTab('saved-posts')}
+                      className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activePostTab === 'saved-posts'
+                        ? 'bg-[#EA6100] text-black'
+                        : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+                        }`}
+                    >
+                      Saved Posts ({savedPosts.length})
+                    </button>
+                  )}
                 </div>
 
                 {loadingPosts ? (
@@ -734,46 +743,48 @@ const AccountPage = () => {
             </div>
 
             {/* Right Column - Quick Actions */}
-            <div className='lg:col-span-1 space-y-6'>
-              <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6 lg:sticky lg:top-6'>
-                <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>
-                  Quick Actions
-                </h3>
+            {isOwnProfile && (
+              <div className='lg:col-span-1 space-y-6'>
+                <div className='bg-[#1a1a1a] rounded-xl p-5 lg:p-6 lg:sticky lg:top-6'>
+                  <h3 className='text-xl font-semibold text-[#EA6100] mb-4'>
+                    Quick Actions
+                  </h3>
 
-                <div className='space-y-2'>
-                  <MenuOption
-                    icon={<Trophy className='text-[#EA6100]' size={20} />}
-                    label='Gamification Hub'
-                    onClick={() => navigateTo('/gamification')}
-                  />
-                  <MenuOption
-                    icon={<Settings className='text-[#EA6100]' size={20} />}
-                    label='Settings'
-                    onClick={() => navigateTo('/settings')}
-                  />
-                  <MenuOption
-                    icon={<Edit2 className='text-[#EA6100]' size={20} />}
-                    label='Edit Profile'
-                    onClick={() => navigateTo('/settings/edit-profile')}
-                  />
-                  <MenuOption
-                    icon={<Calendar className='text-[#EA6100]' size={20} />}
-                    label='Upcoming Quests'
-                    onClick={() => navigateTo('/account/upcoming-quests')}
-                  />
-                  <MenuOption
-                    icon={<SlidersHorizontal className='text-[#EA6100]' size={20} />}
-                    label='Preferences'
-                    onClick={() => navigateTo('/account/preferences')}
-                  />
-                  <MenuOption
-                    icon={<HelpCircle className='text-[#EA6100]' size={20} />}
-                    label='Support'
-                    onClick={() => navigateTo('/account/support')}
-                  />
+                  <div className='space-y-2'>
+                    <MenuOption
+                      icon={<Trophy className='text-[#EA6100]' size={20} />}
+                      label='Gamification Hub'
+                      onClick={() => navigateTo('/gamification')}
+                    />
+                    <MenuOption
+                      icon={<Settings className='text-[#EA6100]' size={20} />}
+                      label='Settings'
+                      onClick={() => navigateTo('/settings')}
+                    />
+                    <MenuOption
+                      icon={<Edit2 className='text-[#EA6100]' size={20} />}
+                      label='Edit Profile'
+                      onClick={() => navigateTo('/settings/edit-profile')}
+                    />
+                    <MenuOption
+                      icon={<Calendar className='text-[#EA6100]' size={20} />}
+                      label='Upcoming Quests'
+                      onClick={() => navigateTo('/account/upcoming-quests')}
+                    />
+                    <MenuOption
+                      icon={<SlidersHorizontal className='text-[#EA6100]' size={20} />}
+                      label='Preferences'
+                      onClick={() => navigateTo('/account/preferences')}
+                    />
+                    <MenuOption
+                      icon={<HelpCircle className='text-[#EA6100]' size={20} />}
+                      label='Support'
+                      onClick={() => navigateTo('/account/support')}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -782,7 +793,7 @@ const AccountPage = () => {
         </div>
       </div>
     </div>
-  
+
   );
 };
 
