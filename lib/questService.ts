@@ -258,6 +258,7 @@ const questService = {
 
   /**
    * Fetches all quests a user is a member of
+   * Enhanced to properly sort by creation date
    */
   async getUserQuests(uid: string): Promise<Quest[]> {
     try {
@@ -272,20 +273,31 @@ const questService = {
         return [];
       }
 
-      const questsToFetch = questIds.slice(0, 30);
-      const questsRef = collection(db, 'quest');
-      const q = query(
-        questsRef,
-        where('__name__', 'in', questsToFetch),
-      );
+      console.log(`Fetching ${questIds.length} quests for user ${uid}`);
 
-      const querySnapshot = await getDocs(q);
+      // Firestore 'in' queries support max 30 items, so we need to batch
+      const batches = [];
+      for (let i = 0; i < questIds.length; i += 30) {
+        batches.push(questIds.slice(i, i + 30));
+      }
+
       let quests: Quest[] = [];
 
-      querySnapshot.forEach((doc) => {
-        quests.push({ id: doc.id, ...doc.data() } as Quest);
-      });
+      // Fetch all batches
+      for (const batch of batches) {
+        const questsRef = collection(db, 'quest');
+        const q = query(
+          questsRef,
+          where('__name__', 'in', batch),
+        );
 
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          quests.push({ id: doc.id, ...doc.data() } as Quest);
+        });
+      }
+
+      // Sort by createdAt timestamp (newest first)
       quests.sort((a, b) => {
         const aTimestamp =
           a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
@@ -295,9 +307,12 @@ const questService = {
           b.createdAt && typeof b.createdAt === 'object' && 'seconds' in b.createdAt
             ? (b.createdAt as { seconds: number }).seconds
             : (typeof b.createdAt === 'string' ? Date.parse(b.createdAt) / 1000 : 0);
-        return bTimestamp - aTimestamp;
+
+        console.log(`Quest ${a.id}: ${aTimestamp}, Quest ${b.id}: ${bTimestamp}`);
+        return bTimestamp - aTimestamp; // Descending order (newest first)
       });
 
+      console.log(`Fetched and sorted ${quests.length} quests`);
       return quests;
     } catch (error) {
       console.error('Error fetching user quests:', error);

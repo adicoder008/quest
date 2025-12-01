@@ -12,6 +12,7 @@ import { QuestGridCard } from '../../../components/quest/QuestGridCard'; // <-- 
 // Expanded the Quest type to include all data needed for the grid card
 interface Quest {
   id: string;
+  title: string;
   destination: string;
   description: string;
   coverImageUrl: string;

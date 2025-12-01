@@ -29,6 +29,8 @@ interface TripData {
   startDate: string;
   endDate: string;
   destinationData?: PlaceData;
+  title?: string;
+  description?: string;
 }
 
 const PopularDestinationCard = ({
@@ -129,6 +131,7 @@ const QuestPage = () => {
   const steps = [
     { title: "Where did you travel?", key: "destination" },
     { title: "When did you travel?", key: "dates" },
+    { title: "Tell us about your quest", key: "details" },
   ];
 
   const handleDestinationChange = (locationData: { name: string; coordinates?: { lat: number; lng: number } }) => {
@@ -161,8 +164,8 @@ const QuestPage = () => {
           destination: tripData.destination,
           startDate: tripData.startDate,
           endDate: tripData.endDate,
-          title: `Trip to ${tripData.destination}`,
-          description: '',
+          title: tripData.title?.trim() || 'Untitled',
+          description: tripData.description?.trim() || '',
           source: '',
           transportMode: [],
           tripType: 'solo',
@@ -402,6 +405,31 @@ const QuestPage = () => {
               </div>
             </div>
           )}
+
+          {currentStepData.key === 'details' && (
+            <div className="max-w-2xl space-y-6">
+              <div>
+                <label className="block text-base text-gray-400 mb-3">Quest Title <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={tripData.title || ''}
+                  onChange={(e) => updateTripData('title', e.target.value)}
+                  placeholder="Give your quest a catchy title..."
+                  className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-base text-gray-400 mb-3">Description (Optional)</label>
+                <textarea
+                  value={tripData.description || ''}
+                  onChange={(e) => updateTripData('description', e.target.value)}
+                  placeholder="Tell us about your quest..."
+                  rows={4}
+                  className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg resize-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-6">
@@ -426,7 +454,8 @@ const QuestPage = () => {
             onClick={handleNext}
             disabled={
               (currentStepData.key === 'destination' && !tripData.destination) ||
-              (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate))
+              (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
+              (currentStepData.key === 'details' && !tripData.title?.trim())
             }
             className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto text-lg"
           >
@@ -491,6 +520,31 @@ const QuestPage = () => {
                 </div>
               </div>
             )}
+
+            {currentStepData.key === 'details' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Quest Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={tripData.title || ''}
+                    onChange={(e) => updateTripData('title', e.target.value)}
+                    placeholder="Give your quest a catchy title..."
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Description (Optional)</label>
+                  <textarea
+                    value={tripData.description || ''}
+                    onChange={(e) => updateTripData('description', e.target.value)}
+                    placeholder="Tell us about your quest..."
+                    rows={3}
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4 mb-20">
@@ -515,7 +569,8 @@ const QuestPage = () => {
               onClick={handleNext}
               disabled={
                 (currentStepData.key === 'destination' && !tripData.destination) ||
-                (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate))
+                (currentStepData.key === 'dates' && (!tripData.startDate || !tripData.endDate)) ||
+                (currentStepData.key === 'details' && !tripData.title?.trim())
               }
               className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
             >

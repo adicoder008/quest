@@ -19,12 +19,15 @@ interface QuestFeedCardProps {
     ownerName?: string;
     ownerPhoto?: string;
     createdAt: any;
+    itinerary?: {
+      generated?: boolean;
+    };
   };
 }
 
 export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
   const router = useRouter();
-  
+
   const getDaysCount = () => {
     const start = new Date(quest.startDate);
     const end = new Date(quest.endDate);
@@ -38,7 +41,7 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
     const date = quest.createdAt.toDate ? quest.createdAt.toDate() : new Date(quest.createdAt);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -47,7 +50,7 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
   };
 
   return (
-    <div 
+    <div
       onClick={() => router.push(`/quest/${quest.id}`)}
       className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 hover:border-orange-500 transition-all cursor-pointer group shadow-xl"
     >
@@ -61,14 +64,21 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400';
           }}
         />
-        
+
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-        
-        {/* Quest Badge */}
-        <div className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg">
-          🗺️ Quest
-        </div>
+
+        {/* Quest Badge - Show "AI TRIP" for AI-generated quests */}
+        {quest.itinerary?.generated ? (
+          <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
+            <span className="animate-pulse">✨</span>
+            AI TRIP
+          </div>
+        ) : (
+          <div className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg">
+            🗺️ Quest
+          </div>
+        )}
 
         {/* Like Badge */}
         {quest.likeCount && quest.likeCount > 0 && (
@@ -77,14 +87,16 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
             <span className="text-white text-xs font-medium">{quest.likeCount}</span>
           </div>
         )}
-        
+
+
         {/* Bottom Content */}
         <div className="absolute bottom-0 left-0 right-0 p-5">
-          <div className="flex items-start gap-2 mb-2">
-            <MapPin size={18} className="text-orange-400 flex-shrink-0 mt-0.5" />
-            <h3 className="text-white font-bold text-xl leading-tight">{quest.destination}</h3>
+          <h2 className="text-white font-bold text-2xl leading-tight mb-1">{quest.title}</h2>
+          <div className="flex items-start gap-2 mb-3">
+            <MapPin size={16} className="text-orange-400 flex-shrink-0 mt-0.5" />
+            <p className="text-gray-200 text-sm leading-tight">{quest.destination}</p>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm text-gray-200">
             <span className="flex items-center gap-1.5 bg-black bg-opacity-40 backdrop-blur-sm px-2.5 py-1 rounded-full">
               <Calendar size={14} />
@@ -109,7 +121,7 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
             </div>
           </div>
         </div>
-        
+
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -145,7 +157,7 @@ export const QuestFeedGrid = ({ quests, title = "Featured Quests" }: QuestFeedGr
         <span className="text-orange-500">🗺️</span>
         {title}
       </h2>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {quests.map((quest) => (
           <QuestFeedCard key={quest.id} quest={quest} />
