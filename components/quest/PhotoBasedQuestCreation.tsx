@@ -84,6 +84,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [questContacts, setQuestContacts] = useState<OnQuestPersonData[]>([]);
   const [description, setDescription] = useState('');
+  const [questTitle, setQuestTitle] = useState('');
   const photoRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const start = new Date(startDate);
@@ -357,7 +358,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         tripType: 'solo',
         preferences: [],
         budget: 0,
-        title: `Trip to ${destination}`,
+        title: questTitle.trim() || 'Untitled',
         description: description.trim(),
       };
 
@@ -820,7 +821,21 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
     <div className="max-w-4xl mx-auto pb-32 px-4 sm:px-0">
       <div className="mb-6 sm:mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Final Touches</h2>
-        <p className="text-sm sm:text-base text-gray-400">Add a description and choose a cover image for your quest</p>
+        <p className="text-sm sm:text-base text-gray-400">Add a title, description and choose a cover image for your quest</p>
+      </div>
+
+      <div className="mb-6">
+        <label className="text-white font-medium mb-2 block text-sm sm:text-base">
+          Quest Title <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={questTitle}
+          onChange={(e) => setQuestTitle(e.target.value)}
+          placeholder="Give your quest a catchy title..."
+          className="w-full bg-gray-900 text-white p-4 rounded-xl border border-gray-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none text-base"
+          required
+        />
       </div>
 
       <div className="mb-8">
@@ -971,7 +986,7 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
             ) : (
               <button
                 onClick={handleCreateQuest}
-                disabled={!selectedCoverPhotoId && !newCoverImage}
+                disabled={!selectedCoverPhotoId && !newCoverImage || !questTitle.trim()}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm sm:text-base"
               >
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />

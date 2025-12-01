@@ -5,7 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getUserData } from '@/lib/firebaseSerive';
 import questService from '@/lib/questService';
-import { ArrowLeft, MapPin, Users, Calendar } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, Calendar, Trash2 } from 'lucide-react';
 import { Quest } from '@/app/types';
 
 const AllQuestsPage = () => {
@@ -37,11 +37,31 @@ const AllQuestsPage = () => {
     try {
       const quests = await questService.getUserQuests(uid);
       setMyQuests(quests);
-      
+
       // TODO: Implement saved quests functionality
       setSavedQuests([]);
     } catch (error) {
       console.error('Error fetching user quests:', error);
+    }
+  };
+
+  const handleDeleteQuest = async (questId: string) => {
+    if (!user || !confirm('Are you sure you want to delete this quest? This action cannot be undone.')) return;
+
+    // Optimistic update
+    setMyQuests(prev => prev.filter(q => q.id !== questId));
+
+    try {
+      const result = await questService.deleteQuest(questId, user.uid);
+      if (!result.success) {
+        // Revert if failed
+        alert('Failed to delete quest: ' + result.error);
+        await fetchUserQuests(user.uid);
+      }
+    } catch (error) {
+      console.error('Error deleting quest:', error);
+      alert('An error occurred while deleting the quest.');
+      await fetchUserQuests(user.uid);
     }
   };
 
@@ -62,7 +82,7 @@ const AllQuestsPage = () => {
       {/* Header */}
       <div className='sticky top-0 z-10 bg-black border-b border-gray-700'>
         <div className='flex items-center gap-4 px-5 py-4'>
-          <button 
+          <button
             onClick={() => router.back()}
             className='text-white hover:text-[#EA6100] transition-colors'
           >
@@ -75,31 +95,28 @@ const AllQuestsPage = () => {
         <div className='flex gap-2 px-5 pb-3 overflow-x-auto scrollbar-hide'>
           <button
             onClick={() => setActiveTab('public')}
-            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-              activeTab === 'public'
-                ? 'bg-[#EA6100] text-black'
-                : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-            }`}
+            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === 'public'
+              ? 'bg-[#EA6100] text-black'
+              : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+              }`}
           >
             Public ({publicQuests.length})
           </button>
           <button
             onClick={() => setActiveTab('private')}
-            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-              activeTab === 'private'
-                ? 'bg-[#EA6100] text-black'
-                : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-            }`}
+            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === 'private'
+              ? 'bg-[#EA6100] text-black'
+              : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+              }`}
           >
             Private ({privateQuests.length})
           </button>
           <button
             onClick={() => setActiveTab('saved')}
-            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
-              activeTab === 'saved'
-                ? 'bg-[#EA6100] text-black'
-                : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
-            }`}
+            className={`py-2 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === 'saved'
+              ? 'bg-[#EA6100] text-black'
+              : 'bg-[#292929] text-gray-400 hover:bg-[#3a3a3a]'
+              }`}
           >
             Saved ({savedQuests.length})
           </button>
@@ -111,10 +128,11 @@ const AllQuestsPage = () => {
         {currentQuests.length > 0 ? (
           <div className='grid grid-cols-1 gap-4'>
             {currentQuests.map(quest => (
-              <QuestCard 
-                key={quest.id} 
-                quest={quest} 
-                onClick={() => router.push(`/quest/${quest.id}`)} 
+              <QuestCard
+                key={quest.id}
+                quest={quest}
+                onClick={() => router.push(`/quest/${quest.id}`)}
+                onDelete={handleDeleteQuest}
               />
             ))}
           </div>
@@ -122,13 +140,13 @@ const AllQuestsPage = () => {
           <div className='text-center py-12'>
             <div className='bg-[#292929] rounded-xl p-8'>
               <p className='text-gray-400 text-lg mb-2'>
-                {activeTab === 'public' ? 'No public quests' : 
-                 activeTab === 'private' ? 'No private quests' : 
-                 'No saved quests'}
+                {activeTab === 'public' ? 'No public quests' :
+                  activeTab === 'private' ? 'No private quests' :
+                    'No saved quests'}
               </p>
               <p className='text-gray-500 text-sm mb-4'>
-                {activeTab === 'saved' 
-                  ? 'Save quests to view them here' 
+                {activeTab === 'saved'
+                  ? 'Save quests to view them here'
                   : 'Create your first quest to get started'}
               </p>
               {activeTab !== 'saved' && (
@@ -148,16 +166,16 @@ const AllQuestsPage = () => {
 };
 
 // Quest Card Component
-const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onClick }) => {
+const QuestCard: React.FC<{ quest: Quest; onClick: () => void; onDelete?: (questId: string) => void }> = ({ quest, onClick, onDelete }) => {
   const memberCount = Object.keys(quest.members || {}).length;
   const startDate = new Date(quest.startDate);
   const endDate = new Date(quest.endDate);
   const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
   return (
-    <div 
+    <div
       onClick={onClick}
-      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-700'
+      className='bg-[#292929] rounded-xl overflow-hidden cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-gray-700 relative group'
     >
       <div className='relative h-48'>
         <img
@@ -166,17 +184,31 @@ const QuestCard: React.FC<{ quest: Quest; onClick: () => void }> = ({ quest, onC
           className='w-full h-full object-cover'
         />
         <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent' />
-        
+
         {/* Quest Type Badge */}
-        <div className='absolute top-3 right-3'>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            quest.isPublic 
-              ? 'bg-[#EA6100] text-black' 
-              : 'bg-gray-800 text-white'
-          }`}>
+        <div className='absolute top-3 left-3'>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${quest.isPublic
+            ? 'bg-[#EA6100] text-black'
+            : 'bg-gray-800 text-white'
+            }`}>
             {quest.isPublic ? 'Public' : 'Private'}
           </span>
         </div>
+
+        {/* Delete Button - Hover visible on desktop (md+), always visible on mobile */}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(quest.id);
+            }}
+            className='absolute top-3 right-3 p-2 bg-black/50 hover:bg-red-500/80 text-white rounded-full transition-all duration-200 z-10 backdrop-blur-sm md:opacity-0 md:group-hover:opacity-100'
+            title='Delete Quest'
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
 
         {/* Quest Title */}
         <div className='absolute bottom-0 left-0 right-0 p-4'>

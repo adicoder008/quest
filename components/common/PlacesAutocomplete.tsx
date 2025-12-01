@@ -8,6 +8,7 @@ interface PlacesAutocompleteProps {
     onSelect: (suggestion: PlaceSuggestion) => void;
     placeholder?: string;
     className?: string;
+    required?: boolean;
 }
 
 export const PlacesAutocomplete = ({
@@ -15,7 +16,8 @@ export const PlacesAutocomplete = ({
     onChange,
     onSelect,
     placeholder = "Search for a place...",
-    className = ""
+    className = "",
+    required = false
 }: PlacesAutocompleteProps) => {
     const [inputValue, setInputValue] = useState(value);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -95,6 +97,7 @@ export const PlacesAutocomplete = ({
                     }}
                     className={`w-full bg-gray-800 text-white pl-10 pr-10 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none ${className}`}
                     placeholder={placeholder}
+                    required={required}
                 />
                 {inputValue && (
                     <button
@@ -125,9 +128,11 @@ export const PlacesAutocomplete = ({
                                 <div className="text-white text-sm font-medium">
                                     {suggestion.placePrediction.structuredFormat.mainText.text}
                                 </div>
-                                <div className="text-gray-400 text-xs mt-0.5">
-                                    {suggestion.placePrediction.structuredFormat.secondaryText.text}
-                                </div>
+                                {suggestion.placePrediction.structuredFormat.secondaryText?.text && (
+                                    <div className="text-gray-400 text-xs mt-0.5">
+                                        {suggestion.placePrediction.structuredFormat.secondaryText.text}
+                                    </div>
+                                )}
                             </div>
                         </button>
                     ))}

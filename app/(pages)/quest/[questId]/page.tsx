@@ -146,7 +146,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, uid }: any) => {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white"
               placeholder="e.g., Visit Temple, Lunch at Restaurant"
               autoFocus
             />
@@ -157,7 +157,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, uid }: any) => {
             <select
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none cursor-pointer"
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white cursor-pointer"
             >
               <option value="Morning">Morning</option>
               <option value="Afternoon">Afternoon</option>
@@ -183,7 +183,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, uid }: any) => {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+              className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none"
               placeholder="Add details about this activity..."
               rows={4}
             />
@@ -281,7 +281,7 @@ const EditTitleModal = ({ isOpen, onClose, currentTitle, currentDestination, onS
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-2">Quest Title</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none" placeholder="e.g., Amazing Bali Adventure" />
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none" placeholder="e.g., Amazing Bali Adventure" />
           </div>
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">Cancel</button>
@@ -425,11 +425,19 @@ const QuestViewPage = () => {
     if (!user?.uid || !editedQuest) return;
     setSaving(true);
     try {
+      // Reset all collapsed states before saving to prevent display issues in view mode
+      const questToSave = JSON.parse(JSON.stringify(editedQuest));
+      questToSave.itinerary?.days?.forEach((day: any) => {
+        day.activities?.forEach((activity: any) => {
+          activity.collapsed = false;
+        });
+      });
+
       await questService.updateQuest(questId, user.uid, {
-        itinerary: editedQuest.itinerary,
+        itinerary: questToSave.itinerary,
         updatedAt: new Date().toISOString()
       });
-      setQuest(editedQuest);
+      setQuest(questToSave);
       setIsEditMode(false);
       showToast('Quest saved successfully! ✓', 'success');
     } catch (error) {
@@ -691,13 +699,16 @@ const QuestViewPage = () => {
   const displayQuest = isEditMode ? editedQuest : quest;
   if (!displayQuest) return null;
 
-  // Fix: Properly extract activities with coordinates and add date
+  // Fix: Properly extract activities with coordinates and add date (supports both lat/lng and latitude/longitude formats)
   const allActivitiesWithCoords = displayQuest.itinerary?.days?.flatMap((day: any) =>
     (day.activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .filter((a: any) => {
+        const coords = a.location?.coordinates;
+        return coords && (coords.lat || coords.latitude) && (coords.lng || coords.longitude || coords.lon);
+      })
       .map((a: any) => {
-        const lat = a.location.coordinates.lat;
-        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        const lat = a.location.coordinates.lat || a.location.coordinates.latitude;
+        const lng = a.location.coordinates.lng || a.location.coordinates.longitude || a.location.coordinates.lon;
         return {
           ...a,
           date: day.date,
@@ -716,10 +727,13 @@ const QuestViewPage = () => {
 
   const dayActivitiesWithCoords = mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]
     ? (displayQuest.itinerary.days[mapFilter].activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .filter((a: any) => {
+        const coords = a.location?.coordinates;
+        return coords && (coords.lat || coords.latitude) && (coords.lng || coords.longitude || coords.lon);
+      })
       .map((a: any) => {
-        const lat = a.location.coordinates.lat;
-        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        const lat = a.location.coordinates.lat || a.location.coordinates.latitude;
+        const lng = a.location.coordinates.lng || a.location.coordinates.longitude || a.location.coordinates.lon;
         return {
           ...a,
           date: displayQuest.itinerary.days[mapFilter].date,
@@ -858,7 +872,13 @@ const QuestViewPage = () => {
                 <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                   <Calendar size={12} />
                   <span>
-                    {new Date(quest.startDate).toLocaleDateString()} - {new Date(quest.endDate).toLocaleDateString()}
+                    {(() => {
+                      const start = new Date(quest.startDate);
+                      const end = new Date(quest.endDate);
+                      const diffTime = Math.abs(end.getTime() - start.getTime());
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      return diffDays === 1 ? '1 day' : `${diffDays} days`;
+                    })()}
                   </span>
                 </div>
               </div>
@@ -869,8 +889,19 @@ const QuestViewPage = () => {
               {isOwner ? (
                 /* OWNER VIEW - Share and Edit */
                 <>
+
+                  {!isEditMode && (
+                    <button
+                      onClick={() => setShowVideoModal(true)}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 via-purple-500 to-pink-600 hover:from-orange-600 hover:via-purple-600 hover:to-pink-700 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-sm font-medium"
+                    >
+                      <Video size={18} className="animate-pulse" />
+                      <span className="hidden md:inline">Generate Video</span>
+                    </button>
+                  )}
+
                   {/* Owner Stats - Interactive Like Button */}
-                  {quest.isPostedToFeed && quest.associatedPostId && (
+                  {quest.isPostedToFeed && quest.associatedPostId && !isEditMode && (
                     <button
                       onClick={handleLike}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm mr-2 ${isLiked
@@ -883,13 +914,7 @@ const QuestViewPage = () => {
                     </button>
                   )}
 
-                  <button
-                    onClick={() => setShowVideoModal(true)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 from-orange-500 via-purple-500 to-pink-600 hover:from-orange-600 hover:via-purple-600 hover:to-pink-700 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 text-sm font-medium"
-                  >
-                    <Video size={18} className="animate-pulse" />
-                    <span className="hidden md:inline">Generate Video</span>
-                  </button>
+
 
                   {/* Share Button - Only show if posted */}
                   {quest.isPostedToFeed && (
@@ -905,7 +930,7 @@ const QuestViewPage = () => {
                   {!isEditMode && (
                     <button
                       onClick={() => setIsEditMode(true)}
-                      className="flex items-center gap-2 px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
+                      className="hidden lg:flex items-center gap-2 px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
                     >
                       <Edit3 size={16} />
                       <span>Edit</span>
@@ -920,7 +945,8 @@ const QuestViewPage = () => {
                         }}
                         className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-sm"
                       >
-                        Cancel
+                        <X size={16} />
+                        {/* <span>Cancel</span> */}
                       </button>
                       <button
                         onClick={handleSave}
@@ -1032,18 +1058,8 @@ const QuestViewPage = () => {
         {/* COMPACT HEADER with Map Toggle - Only show when NOT in edit mode */}
         {!isEditMode && (
           <div className="sticky top-[65px] z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
-            <div className="px-4 py-2 flex items-center justify-between">
+            <div className="px-4 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                {/* Mobile Edit Button - Only for owners/editors */}
-                {canEdit && (
-                  <button
-                    onClick={() => setIsEditMode(true)}
-                    className="flex items-center justify-center w-10 h-10 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors text-white"
-                  >
-                    <Edit3 size={20} />
-                  </button>
-                )}
-
                 {/* Map toggle button */}
                 <button
                   onClick={() => setShowMap(!showMap)}
@@ -1057,28 +1073,41 @@ const QuestViewPage = () => {
                 </button>
               </div>
 
-              {/* Day filters (only show when map is visible) */}
-              {showMap && (
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                  <button
-                    onClick={() => { setMapFilter('all'); setSelectedDay(0); }}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
-                      }`}
-                  >
-                    All
-                  </button>
-                  {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+              <div className="flex items-center gap-2 overflow-hidden">
+                {/* Day filters (only show when map is visible) */}
+                {showMap && (
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide mr-2">
                     <button
-                      key={index}
-                      onClick={() => { setMapFilter(index); setSelectedDay(index); }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
+                      onClick={() => { setMapFilter('all'); setSelectedDay(0); }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
                         }`}
                     >
-                      D{day.day}
+                      All
                     </button>
-                  ))}
-                </div>
-              )}
+                    {displayQuest.itinerary?.days?.map((day: any, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => { setMapFilter(index); setSelectedDay(index); }}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${mapFilter === index ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'
+                          }`}
+                      >
+                        D{day.day}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Mobile Edit Button - Only for owners/editors */}
+                {canEdit && (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="bg-gray-800 text-gray-300 hover:bg-gray-700 px-3 py-2 rounded-lg"
+                  >
+                    <Edit3 size={22} />
+                    <span className="hidden md:inline">Edit</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1141,42 +1170,56 @@ const QuestViewPage = () => {
 
                   {!collapsedDays.has(dayIndex) && (
                     <div className="space-y-0 pl-2">
-                      {day.activities?.map((activity: any, activityIndex: number) => (
-                        <React.Fragment key={activityIndex}>
-                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                          ) : (
-                            <GoogleFormActivityCard
-                              activity={activity}
-                              isEditMode={isEditMode}
-                              dayIndex={dayIndex}
-                              activityIndex={activityIndex}
-                              totalActivities={day.activities.length}
-                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                              onDragStart={handleDragStart}
-                              onDragOver={handleDragOver}
-                              onDrop={handleDrop}
-                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                              uid={user?.uid}
-                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                            />
-                          )}
-                          {isEditMode && (
-                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                              <button
-                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                                title="Add activity"
-                              >
-                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                              </button>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      ))}
+                      {day.activities && day.activities.length > 0 ? (
+                        day.activities.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard
+                                activity={activity}
+                                isEditMode={isEditMode}
+                                dayIndex={dayIndex}
+                                activityIndex={activityIndex}
+                                totalActivities={day.activities.length}
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                                uid={user?.uid}
+                                onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button
+                                  onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        isEditMode && (
+                          <div className="flex justify-center items-center py-8">
+                            <button
+                              onClick={() => handleAddActivityInline(dayIndex, -1)}
+                              className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -1209,42 +1252,56 @@ const QuestViewPage = () => {
 
                   {!collapsedDays.has(dayIndex) && (
                     <div className="space-y-0 pl-2">
-                      {day.activities?.map((activity: any, activityIndex: number) => (
-                        <React.Fragment key={activityIndex}>
-                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                          ) : (
-                            <GoogleFormActivityCard
-                              activity={activity}
-                              isEditMode={isEditMode}
-                              dayIndex={dayIndex}
-                              activityIndex={activityIndex}
-                              totalActivities={day.activities.length}
-                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                              onDragStart={handleDragStart}
-                              onDragOver={handleDragOver}
-                              onDrop={handleDrop}
-                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                              uid={user?.uid}
-                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                            />
-                          )}
-                          {isEditMode && (
-                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                              <button
-                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                                title="Add activity"
-                              >
-                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                              </button>
-                            </div>
-                          )}
-                        </React.Fragment>
-                      ))}
+                      {day.activities && day.activities.length > 0 ? (
+                        day.activities.map((activity: any, activityIndex: number) => (
+                          <React.Fragment key={activityIndex}>
+                            {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                              <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                            ) : (
+                              <GoogleFormActivityCard
+                                activity={activity}
+                                isEditMode={isEditMode}
+                                dayIndex={dayIndex}
+                                activityIndex={activityIndex}
+                                totalActivities={day.activities.length}
+                                onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                                onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                                onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                                onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                                uid={user?.uid}
+                                onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                              />
+                            )}
+                            {isEditMode && (
+                              <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                                <button
+                                  onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                  className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                  title="Add activity"
+                                >
+                                  <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                                </button>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        isEditMode && (
+                          <div className="flex justify-center items-center py-8">
+                            <button
+                              onClick={() => handleAddActivityInline(dayIndex, -1)}
+                              className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                            >
+                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -1280,42 +1337,56 @@ const QuestViewPage = () => {
 
                 {!collapsedDays.has(dayIndex) && (
                   <div className="space-y-0">
-                    {day.activities?.map((activity: any, activityIndex: number) => (
-                      <React.Fragment key={activityIndex}>
-                        {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
-                          <TravelActivityCard activity={activity} isEditMode={isEditMode} />
-                        ) : (
-                          <GoogleFormActivityCard
-                            activity={activity}
-                            isEditMode={isEditMode}
-                            dayIndex={dayIndex}
-                            activityIndex={activityIndex}
-                            totalActivities={day.activities.length}
-                            onDelete={() => deleteActivity(dayIndex, activityIndex)}
-                            onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
-                            onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
-                            onDragStart={handleDragStart}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
-                            onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
-                            uid={user?.uid}
-                            onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
-                          />
-                        )}
-                        {isEditMode && (
-                          <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
-                            <button
-                              onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
-                              className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
-                              title="Add activity"
-                            >
-                              <Plus size={20} className="text-gray-400 group-hover:text-white" />
-                            </button>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ))}
+                    {day.activities && day.activities.length > 0 ? (
+                      day.activities.map((activity: any, activityIndex: number) => (
+                        <React.Fragment key={activityIndex}>
+                          {(activity.type === 'travel' || activity.title?.toLowerCase().includes('travel from')) ? (
+                            <TravelActivityCard activity={activity} isEditMode={isEditMode} />
+                          ) : (
+                            <GoogleFormActivityCard
+                              activity={activity}
+                              isEditMode={isEditMode}
+                              dayIndex={dayIndex}
+                              activityIndex={activityIndex}
+                              totalActivities={day.activities.length}
+                              onDelete={() => deleteActivity(dayIndex, activityIndex)}
+                              onUpdate={(field: string, value: any) => updateActivity(dayIndex, activityIndex, field, value)}
+                              onToggleCollapse={() => toggleCollapse(dayIndex, activityIndex)}
+                              onDragStart={handleDragStart}
+                              onDragOver={handleDragOver}
+                              onDrop={handleDrop}
+                              onMoveUp={() => moveActivity(dayIndex, activityIndex, activityIndex - 1)}
+                              onMoveDown={() => moveActivity(dayIndex, activityIndex, activityIndex + 1)}
+                              uid={user?.uid}
+                              onSaveNext={() => handleSaveNext(dayIndex, activityIndex)}
+                            />
+                          )}
+                          {isEditMode && (
+                            <div className="flex justify-center items-center gap-2 -my-2 relative z-10">
+                              <button
+                                onClick={() => handleAddActivityInline(dayIndex, activityIndex)}
+                                className="p-2 bg-gray-800 hover:bg-orange-500 rounded-full transition-all group"
+                                title="Add activity"
+                              >
+                                <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                              </button>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      isEditMode && (
+                        <div className="flex justify-center items-center py-8">
+                          <button
+                            onClick={() => handleAddActivityInline(dayIndex, -1)}
+                            className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-orange-500 rounded-lg transition-all group"
+                          >
+                            <Plus size={20} className="text-gray-400 group-hover:text-white" />
+                            <span className="text-sm text-gray-400 group-hover:text-white">Add First Activity</span>
+                          </button>
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -1443,7 +1514,7 @@ const QuestViewPage = () => {
                 <select
                   value={reportReason}
                   onChange={(e) => setReportReason(e.target.value)}
-                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-white focus:outline-none"
                 >
                   <option value="">Select a reason</option>
                   <option value="spam">Spam</option>
@@ -1460,7 +1531,7 @@ const QuestViewPage = () => {
                   value={reportDescription}
                   onChange={(e) => setReportDescription(e.target.value)}
                   placeholder="Provide more details..."
-                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                  className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:ring-2 focus:ring-white focus:outline-none resize-none"
                   rows={3}
                 />
               </div>
@@ -1550,6 +1621,90 @@ const TravelActivityCard = ({ activity, isEditMode }: any) => {
   );
 };
 
+// Activity Image Carousel Component
+const ActivityImageCarousel = ({ media }: { media: ActivityMedia[] }) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const itemWidth = container.offsetWidth;
+      const newIndex = Math.round(scrollLeft / itemWidth);
+      setCurrentIndex(newIndex);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  if (!media || media.length === 0) return null;
+
+  return (
+    <div className="relative w-full">
+      {/* Carousel Container */}
+      <div
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {media.map((mediaItem, index) => (
+          <div
+            key={index}
+            className="flex-shrink-0 w-full snap-center"
+          >
+            <div className="relative w-full" style={{ aspectRatio: '4/5' }}>
+              <img
+                src={mediaItem.url}
+                alt={`Activity ${index + 1}`}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  (e.currentTarget.parentElement as HTMLElement)?.remove();
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination Dots and Counter */}
+      {media.length > 1 && (
+        <>
+          {/* Dots */}
+          <div className="flex justify-center gap-1.5 mt-3">
+            {media.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  scrollContainerRef.current?.scrollTo({
+                    left: scrollContainerRef.current.offsetWidth * index,
+                    behavior: 'smooth',
+                  });
+                }}
+                className={`h-1.5 rounded-full transition-all ${index === currentIndex
+                  ? 'w-6 bg-orange-500'
+                  : 'w-1.5 bg-gray-600 hover:bg-gray-500'
+                  }`}
+                aria-label={`Go to image ${index + 1}`}
+              />
+            ))}
+          </div>
+
+          {/* Counter */}
+          <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded-full">
+            <span className="text-xs font-medium text-white">
+              {currentIndex + 1}/{media.length}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 // UPDATED GoogleFormActivityCard Component
 // Fixed mobile edit controls and added image management
 
@@ -1621,7 +1776,7 @@ const GoogleFormActivityCard = ({
       onDrop={(e) => onDrop(e, dayIndex, activityIndex)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`relative mb-4 bg-gray-900 rounded-xl border-2 transition-all ${isEditMode ? 'border-gray-700 hover:border-orange-500 focus-within:border-orange-500' : 'border-transparent'
+      className={`relative mb-4 bg-gray-900 rounded-xl border-2 transition-all ${isEditMode ? 'border-gray-700 hover:border-white focus-within:border-white' : 'border-transparent'
         }`}
     >
       {/* MOBILE EDIT CONTROLS - Floating on the right side, always visible in edit mode */}
@@ -1795,42 +1950,47 @@ const GoogleFormActivityCard = ({
               />
             </div>
           ) : (
-            // View Mode - Show images if exist
+            // View Mode - Show carousel if images exist
             currentMedia.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {currentMedia.map((mediaItem: any, index: number) => (
-                  <div key={index} className="relative h-48 rounded-lg overflow-hidden bg-gray-800">
-                    <img
-                      src={mediaItem.url}
-                      alt={activity.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.remove(); }}
-                    />
-                  </div>
-                ))}
-              </div>
+              <ActivityImageCarousel media={currentMedia} />
             )
           )}
+
 
           {isEditMode ? (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Title</label>
+                <label className="block text-sm text-gray-400 mb-2">Location <span className="text-red-400">*</span></label>
+                <LocationInput
+                  value={activity.location?.name || ''}
+                  onChange={(locationData) => onUpdate('location', locationData)}
+                  placeholder="Search for a location..."
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Start typing to search with Google Places
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Title <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={activity.title}
                   onChange={(e) => onUpdate('title', e.target.value)}
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none"
                   placeholder="Activity title"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Time</label>
+                <label className="block text-sm text-gray-400 mb-2">Time <span className="text-red-400">*</span></label>
                 <select
                   value={activity.time || 'Morning'}
                   onChange={(e) => onUpdate('time', e.target.value)}
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none font-bold cursor-pointer"
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none font-bold cursor-pointer"
+                  required
                 >
                   <option value="Morning">Morning</option>
                   <option value="Afternoon">Afternoon</option>
@@ -1840,26 +2000,16 @@ const GoogleFormActivityCard = ({
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Description</label>
+                <label className="block text-sm text-gray-400 mb-2">Description <span className="text-red-400">*</span></label>
+                <p className="text-xs text-gray-500 mb-2">How did you get there? Any tips on what not to do?</p>
                 <textarea
                   value={activity.description}
                   onChange={(e) => onUpdate('description', e.target.value)}
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
-                  placeholder="Describe the activity"
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-white focus:outline-none"
+                  placeholder="Start typing your review here..."
                   rows={4}
+                  required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Location</label>
-                <LocationInput
-                  value={activity.location?.name || ''}
-                  onChange={(locationData) => onUpdate('location', locationData)}
-                  placeholder="Search for a location..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Start typing to search with Google Places
-                </p>
               </div>
 
               <button

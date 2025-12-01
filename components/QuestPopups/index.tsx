@@ -7,8 +7,9 @@ import 'react-image-crop/dist/ReactCrop.css';
 interface PostQuestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPost: (coverImage: File | null, existingImageUrl?: string | null) => Promise<void>;
+  onPost: (coverImage: File | null, existingImageUrl?: string | null, title?: string, description?: string) => Promise<void>;
   questTitle: string;
+  questDescription?: string;
   questImages: string[]; // Array of image URLs from the quest
 }
 
@@ -16,7 +17,8 @@ export const PostQuestModal = ({
   isOpen,
   onClose,
   onPost,
-  questTitle,
+  questTitle: initialTitle,
+  questDescription: initialDescription,
   questImages
 }: PostQuestModalProps) => {
   const [step, setStep] = useState<'select' | 'crop' | 'preview'>('select');
@@ -39,6 +41,10 @@ export const PostQuestModal = ({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Title and description state
+  const [questTitle, setQuestTitle] = useState(initialTitle || '');
+  const [questDescription, setQuestDescription] = useState(initialDescription || '');
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -48,8 +54,10 @@ export const PostQuestModal = ({
       setCroppedImageUrl(null);
       setCroppedImageFile(null);
       setIsCustomUpload(false);
+      setQuestTitle(initialTitle || '');
+      setQuestDescription(initialDescription || '');
     }
-  }, [isOpen]);
+  }, [isOpen, initialTitle, initialDescription]);
 
   // Handle file selection from upload
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,10 +150,10 @@ export const PostQuestModal = ({
       // If for some reason we skipped cropping (not implemented here but good for robustness), use original.
 
       if (croppedImageFile) {
-        await onPost(croppedImageFile, null);
+        await onPost(croppedImageFile, null, questTitle, questDescription);
       } else if (!isCustomUpload && selectedImageSrc) {
         // Fallback: if they somehow didn't crop but selected an existing image
-        await onPost(null, selectedImageSrc);
+        await onPost(null, selectedImageSrc, questTitle, questDescription);
       }
 
       onClose();
@@ -184,9 +192,35 @@ export const PostQuestModal = ({
                 Choose a cover image for <span className="text-orange-500 font-semibold">"{questTitle}"</span>.
                 This will be displayed on the public feed.
               </p>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Quest Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={questTitle}
+                    onChange={(e) => setQuestTitle(e.target.value)}
+                    placeholder="Give your quest a catchy title..."
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={questDescription}
+                    onChange={(e) => setQuestDescription(e.target.value)}
+                    placeholder="Tell people what this quest is about..."
+                    rows={3}
+                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
 
               {/* Upload New */}
-              <label className="block cursor-pointer group">
+              <label className={`block ${!questTitle.trim() ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} group`}>
                 <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 hover:border-orange-500 transition-all duration-200 bg-gray-800/50 hover:bg-gray-800 flex flex-col items-center gap-3">
                   <div className="p-3 bg-gray-800 rounded-full group-hover:bg-gray-700 transition-colors">
                     <Upload size={24} className="text-orange-500" />
@@ -205,6 +239,7 @@ export const PostQuestModal = ({
                   type="file"
                   accept="image/*"
                   onChange={handleFileSelect}
+                  disabled={!questTitle.trim()}
                   className="hidden"
                 />
               </label>
@@ -221,7 +256,8 @@ export const PostQuestModal = ({
                       <button
                         key={index}
                         onClick={() => handleExistingImageSelect(url)}
-                        className="relative aspect-square rounded-lg overflow-hidden group border border-gray-800 hover:border-orange-500 transition-all"
+                        disabled={!questTitle.trim()}
+                        className="relative aspect-square rounded-lg overflow-hidden group border border-gray-800 hover:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <img
                           src={url}
@@ -233,7 +269,8 @@ export const PostQuestModal = ({
                     ))}
                   </div>
                 </div>
-              )}
+              )
+              }
             </div>
           )}
 

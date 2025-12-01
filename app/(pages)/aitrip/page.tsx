@@ -8,7 +8,7 @@ import questService from '@/lib/questService';
 import Header from '@/components/phoneComponents/header';
 import Footer from '@/components/phoneComponents/Footer';
 import Navbar from '@/components/LeftSideNav';
-import { PlacesAutocomplete } from '@/components/common/PlacesAutocomplete';
+import { LocationInput } from '@/components/common/LocationInput';
 
 const DESKTOP_MAIN_WIDTH = 40; // percentage of viewport width
 const LEFT_NAV_WIDTH = 280;
@@ -34,55 +34,7 @@ interface TripData {
   destinationData?: PlaceData;
 }
 
-// Location Search Component
-const LocationSearch = ({ value, onChange, onLocationSelected, placeholder }: { value: string, onChange: (value: string, data?: PlaceData) => void, onLocationSelected?: (value: string) => void, placeholder: string }) => {
 
-  const handleSelect = async (suggestion: any) => {
-    const locationName = suggestion.placePrediction.structuredFormat.mainText.text;
-
-    try {
-      const response = await fetch('/api/place-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ placeId: suggestion.placePrediction.placeId }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const place = data.place;
-
-        onChange(locationName, {
-          coordinates: {
-            lat: place.location?.latitude || 0,
-            lng: place.location?.longitude || 0
-          },
-          fullAddress: place.formattedAddress,
-          placeId: suggestion.placePrediction.placeId,
-          types: place.types
-        });
-      } else {
-        // Fallback if details fail
-        onChange(locationName, undefined);
-      }
-    } catch (error) {
-      console.error("Failed to fetch place details", error);
-      onChange(locationName, undefined);
-    }
-
-    if (onLocationSelected) {
-      onLocationSelected(locationName);
-    }
-  };
-
-  return (
-    <PlacesAutocomplete
-      value={value}
-      onChange={(val) => onChange(val, undefined)}
-      onSelect={handleSelect}
-      placeholder={placeholder}
-    />
-  );
-};
 
 const AITripPlannerPage = () => {
   const [user, loading] = useAuthState(auth);
@@ -150,16 +102,35 @@ const AITripPlannerPage = () => {
     setLoadingpreferences(false);
   };
 
-  const handleSourceChange = (source: string, placeData?: PlaceData) => {
-    setTripData(prev => ({ ...prev, source, sourceData: placeData }));
+  const handleSourceChange = (locationData: { name: string; coordinates?: { lat: number; lng: number } }) => {
+    setTripData(prev => ({
+      ...prev,
+      source: locationData.name,
+      sourceData: locationData.coordinates ? {
+        coordinates: locationData.coordinates,
+        fullAddress: locationData.name,
+        placeId: '',
+        types: []
+      } : undefined
+    }));
   };
 
-  const handleDestinationChange = (destination: string, placeData?: PlaceData) => {
-    setTripData(prev => ({ ...prev, destination, destinationData: placeData }));
-  };
+  const handleDestinationChange = (locationData: { name: string; coordinates?: { lat: number; lng: number } }) => {
+    setTripData(prev => ({
+      ...prev,
+      destination: locationData.name,
+      destinationData: locationData.coordinates ? {
+        coordinates: locationData.coordinates,
+        fullAddress: locationData.name,
+        placeId: '',
+        types: []
+      } : undefined
+    }));
 
-  const handleDestinationSelected = (destination: string) => {
-    fetchDestinationpreferences(destination);
+    // Fetch destination preferences when a location is selected with coordinates
+    if (locationData.coordinates) {
+      fetchDestinationpreferences(locationData.name);
+    }
   };
 
   const updateTripData = (key: keyof TripData, value: any) => {
@@ -314,15 +285,14 @@ const AITripPlannerPage = () => {
             <div className="mb-12">
               {currentStepData.key === 'locations' && (
                 <div className="space-y-6 max-w-2xl">
-                  <LocationSearch
+                  <LocationInput
                     value={tripData.source}
                     onChange={handleSourceChange}
                     placeholder="Where are you starting from?"
                   />
-                  <LocationSearch
+                  <LocationInput
                     value={tripData.destination}
                     onChange={handleDestinationChange}
-                    onLocationSelected={handleDestinationSelected}
                     placeholder="Where are you going?"
                   />
                 </div>
@@ -336,7 +306,8 @@ const AITripPlannerPage = () => {
                       type="date"
                       value={tripData.startDate}
                       onChange={(e) => updateTripData('startDate', e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      min="2019-01-01"
+                      max={new Date().toISOString().split('T')[0]}
                       className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                     />
                   </div>
@@ -346,7 +317,8 @@ const AITripPlannerPage = () => {
                       type="date"
                       value={tripData.endDate}
                       onChange={(e) => updateTripData('endDate', e.target.value)}
-                      min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                      min={tripData.startDate || "2019-01-01"}
+                      max={new Date().toISOString().split('T')[0]}
                       className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                     />
                   </div>
@@ -528,15 +500,14 @@ const AITripPlannerPage = () => {
           <div className="mb-8">
             {currentStepData.key === 'locations' && (
               <div className="space-y-4">
-                <LocationSearch
+                <LocationInput
                   value={tripData.source}
                   onChange={handleSourceChange}
                   placeholder="Where are you starting from?"
                 />
-                <LocationSearch
+                <LocationInput
                   value={tripData.destination}
                   onChange={handleDestinationChange}
-                  onLocationSelected={handleDestinationSelected}
                   placeholder="Where are you going?"
                 />
               </div>
@@ -550,7 +521,8 @@ const AITripPlannerPage = () => {
                     type="date"
                     value={tripData.startDate}
                     onChange={(e) => updateTripData('startDate', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min="2019-01-01"
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -560,7 +532,8 @@ const AITripPlannerPage = () => {
                     type="date"
                     value={tripData.endDate}
                     onChange={(e) => updateTripData('endDate', e.target.value)}
-                    min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                    min={tripData.startDate || "2019-01-01"}
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>

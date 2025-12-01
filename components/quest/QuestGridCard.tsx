@@ -7,6 +7,7 @@ import { Calendar, Trash2 } from 'lucide-react';
 interface Quest {
   id: string;
   destination: string;
+  title: string;
   coverImageUrl: string;
   startDate?: string;
   endDate?: string;
@@ -42,10 +43,13 @@ export const QuestGridCard = ({ quest, onDelete }: QuestGridCardProps) => {
 
           {/* Content */}
           <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-            <h3 className="text-lg font-bold drop-shadow-md">
-              {quest.destination}
+            <h3 className="text-lg font-bold drop-shadow-md mb-0.5">
+              {quest.title}
             </h3>
-            <div className="flex items-center gap-1.5 text-xs text-gray-200 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <p className="text-xs text-gray-300 drop-shadow-md">
+              {quest.destination}
+            </p>
+            <div className="flex items-center gap-1.5 text-xs text-gray-200 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <Calendar size={12} />
               <span>{formatDateRange(quest.startDate, quest.endDate)}</span>
             </div>
@@ -53,7 +57,7 @@ export const QuestGridCard = ({ quest, onDelete }: QuestGridCardProps) => {
         </div>
       </Link>
 
-      {/* Delete Button - Only visible on hover */}
+      {/* Delete Button - Always visible on mobile, hover-only on desktop */}
       {onDelete && (
         <button
           onClick={(e) => {
@@ -61,7 +65,7 @@ export const QuestGridCard = ({ quest, onDelete }: QuestGridCardProps) => {
             e.stopPropagation();
             onDelete(quest.id);
           }}
-          className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 backdrop-blur-sm"
+          className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-red-500/80 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 z-10 backdrop-blur-sm"
           title="Delete Quest"
         >
           <Trash2 size={16} />
