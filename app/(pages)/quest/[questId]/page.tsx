@@ -699,13 +699,16 @@ const QuestViewPage = () => {
   const displayQuest = isEditMode ? editedQuest : quest;
   if (!displayQuest) return null;
 
-  // Fix: Properly extract activities with coordinates and add date
+  // Fix: Properly extract activities with coordinates and add date (supports both lat/lng and latitude/longitude formats)
   const allActivitiesWithCoords = displayQuest.itinerary?.days?.flatMap((day: any) =>
     (day.activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .filter((a: any) => {
+        const coords = a.location?.coordinates;
+        return coords && (coords.lat || coords.latitude) && (coords.lng || coords.longitude || coords.lon);
+      })
       .map((a: any) => {
-        const lat = a.location.coordinates.lat;
-        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        const lat = a.location.coordinates.lat || a.location.coordinates.latitude;
+        const lng = a.location.coordinates.lng || a.location.coordinates.longitude || a.location.coordinates.lon;
         return {
           ...a,
           date: day.date,
@@ -724,10 +727,13 @@ const QuestViewPage = () => {
 
   const dayActivitiesWithCoords = mapFilter !== 'all' && displayQuest.itinerary?.days?.[mapFilter]
     ? (displayQuest.itinerary.days[mapFilter].activities || [])
-      .filter((a: any) => a.location?.coordinates?.lat && (a.location?.coordinates?.lng || a.location?.coordinates?.lon))
+      .filter((a: any) => {
+        const coords = a.location?.coordinates;
+        return coords && (coords.lat || coords.latitude) && (coords.lng || coords.longitude || coords.lon);
+      })
       .map((a: any) => {
-        const lat = a.location.coordinates.lat;
-        const lng = a.location.coordinates.lng || a.location.coordinates.lon;
+        const lat = a.location.coordinates.lat || a.location.coordinates.latitude;
+        const lng = a.location.coordinates.lng || a.location.coordinates.longitude || a.location.coordinates.lon;
         return {
           ...a,
           date: displayQuest.itinerary.days[mapFilter].date,
