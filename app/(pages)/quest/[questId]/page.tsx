@@ -503,7 +503,7 @@ const QuestViewPage = () => {
           time: activity.time,
         })) || []
       ) || [];
-      const result = await questService.createQuest(user.uid, copiedQuest, undefined, undefined, flowCards);
+      const result = await questService.createQuest(user.uid, copiedQuest, undefined, undefined, flowCards, false);
       showToast('Quest copied successfully!', 'success');
       router.push(`/quest/${result.questId}`);
     } catch (error) {

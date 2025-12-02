@@ -180,7 +180,8 @@ const QuestPage = () => {
           questPayload,
           blankItinerary,
           undefined,
-          []
+          [],
+          false // Manual quest creation, not AI-generated
         );
 
         if (result.success && result.questId) {
@@ -388,7 +389,7 @@ const QuestPage = () => {
                   value={tripData.startDate}
                   onChange={(e) => updateTripData('startDate', e.target.value)}
                   min="2019-01-01"
-                  max={new Date().toISOString().split('T')[0]}
+                  max={new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]}
                   className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                 />
               </div>
@@ -399,7 +400,7 @@ const QuestPage = () => {
                   value={tripData.endDate}
                   onChange={(e) => updateTripData('endDate', e.target.value)}
                   min={tripData.startDate || "2019-01-01"}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]}
                   className="w-full bg-gray-800 text-white px-4 py-4 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none text-lg"
                 />
               </div>
@@ -503,7 +504,7 @@ const QuestPage = () => {
                     value={tripData.startDate}
                     onChange={(e) => updateTripData('startDate', e.target.value)}
                     min="2019-01-01"
-                    max={new Date().toISOString().split('T')[0]}
+                    max={new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -514,7 +515,7 @@ const QuestPage = () => {
                     value={tripData.endDate}
                     onChange={(e) => updateTripData('endDate', e.target.value)}
                     min={tripData.startDate || "2019-01-01"}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]}
                     className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>

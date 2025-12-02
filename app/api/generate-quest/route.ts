@@ -12,7 +12,7 @@ if (!admin.apps.length) {
   const serviceAccount = JSON.parse(
     Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_K!, 'base64').toString('utf-8')
   );
-  
+
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount as ServiceAccount)
   });
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // --- FIX: Updated the model to a powerful and current version ---
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-    
+
     // --- FIX: Updated the prompt to be more selective and descriptive for better images ---
     const prompt = `
       Create a detailed day-by-day travel itinerary for a trip to ${destination} from ${source}.
@@ -90,9 +90,9 @@ export async function POST(request: Request) {
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    
+
     console.log('Raw AI Response:', responseText.substring(0, 500));
-    
+
     interface Itinerary {
       days: Array<{
         day: number;
@@ -137,34 +137,34 @@ export async function POST(request: Request) {
                 ? unsplashResponse.response[0]
                 : unsplashResponse.response;
               if (photo) {
-                 activity.media = [{ type: 'image', url: photo.urls.regular }];
+                activity.media = [{ type: 'image', url: photo.urls.regular }];
               } else {
-                 throw new Error("Unsplash returned an empty response.");
+                throw new Error("Unsplash returned an empty response.");
               }
             } else {
-               // Fallback image if Unsplash API call fails or finds nothing
-              activity.media = [{ 
-                type: 'image', 
-                url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+              // Fallback image if Unsplash API call fails or finds nothing
+              activity.media = [{
+                type: 'image',
+                url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop`
               }];
             }
           } catch (error) {
             console.error('Unsplash error:', error);
-            activity.media = [{ 
-              type: 'image', 
-              url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+            activity.media = [{
+              type: 'image',
+              url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop`
             }];
           }
         } else {
           // Default image if imageQuery is null
-          activity.media = [{ 
-            type: 'image', 
-            url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop` 
+          activity.media = [{
+            type: 'image',
+            url: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop`
           }];
         }
       }
     }
-    
+
     // Save to Firestore
     const questCollectionRef = db.collection('quest');
     const newQuestRef = questCollectionRef.doc(); // Let Firestore auto-generate the ID
@@ -188,12 +188,16 @@ export async function POST(request: Request) {
       type: 'ai_generated',
       status: 'active',
       title: `Quest to ${destination}`,
+      isAiGenerated: true, // Flag for QP system - AI quests don't get QP rewards
+      isPublic: false,
+      isPostedToFeed: false,
+      associatedPostId: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    
+
     await newQuestRef.set(questDocument);
-    
+
     // Add to user's questIds array
     const userRef = db.collection('users').doc(uid);
     await userRef.update({
@@ -258,7 +262,7 @@ function parseJsonResponse(responseText: string) {
         console.error('Failed to parse JSON from code block:', e);
       }
     }
-    
+
     // Try to find JSON object in the text
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -268,7 +272,7 @@ function parseJsonResponse(responseText: string) {
         console.error('Failed to parse JSON from match:', e);
       }
     }
-    
+
     console.error('Raw response text:', responseText);
     throw new Error("Failed to parse itinerary JSON. AI response may not be in valid JSON format.");
   }

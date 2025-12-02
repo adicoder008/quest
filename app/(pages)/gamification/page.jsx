@@ -5,13 +5,11 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import {
   getUserGamificationData,
-  getRankInfo,
-  getMasterGuideLeaderboard,
-  getUserQPHistory,
-  RANKS,
-  BADGES,
+  calculateRankInfo,
+  RANK_THRESHOLDS,
+  SPECIALTY_BADGES as BADGES,
   STREAK_MILESTONES,
-} from '@/lib/gamificationService';
+} from '@/lib/qpService';
 import { getCurrentUserData } from '@/lib/authService';
 import {
   Award,
@@ -197,25 +195,21 @@ const GamificationHub = () => {
           setLoading(true);
           console.log('Fetching gamification data for user:', currentUser.uid);
 
-          const [mainData, gData, board, history] = await Promise.all([
+          const [mainData, gData] = await Promise.all([
             getCurrentUserData(),
             getUserGamificationData(currentUser.uid),
-            getMasterGuideLeaderboard(),
-            getUserQPHistory(currentUser.uid, 10),
           ]);
 
           console.log('Data fetched successfully:', {
             mainData: !!mainData,
-            gData: !!gData,
-            board: board.length,
-            history: history.length
+            gData: !!gData
           });
 
           setUserData(mainData);
           setGamificationData(gData);
-          setRankInfo(getRankInfo(gData));
-          setLeaderboard(board);
-          setActivityLog(history);
+          setRankInfo(calculateRankInfo(gData));
+          setLeaderboard([]);
+          setActivityLog([]);
         } catch (error) {
           console.error('Error fetching gamification hub data:', error);
           setGamificationData(null);
@@ -302,7 +296,7 @@ const ProfileRankCard = ({ userData, rankInfo, gamificationData }) => (
       />
       <div className='flex-1'>
         <h2 className='text-xl lg:text-2xl font-bold text-white'>{userData.displayName}</h2>
-        <p className='text-[#EA6100] font-semibold text-lg'>{rankInfo.rankTitle}</p>
+        <p className='text-[#EA6100] font-semibold text-lg'>{gamificationData.rankTitle}</p>
         <div className='flex items-center gap-2 mt-2 bg-gray-800 rounded-full px-3 py-1.5 w-fit'>
           <Award size={16} className='text-[#EA6100]' />
           <span className='font-bold text-white'>{gamificationData.totalQPs.toLocaleString()} QP</span>
@@ -377,14 +371,12 @@ const NextRankCard = ({ rankInfo, badgeStatus }) => {
     recommendedBadge = allBadges.find(b => !badgeStatus[b.id]?.isAchieved);
   }
 
-  const nextRank = RANKS.find((r) => r.title === rankInfo.nextRankTitle);
-
   return (
     <div className='bg-gray-900 rounded-2xl p-6 border border-gray-800 transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-gray-700'>
       <div className='flex items-center gap-3 mb-6'>
         <Zap size={24} className='text-[#EA6100]' />
         <div>
-          <h3 className='text-xl font-bold text-white'>Next: {rankInfo.nextRankTitle}</h3>
+          <h3 className='text-xl font-bold text-white'>Next: {rankInfo.nextRank?.title || 'Max Rank'}</h3>
           <p className='text-gray-400 text-sm'>Complete objectives to rank up</p>
         </div>
       </div>
@@ -392,17 +384,17 @@ const NextRankCard = ({ rankInfo, badgeStatus }) => {
       <div className='space-y-6'>
         <ProgressItem
           title='Quest Points'
-          current={rankInfo.totalQPs}
-          target={nextRank.qp}
+          current={gamificationData.totalQPs}
+          target={rankInfo.nextRank?.qpRequired || 0}
           progress={rankInfo.qpProgress}
           icon={Award}
         />
 
-        {nextRank.quests > 0 && (
+        {rankInfo.nextRank?.questsRequired > 0 && (
           <ProgressItem
             title='Published Quests'
-            current={rankInfo.publishedQuests}
-            target={nextRank.quests}
+            current={gamificationData.publishedQuests}
+            target={rankInfo.nextRank?.questsRequired || 0}
             progress={rankInfo.questProgress}
             icon={Map}
           />
