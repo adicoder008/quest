@@ -3,17 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Phone, Mail, Globe, MessageCircle, Star, MapPin, X, Edit2, Trash2, Save, ExternalLink } from 'lucide-react';
 import { Quest, OnQuestPerson } from '@/app/types';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
   getDocs,
   serverTimestamp,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -63,12 +63,12 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
       const peopleRef = collection(db, 'questPeople');
       const q = query(peopleRef, where('questId', '==', quest.id));
       const snapshot = await getDocs(q);
-      
+
       const loadedPeople = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as OnQuestPerson[];
-      
+
       setPeople(loadedPeople);
     } catch (error) {
       console.error('Error loading people:', error);
@@ -79,7 +79,7 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
 
   const handleDelete = async (personId: string) => {
     if (!confirm('Are you sure you want to delete this contact?')) return;
-    
+
     try {
       await deleteDoc(doc(db, 'questPeople', personId));
       setPeople(people.filter(p => p.id !== personId));
@@ -89,8 +89,8 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
     }
   };
 
-  const filteredPeople = selectedFilter === 'all' 
-    ? people 
+  const filteredPeople = selectedFilter === 'all'
+    ? people
     : people.filter(p => p.serviceType === selectedFilter);
 
   const serviceTypeCounts = people.reduce((acc, person) => {
@@ -107,7 +107,7 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+    <div className="bg-gray-900 rounded-xl border-2 border-gray-700 overflow-hidden shadow-lg">
       {/* Header */}
       <div className="p-6 border-b border-gray-800">
         <div className="flex items-center justify-between mb-4">
@@ -134,27 +134,25 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedFilter('all')}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-              selectedFilter === 'all'
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${selectedFilter === 'all'
                 ? 'bg-orange-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
+              }`}
           >
             All ({people.length})
           </button>
           {Object.entries(serviceTypeIcons).map(([type, icon]) => {
             const count = serviceTypeCounts[type] || 0;
             if (count === 0) return null;
-            
+
             return (
               <button
                 key={type}
                 onClick={() => setSelectedFilter(type)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  selectedFilter === type
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${selectedFilter === type
                     ? serviceTypeColors[type]
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
+                  }`}
               >
                 {icon} {type.charAt(0).toUpperCase() + type.slice(1)} ({count})
               </button>
@@ -170,8 +168,8 @@ const OnQuestPeopleSection: React.FC<OnQuestPeopleSectionProps> = ({ quest, user
             <div className="text-6xl mb-4">👥</div>
             <h3 className="text-lg font-semibold text-white mb-2">No contacts yet</h3>
             <p className="text-gray-400 mb-4">
-              {canEdit 
-                ? 'Add people you met during your journey!' 
+              {canEdit
+                ? 'Add people you met during your journey!'
                 : 'The quest owner hasn\'t added any contacts yet.'}
             </p>
           </div>
@@ -391,7 +389,7 @@ const PersonFormModal: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name?.trim()) {
       alert('Please enter a name');
       return;
@@ -505,9 +503,9 @@ const PersonFormModal: React.FC<{
             <input
               type="text"
               value={formData.location?.name}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                location: { ...formData.location!, name: e.target.value } 
+              onChange={(e) => setFormData({
+                ...formData,
+                location: { ...formData.location!, name: e.target.value }
               })}
               className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
               placeholder="e.g., MG Road, Bangalore"
@@ -517,13 +515,13 @@ const PersonFormModal: React.FC<{
           {/* Contact Info */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-white">Contact Information</h4>
-            
+
             <input
               type="tel"
               value={formData.contact?.phone}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact!, phone: e.target.value } 
+              onChange={(e) => setFormData({
+                ...formData,
+                contact: { ...formData.contact!, phone: e.target.value }
               })}
               className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
               placeholder="Phone Number"
@@ -532,9 +530,9 @@ const PersonFormModal: React.FC<{
             <input
               type="email"
               value={formData.contact?.email}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact!, email: e.target.value } 
+              onChange={(e) => setFormData({
+                ...formData,
+                contact: { ...formData.contact!, email: e.target.value }
               })}
               className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
               placeholder="Email"
@@ -543,9 +541,9 @@ const PersonFormModal: React.FC<{
             <input
               type="text"
               value={formData.contact?.whatsapp}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact!, whatsapp: e.target.value } 
+              onChange={(e) => setFormData({
+                ...formData,
+                contact: { ...formData.contact!, whatsapp: e.target.value }
               })}
               className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
               placeholder="WhatsApp Number"
@@ -554,9 +552,9 @@ const PersonFormModal: React.FC<{
             <input
               type="url"
               value={formData.contact?.website}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                contact: { ...formData.contact!, website: e.target.value } 
+              onChange={(e) => setFormData({
+                ...formData,
+                contact: { ...formData.contact!, website: e.target.value }
               })}
               className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-orange-500 focus:outline-none"
               placeholder="Website URL"
