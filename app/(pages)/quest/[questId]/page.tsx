@@ -1143,6 +1143,14 @@ const QuestViewPage = () => {
                 </div>
               </div>
             )}
+
+            {/* OnQuest People Section */}
+            <div className="px-4 pb-6">
+              <OnQuestPeopleSection
+                quest={displayQuest}
+                userId={user?.uid || ''}
+              />
+            </div>
           </>
         ) : !isEditMode ? (
           /* LIST VIEW - Only show when map is hidden */
@@ -1224,6 +1232,14 @@ const QuestViewPage = () => {
                   )}
                 </div>
               ))}
+
+              {/* OnQuest People Section */}
+              <div className="mt-8">
+                <OnQuestPeopleSection
+                  quest={displayQuest}
+                  userId={user?.uid || ''}
+                />
+              </div>
             </div>
           </div>
         ) : (
@@ -1306,6 +1322,14 @@ const QuestViewPage = () => {
                   )}
                 </div>
               ))}
+
+              {/* OnQuest People Section */}
+              <div className="mt-8">
+                <OnQuestPeopleSection
+                  quest={displayQuest}
+                  userId={user?.uid || ''}
+                />
+              </div>
             </div>
           </div>
         )}

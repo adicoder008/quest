@@ -327,475 +327,475 @@ const questService = {
    * Returns only quests that the current user has permission to view
    * This is useful for public profile pages where the viewer may not have access to all quests
    */
-  async getUserQuestsWithPermissions(uid: string): Promise\u003cQuest[]\u003e {
+  async getUserQuestsWithPermissions(uid: string): Promise<Quest[]> {
     try {
       const userRef = doc(db, 'users', uid);
-const userSnap = await getDoc(userRef);
-if (!userSnap.exists()) {
-  return [];
-}
-const questIds = userSnap.data().questIds || [];
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return [];
+      }
+      const questIds = userSnap.data().questIds || [];
 
-if (questIds.length === 0) {
-  return [];
-}
+      if (questIds.length === 0) {
+        return [];
+      }
 
-console.log(`Fetching ${questIds.length} quests for user ${uid} with permission handling`);
+      console.log(`Fetching ${questIds.length} quests for user ${uid} with permission handling`);
 
-const quests: Quest[] = [];
+      const quests: Quest[] = [];
 
-// Fetch quests individually to handle permission errors
-for (const questId of questIds) {
-  try {
-    const questRef = doc(db, 'quest', questId);
-    const questSnap = await getDoc(questRef);
+      // Fetch quests individually to handle permission errors
+      for (const questId of questIds) {
+        try {
+          const questRef = doc(db, 'quest', questId);
+          const questSnap = await getDoc(questRef);
 
-    if (questSnap.exists()) {
-      quests.push({ id: questSnap.id, ...questSnap.data() } as Quest);
-    }
-  } catch (error: any) {
-    // Skip quests that the current user doesn't have permission to view
-    if (error?.code === 'permission-denied') {
-      console.log(`Skipping quest ${questId} - permission denied`);
-    } else {
-      console.error(`Error fetching quest ${questId}:`, error);
-    }
-  }
-}
+          if (questSnap.exists()) {
+            quests.push({ id: questSnap.id, ...questSnap.data() } as Quest);
+          }
+        } catch (error: any) {
+          // Skip quests that the current user doesn't have permission to view
+          if (error?.code === 'permission-denied') {
+            console.log(`Skipping quest ${questId} - permission denied`);
+          } else {
+            console.error(`Error fetching quest ${questId}:`, error);
+          }
+        }
+      }
 
-// Sort by createdAt timestamp (newest first)
-quests.sort((a, b) =\u003e {
-  const aTimestamp =
-    a.createdAt \u0026\u0026 typeof a.createdAt === 'object' \u0026\u0026 'seconds' in a.createdAt
-      ? (a.createdAt as { seconds: number }).seconds
-      : (typeof a.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
-  const bTimestamp =
-    b.createdAt \u0026\u0026 typeof b.createdAt === 'object' \u0026\u0026 'seconds' in b.createdAt
-      ? (b.createdAt as { seconds: number }).seconds
-      : (typeof b.createdAt === 'string' ? Date.parse(b.createdAt) / 1000 : 0);
+      // Sort by createdAt timestamp (newest first)
+      quests.sort((a, b) => {
+        const aTimestamp =
+          a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
+            ? (a.createdAt as { seconds: number }).seconds
+            : (typeof a.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
+        const bTimestamp =
+          b.createdAt && typeof b.createdAt === 'object' && 'seconds' in b.createdAt
+            ? (b.createdAt as { seconds: number }).seconds
+            : (typeof b.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
 
-  return bTimestamp - aTimestamp; // Descending order (newest first)
-});
+        return bTimestamp - aTimestamp; // Descending order (newest first)
+      });
 
-console.log(`Fetched ${quests.length} accessible quests out of ${questIds.length} total`);
-return quests;
+      console.log(`Fetched ${quests.length} accessible quests out of ${questIds.length} total`);
+      return quests;
     } catch (error) {
-  console.error('Error fetching user quests with permissions:', error);
-  return []; // Return empty array instead of throwing to prevent breaking the profile page
-}
+      console.error('Error fetching user quests with permissions:', error);
+      return []; // Return empty array instead of throwing to prevent breaking the profile page
+    }
   },
 
-/**
- * Get user's saved quests
- */
-getUserSavedQuests: async function (uid: string): Promise<Quest[]> {
-  try {
-    const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) {
-      return [];
+  /**
+   * Get user's saved quests
+   */
+  getUserSavedQuests: async function (uid: string): Promise<Quest[]> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return [];
+      }
+      const savedQuestIds = userSnap.data().savedQuestIds || [];
+
+      if (savedQuestIds.length === 0) {
+        return [];
+      }
+
+      const questsToFetch = savedQuestIds.slice(0, 30);
+      const questsRef = collection(db, 'quest');
+      const q = query(
+        questsRef,
+        where('__name__', 'in', questsToFetch),
+      );
+
+      const querySnapshot = await getDocs(q);
+      let quests: Quest[] = [];
+
+      querySnapshot.forEach((doc) => {
+        quests.push({ id: doc.id, ...doc.data() } as Quest);
+      });
+
+      return quests;
+    } catch (error) {
+      console.error('Error fetching user saved quests:', error);
+      throw error;
     }
-    const savedQuestIds = userSnap.data().savedQuestIds || [];
-
-    if (savedQuestIds.length === 0) {
-      return [];
-    }
-
-    const questsToFetch = savedQuestIds.slice(0, 30);
-    const questsRef = collection(db, 'quest');
-    const q = query(
-      questsRef,
-      where('__name__', 'in', questsToFetch),
-    );
-
-    const querySnapshot = await getDocs(q);
-    let quests: Quest[] = [];
-
-    querySnapshot.forEach((doc) => {
-      quests.push({ id: doc.id, ...doc.data() } as Quest);
-    });
-
-    return quests;
-  } catch (error) {
-    console.error('Error fetching user saved quests:', error);
-    throw error;
-  }
-},
+  },
 
   /**
    * Posts a quest to the public feed
    * Updated to fix permission errors and handle cover image logic
    */
   async postQuestToFeed(
-  questId: string,
-  uid: string,
-  coverImageFile ?: File | null,
-  existingCoverUrl ?: string | null // NEW PARAM: Pass existing URL if user selected one without uploading new file
-): Promise < { success: boolean; error?: string; postId?: string; qpAwarded?: number } > {
-  try {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
+    questId: string,
+    uid: string,
+    coverImageFile?: File | null,
+    existingCoverUrl?: string | null // NEW PARAM: Pass existing URL if user selected one without uploading new file
+  ): Promise<{ success: boolean; error?: string; postId?: string; qpAwarded?: number }> {
+    try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
 
-    // 0. SECURITY CHECK: Synchronize UI state with Auth state
-    // This prevents the permission mismatch error
-    if(!currentUser || currentUser.uid !== uid) {
-  throw new Error('Authentication mismatch: You can only post quests you own while logged in.');
-}
+      // 0. SECURITY CHECK: Synchronize UI state with Auth state
+      // This prevents the permission mismatch error
+      if (!currentUser || currentUser.uid !== uid) {
+        throw new Error('Authentication mismatch: You can only post quests you own while logged in.');
+      }
 
-const questRef = doc(db, 'quest', questId);
-const questSnap = await getDoc(questRef);
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
 
-if (!questSnap.exists()) {
-  throw new Error('Quest not found');
-}
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
 
-const questData = questSnap.data();
+      const questData = questSnap.data();
 
-// 1. Check permissions (Client Side Validation)
-if (questData.members?.[uid] !== 'owner') {
-  throw new Error('Only the quest owner can post to the feed.');
-}
+      // 1. Check permissions (Client Side Validation)
+      if (questData.members?.[uid] !== 'owner') {
+        throw new Error('Only the quest owner can post to the feed.');
+      }
 
-// 2. Prevent duplicate posting for public quests
-if (questData.isPostedToFeed) {
-  return {
-    success: false,
-    error: 'This quest has already been posted to the feed.'
-  };
-}
+      // 2. Prevent duplicate posting for public quests
+      if (questData.isPostedToFeed) {
+        return {
+          success: false,
+          error: 'This quest has already been posted to the feed.'
+        };
+      }
 
-// 3. Fetch user data
-const userRef = doc(db, 'users', uid);
-const userSnap = await getDoc(userRef);
+      // 3. Fetch user data
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
 
-if (!userSnap.exists()) {
-  throw new Error('User not found');
-}
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
 
-const userData = userSnap.data();
-const userName = userData.displayName || 'Anonymous';
-const userProfilePic = userData.photoURL || '';
+      const userData = userSnap.data();
+      const userName = userData.displayName || 'Anonymous';
+      const userProfilePic = userData.photoURL || '';
 
-// 4. Determine Final Cover Image URL
-// Priority: 1. New File Upload -> 2. Explicit Existing URL (selected in UI) -> 3. Current DB Value
-let finalCoverImageUrl = questData.coverImageUrl || null;
+      // 4. Determine Final Cover Image URL
+      // Priority: 1. New File Upload -> 2. Explicit Existing URL (selected in UI) -> 3. Current DB Value
+      let finalCoverImageUrl = questData.coverImageUrl || null;
 
-if (coverImageFile) {
-  try {
-    finalCoverImageUrl = await compressAndUploadImage(
-      coverImageFile,
-      'quest-covers',
-      uid
-    );
-    console.log('New cover image uploaded:', finalCoverImageUrl);
-  } catch (error) {
-    console.error('Error uploading new cover image:', error);
-    throw new Error('Failed to upload cover image');
-  }
-} else if (existingCoverUrl) {
-  // Fix for "default cover getting posted": 
-  // If no file is uploaded but a specific URL was chosen in UI, use it.
-  finalCoverImageUrl = existingCoverUrl;
-}
+      if (coverImageFile) {
+        try {
+          finalCoverImageUrl = await compressAndUploadImage(
+            coverImageFile,
+            'quest-covers',
+            uid
+          );
+          console.log('New cover image uploaded:', finalCoverImageUrl);
+        } catch (error) {
+          console.error('Error uploading new cover image:', error);
+          throw new Error('Failed to upload cover image');
+        }
+      } else if (existingCoverUrl) {
+        // Fix for "default cover getting posted": 
+        // If no file is uploaded but a specific URL was chosen in UI, use it.
+        finalCoverImageUrl = existingCoverUrl;
+      }
 
-// 5. Enforce image for public posts
-if (!finalCoverImageUrl) {
-  return {
-    success: false,
-    error: 'A cover image is required to post a quest.'
-  };
-}
+      // 5. Enforce image for public posts
+      if (!finalCoverImageUrl) {
+        return {
+          success: false,
+          error: 'A cover image is required to post a quest.'
+        };
+      }
 
-let postId: string | undefined;
+      let postId: string | undefined;
 
-// 6. Create the feed post (Always Public)
-const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
-const dayCount = questData.itinerary?.days?.length || 0;
+      // 6. Create the feed post (Always Public)
+      const activityCount = questData.itinerary?.days?.flatMap((d: any) => d.activities || []).length || 0;
+      const dayCount = questData.itinerary?.days?.length || 0;
 
-const postResult = await createPost({
-  uid: uid,
-  userName: userName,
-  userProfilePic: userProfilePic,
-  text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'Untitled Quest!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
-  photoUrl: finalCoverImageUrl,
-  postType: 'quest_completion',
-  questContext: {
-    questId: questId,
-    questTitle: questData.title || `Quest to ${questData.destination}`,
-    description: questData.description || '',
-  }
-});
+      const postResult = await createPost({
+        uid: uid,
+        userName: userName,
+        userProfilePic: userProfilePic,
+        text: `🗺️ Quest to ${questData.destination}\n\n${questData.title || 'Untitled Quest!'}\n\n📍 ${dayCount} days · ${activityCount} activities`,
+        photoUrl: finalCoverImageUrl,
+        postType: 'quest_completion',
+        questContext: {
+          questId: questId,
+          questTitle: questData.title || `Quest to ${questData.destination}`,
+          description: questData.description || '',
+        }
+      });
 
-postId = postResult.id;
+      postId = postResult.id;
 
-// 7. Update the quest document
-await updateDoc(questRef, {
-  coverImageUrl: finalCoverImageUrl, // Ensures the chosen image (new or existing) is saved
-  isPublic: true,
-  isPostedToFeed: true,
-  associatedPostId: postId,
-  updatedAt: serverTimestamp()
-});
+      // 7. Update the quest document
+      await updateDoc(questRef, {
+        coverImageUrl: finalCoverImageUrl, // Ensures the chosen image (new or existing) is saved
+        isPublic: true,
+        isPostedToFeed: true,
+        associatedPostId: postId,
+        updatedAt: serverTimestamp()
+      });
 
-// 8. Award QPs (only for manually created quests, not AI-generated)
-let qpAwarded = 0;
-try {
-  // Check if quest is AI-generated
-  if (questData.isAiGenerated === true) {
-    console.log('Skipping QP award - quest is AI-generated');
-  } else {
-    const qpResult = await awardQuestSubmissionQPs(uid, questId);
-    qpAwarded = qpResult.qpAwarded;
-    console.log(`Awarded ${qpAwarded} QPs for manual quest creation`);
-  }
-} catch (qpError) {
-  console.error('Error awarding QPs:', qpError);
-  // Don't fail the whole post if QP award fails, but log it
-}
+      // 8. Award QPs (only for manually created quests, not AI-generated)
+      let qpAwarded = 0;
+      try {
+        // Check if quest is AI-generated
+        if (questData.isAiGenerated === true) {
+          console.log('Skipping QP award - quest is AI-generated');
+        } else {
+          const qpResult = await awardQuestSubmissionQPs(uid, questId);
+          qpAwarded = qpResult.qpAwarded;
+          console.log(`Awarded ${qpAwarded} QPs for manual quest creation`);
+        }
+      } catch (qpError) {
+        console.error('Error awarding QPs:', qpError);
+        // Don't fail the whole post if QP award fails, but log it
+      }
 
-// 9. Notify Followers
-try {
-  const { getFollowersList } = await import('./followService'); // Dynamic import to avoid circular dependency if any
-  const { notifyNewPost } = await import('./notificationService');
+      // 9. Notify Followers
+      try {
+        const { getFollowersList } = await import('./followService'); // Dynamic import to avoid circular dependency if any
+        const { notifyNewPost } = await import('./notificationService');
 
-  const followers = await getFollowersList(uid);
-  if (followers.length > 0 && postId) {
-    await notifyNewPost(
-      postId,
-      uid,
-      userName,
-      userProfilePic,
-      questData.title || questData.destination || 'New Quest',
-      followers
-    );
-  }
-} catch (notifError) {
-  console.error('Error notifying followers:', notifError);
-}
+        const followers = await getFollowersList(uid);
+        if (followers.length > 0 && postId) {
+          await notifyNewPost(
+            postId,
+            uid,
+            userName,
+            userProfilePic,
+            questData.title || questData.destination || 'New Quest',
+            followers
+          );
+        }
+      } catch (notifError) {
+        console.error('Error notifying followers:', notifError);
+      }
 
-return { success: true, postId, qpAwarded };
+      return { success: true, postId, qpAwarded };
     } catch (error) {
-  console.error('Error posting quest to feed:', error);
-  return {
-    success: false,
-    error: error instanceof Error ? error.message : 'Failed to post quest'
-  };
-}
+      console.error('Error posting quest to feed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to post quest'
+      };
+    }
   },
 
   /**
    * Get public quests for feed
    */
-  async getPublicQuests(limitCount: number = 12): Promise < Quest[] > {
-  try {
-    const questsRef = collection(db, 'quest');
-    const q = query(
-      questsRef,
-      where('isPublic', '==', true),
-      orderBy('createdAt', 'desc'),
-      limit(limitCount)
-    );
-
-    const querySnapshot = await getDocs(q);
-    const quests: Quest[] = [];
-
-    for(const docSnap of querySnapshot.docs) {
-  const data = docSnap.data();
-
-  let ownerName = 'Anonymous';
-  let ownerPhoto = '';
-
-  if (data.owner) {
+  async getPublicQuests(limitCount: number = 12): Promise<Quest[]> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', data.owner));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        ownerName = userData.displayName || 'Anonymous';
-        ownerPhoto = userData.photoURL || '';
+      const questsRef = collection(db, 'quest');
+      const q = query(
+        questsRef,
+        where('isPublic', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const quests: Quest[] = [];
+
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+
+        let ownerName = 'Anonymous';
+        let ownerPhoto = '';
+
+        if (data.owner) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', data.owner));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              ownerName = userData.displayName || 'Anonymous';
+              ownerPhoto = userData.photoURL || '';
+            }
+          } catch (error) {
+            console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
+          }
+        }
+
+        quests.push({
+          id: docSnap.id,
+          ...data,
+          ownerName,
+          ownerPhoto
+        } as unknown as Quest);
       }
+
+      return quests;
     } catch (error) {
-      console.error(`Error fetching owner data for quest ${docSnap.id}:`, error);
+      console.error('Error fetching public quests:', error);
+      throw error;
     }
-  }
-
-  quests.push({
-    id: docSnap.id,
-    ...data,
-    ownerName,
-    ownerPhoto
-  } as unknown as Quest);
-}
-
-return quests;
-    } catch (error) {
-  console.error('Error fetching public quests:', error);
-  throw error;
-}
   },
 
   /**
    * Updates the itinerary of a quest
    */
   async updateQuest(questId: string, uid: string, updatedData: object) {
-  try {
-    const questRef = doc(db, 'quest', questId);
-    const questSnap = await getDoc(questRef);
+    try {
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
 
-    if (!questSnap.exists()) throw new Error('Quest not found.');
+      if (!questSnap.exists()) throw new Error('Quest not found.');
 
-    const questData = questSnap.data();
-    const userRole = questData.members?.[uid];
+      const questData = questSnap.data();
+      const userRole = questData.members?.[uid];
 
-    if (userRole !== 'owner' && userRole !== 'editor') {
-      throw new Error('You do not have permission to edit this quest.');
+      if (userRole !== 'owner' && userRole !== 'editor') {
+        throw new Error('You do not have permission to edit this quest.');
+      }
+
+      await updateDoc(questRef, {
+        ...updatedData,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating quest:', error);
+      throw error;
     }
-
-    await updateDoc(questRef, {
-      ...updatedData,
-      updatedAt: serverTimestamp()
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating quest:', error);
-    throw error;
-  }
-},
+  },
 
   /**
    * AI Itinerary Generation (Placeholder)
    */
-  async generateAItinerary(questData: TripData): Promise < any > {
-  console.log('Generating AI itinerary for:', questData);
-  return { days: [], generated: true };
-},
+  async generateAItinerary(questData: TripData): Promise<any> {
+    console.log('Generating AI itinerary for:', questData);
+    return { days: [], generated: true };
+  },
 
   /**
    * Create blank itinerary structure for manual creation
    */
   createBlankItinerary(questData: any): any {
-  const startDate = new Date(questData.startDate);
-  const endDate = new Date(questData.endDate);
-  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const startDate = new Date(questData.startDate);
+    const endDate = new Date(questData.endDate);
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-  const blankDays = Array.from({ length: days }, (_, i) => {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + i);
+    const blankDays = Array.from({ length: days }, (_, i) => {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      return {
+        day: i + 1,
+        date: currentDate.toISOString().split('T')[0],
+        title: `Day ${i + 1}`,
+        activities: [
+          {
+            time: 'Morning',
+            title: 'Morning Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: !(i === 0), // Only expand first day's first activity
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Afternoon',
+            title: 'Afternoon Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Evening',
+            title: 'Evening Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          },
+          {
+            time: 'Night',
+            title: 'Night Activity',
+            description: '',
+            location: { name: '' },
+            tags: [],
+            collapsed: true,
+            media: [],
+            type: 'activity'
+          }
+        ]
+      };
+    });
+
     return {
-      day: i + 1,
-      date: currentDate.toISOString().split('T')[0],
-      title: `Day ${i + 1}`,
-      activities: [
-        {
-          time: 'Morning',
-          title: 'Morning Activity',
-          description: '',
-          location: { name: '' },
-          tags: [],
-          collapsed: !(i === 0), // Only expand first day's first activity
-          media: [],
-          type: 'activity'
-        },
-        {
-          time: 'Afternoon',
-          title: 'Afternoon Activity',
-          description: '',
-          location: { name: '' },
-          tags: [],
-          collapsed: true,
-          media: [],
-          type: 'activity'
-        },
-        {
-          time: 'Evening',
-          title: 'Evening Activity',
-          description: '',
-          location: { name: '' },
-          tags: [],
-          collapsed: true,
-          media: [],
-          type: 'activity'
-        },
-        {
-          time: 'Night',
-          title: 'Night Activity',
-          description: '',
-          location: { name: '' },
-          tags: [],
-          collapsed: true,
-          media: [],
-          type: 'activity'
-        }
-      ]
+      days: blankDays,
+      generated: false,
+      tripData: questData
     };
-  });
-
-  return {
-    days: blankDays,
-    generated: false,
-    tripData: questData
-  };
-},
+  },
   // File: services/questService.ts
 
   /**
    * Deletes a quest and cleans up associated data
    */
-  async deleteQuest(questId: string, uid: string): Promise < { success: boolean; error?: string } > {
-  try {
-    console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
+  async deleteQuest(questId: string, uid: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Attempting to delete quest ${questId} by user ${uid}`); // [Debug]
 
-    const questRef = doc(db, 'quest', questId);
-    const questSnap = await getDoc(questRef);
+      const questRef = doc(db, 'quest', questId);
+      const questSnap = await getDoc(questRef);
 
-    if(!questSnap.exists()) {
-  throw new Error('Quest not found');
-}
+      if (!questSnap.exists()) {
+        throw new Error('Quest not found');
+      }
 
-const questData = questSnap.data();
+      const questData = questSnap.data();
 
-// [FIX] Check ownership using BOTH the direct field and the members map
-const isOwner = questData.owner === uid || questData.members?.[uid] === 'owner';
+      // [FIX] Check ownership using BOTH the direct field and the members map
+      const isOwner = questData.owner === uid || questData.members?.[uid] === 'owner';
 
-if (!isOwner) {
-  console.error('Ownership check failed:', { owner: questData.owner, uid, members: questData.members });
-  throw new Error('Only the owner can delete this quest.');
-}
+      if (!isOwner) {
+        console.error('Ownership check failed:', { owner: questData.owner, uid, members: questData.members });
+        throw new Error('Only the owner can delete this quest.');
+      }
 
-await runTransaction(db, async (transaction) => {
-  // 1. Delete the Quest document
-  transaction.delete(questRef);
+      await runTransaction(db, async (transaction) => {
+        // 1. Delete the Quest document
+        transaction.delete(questRef);
 
-  // 2. Remove questId from user's profile
-  const userRef = doc(db, 'users', uid);
-  transaction.update(userRef, {
-    questIds: arrayRemove(questId)
-  });
+        // 2. Remove questId from user's profile
+        const userRef = doc(db, 'users', uid);
+        transaction.update(userRef, {
+          questIds: arrayRemove(questId)
+        });
 
-  // 3. Delete associated chat if it exists
-  if (questData.chatId) {
-    const chatRef = doc(db, 'chats', questData.chatId);
-    // Note: This requires 'allow delete' in firestore.rules for chats
-    transaction.delete(chatRef);
-  }
+        // 3. Delete associated chat if it exists
+        if (questData.chatId) {
+          const chatRef = doc(db, 'chats', questData.chatId);
+          // Note: This requires 'allow delete' in firestore.rules for chats
+          transaction.delete(chatRef);
+        }
 
-  // 4. Delete associated feed post if it exists
-  if (questData.associatedPostId) {
-    const postRef = doc(db, 'posts', questData.associatedPostId);
-    // Note: This requires 'allow delete' in firestore.rules for posts
-    transaction.delete(postRef);
-  }
-});
+        // 4. Delete associated feed post if it exists
+        if (questData.associatedPostId) {
+          const postRef = doc(db, 'posts', questData.associatedPostId);
+          // Note: This requires 'allow delete' in firestore.rules for posts
+          transaction.delete(postRef);
+        }
+      });
 
-console.log('Quest deleted successfully');
-return { success: true };
+      console.log('Quest deleted successfully');
+      return { success: true };
     } catch (error) {
-  console.error('Error deleting quest:', error);
-  return {
-    success: false,
-    error: error instanceof Error ? error.message : 'Failed to delete quest'
-  };
-}
+      console.error('Error deleting quest:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete quest'
+      };
+    }
   }
 };
 
