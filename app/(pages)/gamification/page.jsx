@@ -204,6 +204,9 @@ const GamificationHub = () => {
             getUserQPHistory(currentUser.uid, 10),
           ]);
 
+          console.log('gData object:', gData); // <-- 🎯 ADD THIS LINE
+          console.log('Total QPs in gData:', gData ? gData.totalQPs : 'N/A'); // <-- 🎯 ADD THIS LINE
+
           console.log('Data fetched successfully:', {
             mainData: !!mainData,
             gData: !!gData,
