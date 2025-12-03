@@ -200,7 +200,10 @@ const AccountPage = () => {
         };
       });
 
-      setYourPosts(posts);
+      // Filter out quest_completion posts - they should only appear in Quests section
+      const normalPosts = posts.filter(post => post.postType !== 'quest_completion');
+
+      setYourPosts(normalPosts);
     } catch (error) {
       console.error('Error fetching user posts:', error);
     } finally {
@@ -238,7 +241,10 @@ const AccountPage = () => {
         }
       }
 
-      setSavedPosts(posts);
+      // Filter out quest_completion posts from saved posts too
+      const normalSavedPosts = posts.filter(post => post.postType !== 'quest_completion');
+
+      setSavedPosts(normalSavedPosts);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
     } finally {
