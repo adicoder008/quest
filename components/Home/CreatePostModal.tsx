@@ -1404,7 +1404,7 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
 
             <div className="p-6 flex flex-col gap-4">
                 <div className='flex flex-col gap-6'>
-                    <img src="./oq_logo.svg" alt="" className='text-orange-500' />
+                    <img src="./oq_logo.svg" alt="" className='w-1/5 h-1/5 text-orange-500' style={{ color: 'orange' }} />
                     {/* <textarea
                         placeholder="Share your latest trip.."
                         value={text}
@@ -1420,7 +1420,7 @@ const CreatePostModal = ({ onClose, user }: CreatePostModalProps) => {
 
 
                 </div>
-              <button className="w-full bg-gray-800 border border-gray-700 hover:border-orange-400 hover:bg-gray-800/60 text-white py-3 rounded-xl transition-all" onClick={() => router.push('/quest')}> + create Quest</button>
+              <button className="w-full bg-orange-500 border border-gray-700 hover:border-orange-400 hover:bg-gray-800/60 text-white py-3 rounded-xl transition-all" onClick={() => router.push('/quest')}> + Create Quest</button>
               
             </div>
           )}
