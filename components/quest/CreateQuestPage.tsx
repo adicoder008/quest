@@ -41,12 +41,12 @@ const CreateQuestPage = () => {
   };
 
   const addFlowCard = () => {
-    setFlowCards([...flowCards, { 
-      id: Date.now().toString(), 
-      type: 'journey', 
-      title: '', 
-      description: '', 
-      imageFile: null 
+    setFlowCards([...flowCards, {
+      id: Date.now().toString(),
+      type: 'journey',
+      title: '',
+      description: '',
+      imageFile: null
     }]);
   };
 
@@ -66,7 +66,7 @@ const CreateQuestPage = () => {
     setIsSubmitting(true);
     try {
       const questData = { title, description, privacy: 'public', tags: [] };
-      
+
       // Convert FlowCardFormState to FlowCardState (remove imageFile, keep only necessary data)
       const flowCardsData: FlowCardState[] = flowCards.map(card => ({
         id: card.id,
@@ -76,9 +76,9 @@ const CreateQuestPage = () => {
           description: card.description
         }
       }));
-      
-      const result = await questService.createQuest(user.uid, questData, undefined, coverImageFile, flowCardsData);
-      
+
+      const result = await questService.createQuest(user.uid, questData, undefined, coverImageFile, flowCardsData, false);
+
       alert('Quest created successfully!');
       router.push(`/quest/${result.questId}`);
     } catch (error) {
@@ -128,7 +128,7 @@ const CreateQuestPage = () => {
           <ImageUploader label="Cover Image" onFileSelect={setCoverImageFile} />
 
           <hr className="border-gray-700" />
-          
+
           <div>
             <h2 className="text-lg font-bold mb-4">Journey Cards</h2>
             <div className="space-y-6">
@@ -174,7 +174,7 @@ const CreateQuestPage = () => {
               Add another card
             </button>
           </div>
-          
+
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-800">
             <button
               type="submit"

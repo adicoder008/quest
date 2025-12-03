@@ -377,7 +377,8 @@ const PhotoBasedQuestCreation: React.FC<PhotoQuestCreationProps> = ({
         questPayload,
         itineraryData,
         coverImageFile,
-        []
+        [],
+        false // Photo-based quest creation, not AI-generated
       );
 
       if (result.success && result.questId) {

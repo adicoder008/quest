@@ -130,16 +130,17 @@ const questService = {
 
   /**
    * Core quest creation with transaction
-   * Updated to handle single image URL
+   * Updated to handle single image URL and AI generation flag
    */
   async createQuest(
     uid: string,
     questData: any,
     itineraryData?: any,
     coverImageFile?: File,
-    flowCards?: FlowCardState[]
+    flowCards?: FlowCardState[],
+    isAiGenerated: boolean = false // New parameter to track if quest was AI-generated
   ) {
-    console.log('createQuest called with:', { uid, questData });
+    console.log('createQuest called with:', { uid, questData, isAiGenerated });
 
     const questCollectionRef = collection(db, 'quest');
     const newQuestRef = doc(questCollectionRef);
@@ -182,6 +183,7 @@ const questService = {
           isPublic: false,
           isPostedToFeed: false,
           associatedPostId: null,
+          isAiGenerated: isAiGenerated, // Track if AI-generated
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
@@ -317,6 +319,69 @@ const questService = {
     } catch (error) {
       console.error('Error fetching user quests:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Fetches user quests with permission handling
+   * Returns only quests that the current user has permission to view
+   * This is useful for public profile pages where the viewer may not have access to all quests
+   */
+  async getUserQuestsWithPermissions(uid: string): Promise<Quest[]> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return [];
+      }
+      const questIds = userSnap.data().questIds || [];
+
+      if (questIds.length === 0) {
+        return [];
+      }
+
+      console.log(`Fetching ${questIds.length} quests for user ${uid} with permission handling`);
+
+      const quests: Quest[] = [];
+
+      // Fetch quests individually to handle permission errors
+      for (const questId of questIds) {
+        try {
+          const questRef = doc(db, 'quest', questId);
+          const questSnap = await getDoc(questRef);
+
+          if (questSnap.exists()) {
+            quests.push({ id: questSnap.id, ...questSnap.data() } as Quest);
+          }
+        } catch (error: any) {
+          // Skip quests that the current user doesn't have permission to view
+          if (error?.code === 'permission-denied') {
+            console.log(`Skipping quest ${questId} - permission denied`);
+          } else {
+            console.error(`Error fetching quest ${questId}:`, error);
+          }
+        }
+      }
+
+      // Sort by createdAt timestamp (newest first)
+      quests.sort((a, b) => {
+        const aTimestamp =
+          a.createdAt && typeof a.createdAt === 'object' && 'seconds' in a.createdAt
+            ? (a.createdAt as { seconds: number }).seconds
+            : (typeof a.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
+        const bTimestamp =
+          b.createdAt && typeof b.createdAt === 'object' && 'seconds' in b.createdAt
+            ? (b.createdAt as { seconds: number }).seconds
+            : (typeof b.createdAt === 'string' ? Date.parse(a.createdAt) / 1000 : 0);
+
+        return bTimestamp - aTimestamp; // Descending order (newest first)
+      });
+
+      console.log(`Fetched ${quests.length} accessible quests out of ${questIds.length} total`);
+      return quests;
+    } catch (error) {
+      console.error('Error fetching user quests with permissions:', error);
+      return []; // Return empty array instead of throwing to prevent breaking the profile page
     }
   },
 
@@ -472,11 +537,17 @@ const questService = {
         updatedAt: serverTimestamp()
       });
 
-      // 8. Award QPs
+      // 8. Award QPs (only for manually created quests, not AI-generated)
       let qpAwarded = 0;
       try {
-        const qpResult = await awardQuestSubmissionQPs(uid, questId);
-        qpAwarded = qpResult.qpAwarded;
+        // Check if quest is AI-generated
+        if (questData.isAiGenerated === true) {
+          console.log('Skipping QP award - quest is AI-generated');
+        } else {
+          const qpResult = await awardQuestSubmissionQPs(uid, questId);
+          qpAwarded = qpResult.qpAwarded;
+          console.log(`Awarded ${qpAwarded} QPs for manual quest creation`);
+        }
       } catch (qpError) {
         console.error('Error awarding QPs:', qpError);
         // Don't fail the whole post if QP award fails, but log it

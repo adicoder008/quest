@@ -131,7 +131,7 @@ const QuestPage = () => {
 
   const generateAIItinerary = async () => {
     if (!user?.uid) return;
-    
+
     setIsLoading(true);
     try {
       const response = await fetch('/api/generate-quest', {
@@ -155,7 +155,7 @@ const QuestPage = () => {
       const result = await response.json();
       if (result.success) {
         // Extract flowCards from itinerary
-        const flowCards = result.itinerary?.days?.flatMap((day: Day) => 
+        const flowCards = result.itinerary?.days?.flatMap((day: Day) =>
           day.activities?.map((activity: Activity) => ({
             location: { name: activity.description || '', coordinates: { lat: 0, lng: 0 } },
             title: activity.title || '',
@@ -165,17 +165,19 @@ const QuestPage = () => {
           })) || []
         ) || [];
 
-        const questPayload = { 
-          ...tripData, 
+        const questPayload = {
+          ...tripData,
           uid: user.uid,
-          itinerary: result.itinerary 
+          itinerary: result.itinerary
         };
 
         const createResult = await questService.createQuest(
-          user.uid, 
+          user.uid,
           questPayload,
-          null as any, // No cover image file
-          flowCards
+          undefined,
+          undefined,
+          flowCards,
+          false // Manual quest creation, not AI-generated
         );
 
         if (createResult.success) {
@@ -198,12 +200,12 @@ const QuestPage = () => {
     const startDate = new Date(tripData.startDate);
     const endDate = new Date(tripData.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
+
     const blankDays: Day[] = [];
     for (let i = 0; i < days; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
-      
+
       blankDays.push({
         day: i + 1,
         date: currentDate.toISOString().split('T')[0],
@@ -236,7 +238,7 @@ const QuestPage = () => {
         ]
       });
     }
-    
+
     setItinerary({ days: blankDays });
   };
 
@@ -349,7 +351,7 @@ const QuestPage = () => {
               <span className="text-sm text-gray-400">{currentStep + 1}/{steps.length}</span>
             </div>
             <div className="w-full bg-gray-800 rounded-full h-2">
-              <div 
+              <div
                 className="bg-orange-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               ></div>
@@ -370,14 +372,14 @@ const QuestPage = () => {
                   className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-orange-500 focus:outline-none"
                 />
                 <div className="mt-4 space-y-2">
-                  <div 
+                  <div
                     onClick={() => updateTripData('destination', 'London, UK')}
                     className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700"
                   >
                     <MapPin className="w-5 h-5 text-orange-500" />
                     <span>London, UK</span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => updateTripData('destination', 'Goa, India')}
                     className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700"
                   >
@@ -420,11 +422,10 @@ const QuestPage = () => {
                     <button
                       key={option.id}
                       onClick={() => toggleTransport(option.id)}
-                      className={`p-6 rounded-xl border-2 transition-all ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
+                      className={`p-6 rounded-xl border-2 transition-all ${isSelected
+                          ? 'border-orange-500 bg-orange-500/10'
                           : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
+                        }`}
                     >
                       <Icon className={`w-8 h-8 mx-auto mb-2 ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
                       <span className="text-sm">{option.label}</span>
@@ -442,11 +443,10 @@ const QuestPage = () => {
                     <button
                       key={option.id}
                       onClick={() => updateTripData('companion', option.id)}
-                      className={`p-6 rounded-xl border-2 transition-all ${
-                        isSelected 
-                          ? 'border-orange-500 bg-orange-500/10' 
+                      className={`p-6 rounded-xl border-2 transition-all ${isSelected
+                          ? 'border-orange-500 bg-orange-500/10'
                           : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-                      }`}
+                        }`}
                     >
                       <div className="text-2xl mb-2">{option.icon}</div>
                       <span className="text-sm">{option.label}</span>
@@ -465,11 +465,10 @@ const QuestPage = () => {
                       <button
                         key={interest}
                         onClick={() => toggleInterest(interest)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${
-                          isSelected 
-                            ? 'bg-orange-500 text-white' 
+                        className={`px-4 py-2 rounded-full text-sm transition-all ${isSelected
+                            ? 'bg-orange-500 text-white'
                             : 'bg-gray-800 text-gray-300 border border-gray-600 hover:border-gray-500'
-                        }`}
+                          }`}
                       >
                         {interest}
                       </button>
