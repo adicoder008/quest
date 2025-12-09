@@ -527,7 +527,8 @@ const QuestViewPage = () => {
           questTitle: quest.title || `An amazing journey to ${quest.destination}`,
           description: quest.destination,
           category: 'travel',
-          isAiGenerated: quest.itinerary?.generated || false
+          type: quest.type, // Pass 'ai_generated' if quest is AI-generated
+          isAiGenerated: quest.isAiGenerated || quest.type === 'ai_generated' || quest.itinerary?.generated || false
         }
       });
 

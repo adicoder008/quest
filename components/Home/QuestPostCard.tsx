@@ -24,6 +24,7 @@ interface QuestPostCardProps {
       questId: string;
       questTitle: string;
       description: string;
+      type?: string; // 'ai_generated' for AI quests
       isAiGenerated?: boolean;
     };
   };
@@ -184,7 +185,7 @@ export const QuestPostCard = ({
         {/* Quest Tag - Gen Z Style with AI TRIP variant */}
         <div className="absolute top-4 right-4 z-9">
           <div className="relative group">
-            {post.questContext?.isAiGenerated ? (
+            {post.questContext?.type === 'ai_generated' || post.questContext?.isAiGenerated ? (
               <>
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
                 <div className="relative px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-purple-500/50 flex items-center gap-2">
@@ -195,15 +196,11 @@ export const QuestPostCard = ({
                 </div>
               </>
             ) : (
-              <>
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-                <div className="relative px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-[#F7CEB0]/50 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#F7CEB0] animate-pulse shadow-[0_0_8px_#F7CEB0]"></span>
-                  <span className="text-xs font-bold text-white tracking-widest uppercase drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
-                    QUEST
-                  </span>
-                </div>
-              </>
+              <div className="px-3 py-1.5 bg-orange-500 rounded-full flex items-center gap-2">
+                <span className="text-xs font-bold text-white tracking-widest uppercase">
+                  QUEST
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -412,7 +409,7 @@ export const MobileQuestPostCard = ({
         {/* Quest Tag - Gen Z Style (Mobile) with AI TRIP variant */}
         <div className="absolute top-4 right-4 z-9">
           <div className="relative group">
-            {post.questContext?.isAiGenerated ? (
+            {post.questContext?.type === 'ai_generated' || post.questContext?.isAiGenerated ? (
               <>
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-full blur opacity-75 animate-pulse"></div>
                 <div className="relative px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-purple-500/60 flex items-center gap-1.5">
@@ -423,15 +420,11 @@ export const MobileQuestPostCard = ({
                 </div>
               </>
             ) : (
-              <>
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F7CEB0] to-purple-600 rounded-full blur opacity-75 animate-pulse"></div>
-                <div className="relative px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-[#F7CEB0]/60 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#F7CEB0] shadow-[0_0_6px_#F7CEB0]"></span>
-                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">
-                    QUEST
-                  </span>
-                </div>
-              </>
+              <div className="px-2.5 py-1 bg-orange-500 rounded-full flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-white tracking-widest uppercase">
+                  QUEST
+                </span>
+              </div>
             )}
           </div>
         </div>

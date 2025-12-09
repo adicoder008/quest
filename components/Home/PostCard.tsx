@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageCircle, Heart, Bookmark, MoreHorizontal, MapPin, BookmarkCheck, Send } from 'lucide-react';
+import { MessageCircle, Bookmark, MoreHorizontal, MapPin, BookmarkCheck, Send } from 'lucide-react';
+import { FaHeart } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { Post, User as UserType } from '@/app/types/index';
 
@@ -49,17 +50,20 @@ const PostCard: React.FC<PostCardProps> = ({
     <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <div 
+        <div
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push(`/profile/${post.authorId}`)}
         >
-          <img 
-            src={post.userProfilePic || '/default-avatar.png'} 
+          <img
+            src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
             className="w-10 h-10 rounded-full object-cover"
           />
           <div>
-            <p className="text-white font-medium text-sm">{post.userName}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-white font-medium text-sm">{post.userName}</p>
+              <p className="text-gray-500 text-xs">@{post.userName.toLowerCase().replace(/\s+/g, '')}</p>
+            </div>
             {post.location && (
               <div className="flex items-center gap-1 text-gray-400 text-xs">
                 <MapPin className="w-3 h-3" />
@@ -76,8 +80,8 @@ const PostCard: React.FC<PostCardProps> = ({
       {/* Image */}
       {post.imageUrls && (
         <div className="w-full aspect-square bg-black">
-          <img 
-            src={post.imageUrls} 
+          <img
+            src={post.imageUrls}
             alt="Post content"
             className="w-full h-full object-cover cursor-pointer"
             onClick={() => router.push(`/post/${post.id}`)}
@@ -89,28 +93,28 @@ const PostCard: React.FC<PostCardProps> = ({
       <div className="px-4 pt-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={onLike}
               className="hover:opacity-70 transition-opacity"
             >
-              <Heart 
+              <FaHeart
                 className={`w-6 h-6 ${isLiked ? 'fill-[#EA6100] text-[#EA6100]' : 'text-white'}`}
               />
             </button>
-            <button 
+            <button
               onClick={() => router.push(`/post/${post.id}`)}
               className="hover:opacity-70 transition-opacity"
             >
               <MessageCircle className="w-6 h-6 text-white" />
             </button>
-            <button 
+            <button
               onClick={onShare}
               className="hover:opacity-70 transition-opacity"
             >
               <Send className="w-6 h-6 text-white" />
             </button>
           </div>
-          <button 
+          <button
             onClick={onSave}
             className="hover:opacity-70 transition-opacity"
           >
@@ -127,7 +131,7 @@ const PostCard: React.FC<PostCardProps> = ({
             {formatCount(likeCount)} {likeCount === 1 ? 'like' : 'likes'}
           </p>
         )}
-        
+
 
         {/* Caption */}
         {post.caption && (
@@ -136,7 +140,7 @@ const PostCard: React.FC<PostCardProps> = ({
             {post.caption.length > 150 && !showFullCaption ? (
               <>
                 <span className="text-white">{post.caption.slice(0, 150)}...</span>
-                <button 
+                <button
                   onClick={() => setShowFullCaption(true)}
                   className="text-gray-400 ml-1 hover:text-gray-300 transition-colors"
                 >
@@ -151,7 +155,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
         {/* Comments Count */}
         {(post.commentCount ?? 0) > 0 && (
-          <button 
+          <button
             onClick={() => router.push(`/post/${post.id}`)}
             className="text-gray-400 text-sm mb-3 hover:text-gray-300 transition-colors block"
           >
@@ -173,7 +177,7 @@ const PostCard: React.FC<PostCardProps> = ({
         {/* Comment Input */}
         <div className="border-t border-gray-700 pt-3 pb-2">
           <div className="flex items-center gap-3">
-            <img 
+            <img
               src={currentUser.photoURL || '/default-avatar.png'}
               alt="Your avatar"
               className="w-8 h-8 rounded-full object-cover"
