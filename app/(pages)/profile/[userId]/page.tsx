@@ -110,6 +110,7 @@ const AccountPage = () => {
   const [activePostTab, setActivePostTab] = useState<'your-posts' | 'saved-posts'>('your-posts');
   const [yourPosts, setYourPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [questPosts, setQuestPosts] = useState<Post[]>([]); // Quest completion posts
   const [loadingPosts, setLoadingPosts] = useState(false);
 
   // Quests state
@@ -182,7 +183,7 @@ const AccountPage = () => {
       );
       const querySnapshot = await getDocs(q);
 
-      const posts: Post[] = querySnapshot.docs.map((doc) => {
+      const allPosts: Post[] = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -204,7 +205,11 @@ const AccountPage = () => {
         };
       });
 
-      setYourPosts(posts);
+
+      // Filter out quest_completion posts - they should only appear in Quests section
+      const normalPosts = allPosts.filter(post => post.postType !== 'quest_completion');
+
+      setYourPosts(normalPosts);
     } catch (error) {
       console.error('Error fetching user posts:', error);
     } finally {
@@ -242,7 +247,10 @@ const AccountPage = () => {
         }
       }
 
-      setSavedPosts(posts);
+      // Filter out quest_completion posts from saved posts too
+      const normalSavedPosts = posts.filter(post => post.postType !== 'quest_completion');
+
+      setSavedPosts(normalSavedPosts);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
     } finally {
@@ -253,7 +261,8 @@ const AccountPage = () => {
   const fetchUserQuests = async (uid: string) => {
     setLoadingQuests(true);
     try {
-      const quests = await questService.getUserQuests(uid);
+      const quests = await questService.getUserQuestsWithPermissions(uid);
+      console.log('Fetched quests for profile:', quests.length);
       setMyQuests(quests);
 
       const savedQuestItems: any[] = (await questService.getUserSavedQuests(uid)) || [];

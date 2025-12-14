@@ -19,6 +19,8 @@ interface QuestFeedCardProps {
     ownerName?: string;
     ownerPhoto?: string;
     createdAt: any;
+    type?: string; // 'ai_generated' for AI quests
+    isAiGenerated?: boolean;
     itinerary?: {
       generated?: boolean;
     };
@@ -69,14 +71,14 @@ export const QuestFeedCard = ({ quest }: QuestFeedCardProps) => {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
 
         {/* Quest Badge - Show "AI TRIP" for AI-generated quests */}
-        {quest.itinerary?.generated ? (
+        {(quest.type === 'ai_generated' || quest.isAiGenerated || quest.itinerary?.generated) ? (
           <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
             <span className="animate-pulse">✨</span>
             AI TRIP
           </div>
         ) : (
-          <div className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg">
-            🗺️ Quest
+          <div className="absolute top-4 right-4 bg-orange-500 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg">
+            QUEST
           </div>
         )}
 

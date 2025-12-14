@@ -342,8 +342,8 @@ export const PostQuestModal = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
                 <div className="absolute bottom-0 left-0 right-0 p-6 text-left">
-                  <div className="inline-block px-2 py-1 bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wider rounded mb-2">
-                    Quest
+                  <div className="inline-block px-3 py-1 bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full mb-2">
+                    QUEST
                   </div>
                   <h4 className="text-white font-bold text-2xl leading-tight drop-shadow-md line-clamp-2">
                     {questTitle}

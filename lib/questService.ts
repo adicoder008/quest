@@ -523,6 +523,8 @@ const questService = {
           questId: questId,
           questTitle: questData.title || `Quest to ${questData.destination}`,
           description: questData.description || '',
+          type: questData.type, // Pass 'ai_generated' if quest is AI-generated
+          isAiGenerated: questData.isAiGenerated || false,
         }
       });
 

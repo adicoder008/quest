@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { MessageCircle, Heart, Bookmark, MoreHorizontal, MapPin, BookmarkCheck } from 'lucide-react';
+import { FaHeart } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { Post, User as UserType } from '@/app/types/index';
 
@@ -33,6 +34,9 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
 
   const isLiked = post.likedBy?.includes(currentUser.uid);
   const isSaved = post.isSaved;
+
+  // Derived handle from userName
+  const handle = `@${post.userName.toLowerCase().replace(/\s+/g, '')}`;
 
   const handleSubmitComment = () => {
     if (commentText.trim()) {
@@ -82,30 +86,36 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div
-          className="flex items-center gap-3 cursor-pointer"
+          className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
           onClick={() => router.push(`/profile/${post.authorId}`)}
         >
           <img
             src={post.userProfilePic || '/default-avatar.png'}
             alt={post.userName}
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
             onError={(e) => {
               e.currentTarget.src = '/default-avatar.png';
             }}
           />
-          <div>
-            <p className="text-white font-medium text-sm">{post.userName || 'User'}</p>
-            {post.location && (
-              <div className="flex items-center gap-1 text-gray-400 text-xs">
-                <MapPin className="w-3 h-3" />
-                <span className="truncate max-w-[200px]">
-                  {post.location.length > 30 ? `${post.location.slice(0, 30)}...` : post.location}
-                </span>
-              </div>
-            )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 truncate">
+              <p className="text-white font-semibold text-sm truncate">{post.userName || 'User'}</p>
+              <p className="text-gray-500 text-xs truncate">{handle}</p>
+            </div>
+            <div className="flex items-center gap-1 text-gray-400 text-xs truncate mt-0.5">
+              {post.location && (
+                <>
+                  <span className="truncate max-w-[150px]">
+                    {post.location.length > 25 ? `${post.location.slice(0, 25)}...` : post.location}
+                  </span>
+                  <span>·</span>
+                </>
+              )}
+              <span className="flex-shrink-0">{formatDate(post.createdAt)}</span>
+            </div>
           </div>
         </div>
-        <button onClick={onMenuClick} className="text-gray-400 hover:text-white">
+        <button onClick={onMenuClick} className="text-gray-400 hover:text-white flex-shrink-0 ml-2">
           <MoreHorizontal className="w-5 h-5" />
         </button>
       </div>
@@ -148,7 +158,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
               onClick={onLike}
               className="hover:opacity-70 transition-opacity"
             >
-              <Heart
+              <FaHeart
                 className={`w-6 h-6 ${isLiked ? 'fill-[#EA6100] text-[#EA6100]' : 'text-white'}`}
               />
             </button>
@@ -210,13 +220,6 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
           >
             View all {post.commentCount} {post.commentCount === 1 ? 'comment' : 'comments'}
           </button>
-        )}
-
-        {/* Timestamp */}
-        {post.createdAt && (
-          <p className="text-gray-500 text-xs uppercase">
-            {formatDate(post.createdAt)}
-          </p>
         )}
       </div>
 
